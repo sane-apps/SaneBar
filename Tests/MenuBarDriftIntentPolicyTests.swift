@@ -40,6 +40,78 @@ struct MenuBarDriftIntentPolicyTests {
         ))
     }
 
+    @Test("Wide external display status cluster offset does not trigger recovery")
+    func wideExternalDisplayStatusClusterOffsetIsHealthy() {
+        // #159: live AppKit positions can sit ~200pt farther from the screen
+        // edge than SaneBar's NSStatusItem preferred-position value because
+        // Apple's own status cluster also occupies right-side menu-bar space.
+        #expect(MenuBarVisibilityPolicy.shouldRecoverStartupPositions(
+            separatorX: 2520,
+            mainX: 2695,
+            mainRightGap: 377,
+            screenWidth: 3072,
+            persistedMainDistanceFromRight: 160
+        ) == false)
+    }
+
+    @Test("Unsafe persisted intent cannot suppress absolute startup recovery")
+    func unsafePersistedIntentCannotSuppressAbsoluteStartupRecovery() {
+        #expect(MenuBarVisibilityPolicy.shouldRecoverStartupPositions(
+            separatorX: 2_400,
+            mainX: 2_520,
+            mainRightGap: 520,
+            screenWidth: 3_072,
+            persistedMainDistanceFromRight: 420
+        ))
+        #expect(MenuBarVisibilityPolicy.shouldRecoverStartupPositions(
+            separatorX: 2_400,
+            mainX: 2_520,
+            mainRightGap: 452,
+            screenWidth: 3_072,
+            persistedMainDistanceFromRight: 420
+        ) == false)
+        #expect(MenuBarVisibilityPolicy.shouldRecoverStartupPositions(
+            separatorX: 1_988,
+            mainX: 2_068,
+            mainRightGap: 492,
+            screenWidth: 2_560,
+            persistedMainDistanceFromRight: 460
+        ))
+        #expect(MenuBarVisibilityPolicy.shouldRecoverStartupPositions(
+            separatorX: 2_028,
+            mainX: 2_108,
+            mainRightGap: 452,
+            screenWidth: 2_560,
+            persistedMainDistanceFromRight: 430
+        ) == false)
+    }
+
+    @Test("Wide-display drift tolerance is capped")
+    func wideDisplayDriftToleranceIsCapped() {
+        #expect(MenuBarVisibilityPolicy.mainDriftFromPersistedIntentTolerance(screenWidth: 6_000) == 320)
+        #expect(MenuBarVisibilityPolicy.shouldRecoverStartupPositions(
+            separatorX: 5_400,
+            mainX: 5_550,
+            mainRightGap: 480,
+            screenWidth: 6_000,
+            persistedMainDistanceFromRight: 180
+        ) == false)
+        #expect(MenuBarVisibilityPolicy.shouldRecoverStartupPositions(
+            separatorX: 5_400,
+            mainX: 5_550,
+            mainRightGap: 501,
+            screenWidth: 6_000,
+            persistedMainDistanceFromRight: 180
+        ))
+    }
+
+    @Test("Invalid screen width uses minimum drift tolerance")
+    func invalidScreenWidthUsesMinimumDriftTolerance() {
+        #expect(MenuBarVisibilityPolicy.mainDriftFromPersistedIntentTolerance(screenWidth: nil) == 160)
+        #expect(MenuBarVisibilityPolicy.mainDriftFromPersistedIntentTolerance(screenWidth: -1) == 160)
+        #expect(MenuBarVisibilityPolicy.mainDriftFromPersistedIntentTolerance(screenWidth: .infinity) == 160)
+    }
+
     @Test("Falls back to absolute zone checks when persisted intent is unknown")
     func absoluteFallbackWithoutIntent() {
         #expect(MenuBarVisibilityPolicy.shouldRecoverStartupPositions(

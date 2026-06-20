@@ -141,7 +141,11 @@ class ProjectQA
     args << '--head' if head
     args << url
 
-    output, status = Open3.capture2e(*args)
+    output, status = capture2e_with_runtime_timeout(
+      *args,
+      timeout: max_time.to_f + 3.0,
+      label: "#{head ? 'HEAD' : 'GET'} URL status"
+    )
     return nil unless status.success?
 
     code = output.to_s.scan(/\b\d{3}\b/).last.to_i

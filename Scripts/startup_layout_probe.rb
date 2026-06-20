@@ -9,6 +9,7 @@ require 'time'
 require 'digest'
 require 'securerandom'
 require 'rexml/document'
+require 'socket'
 
 class StartupLayoutProbe
   SETTINGS_PATH = File.expand_path('~/Library/Application Support/SaneBar/settings.json')
@@ -23,6 +24,8 @@ class StartupLayoutProbe
   CAPTURE_LOG_OUTPUT_MAX_BYTES = 16_000
   DEFAULT_GRACEFUL_QUIT_TIMEOUT_SECONDS = 3.0
   DEFAULT_FORCE_QUIT_TIMEOUT_SECONDS = 2.0
+  NO_KEYCHAIN_LAUNCH_REGISTRATION_GRACE_SECONDS = 1.5
+  DEFAULT_RESOURCE_SOAK_SECONDS = 10 * 60
   AUTOMATION_QUIT_TOKEN_ENV = 'SANEBAR_AUTOMATION_QUIT_TOKEN'
   DEFAULT_AUTOMATION_QUIT_MARKER_PATH = '/tmp/sanebar_explicit_termination.token'
 
@@ -191,17 +194,11 @@ class StartupLayoutProbe
     backup_state!
     prepare_startup_probe_settings!
 
-    poisoned_backup_case = run_probe_case('current-width backup restore') { run_poisoned_backup_restore_case }
-    current_host_visibility_case = run_probe_case('currentHost visibility cleanup') { run_current_host_visibility_override_case }
-    auto_rehide_case = run_probe_case('autoRehide=false startup') { run_auto_rehide_false_case }
-    dirty_reboot_case = run_probe_case('#157 dirty reboot recovery') { run_dirty_reboot_recovery_case }
-    always_hidden_replay_case = run_probe_case('#155 Always Hidden dirty replay') { run_always_hidden_dirty_replay_outbound_case }
-
-    @cases << poisoned_backup_case
-    @cases << current_host_visibility_case
-    @cases << auto_rehide_case
-    @cases << dirty_reboot_case
-    @cases << always_hidden_replay_case
+    run_probe_case('current-width backup restore') { run_poisoned_backup_restore_case }
+    run_probe_case('currentHost visibility cleanup') { run_current_host_visibility_override_case }
+    run_probe_case('autoRehide=false startup') { run_auto_rehide_false_case }
+    run_probe_case('#157 dirty reboot recovery') { run_dirty_reboot_recovery_case }
+    run_probe_case('#155 Always Hidden dirty replay') { run_always_hidden_dirty_replay_outbound_case }
 
     restore_state!
     @state_restored = true
@@ -210,6 +207,8 @@ class StartupLayoutProbe
       status: 'pass',
       bundle_id: @bundle_id,
       app_path: @app_path,
+      candidate: runtime_candidate_metadata,
+      runtime_provenance: runtime_provenance,
       completed_scenarios: completed_scenarios_from_cases(@cases),
       cases: @cases
     )
@@ -220,6 +219,8 @@ class StartupLayoutProbe
       status: 'fail',
       bundle_id: @bundle_id,
       app_path: @app_path,
+      candidate: runtime_candidate_metadata,
+      runtime_provenance: runtime_provenance,
       error: e.message,
       backtrace: Array(e.backtrace).first(12),
       completed_scenarios: completed_scenarios_from_cases(@cases),
@@ -246,8 +247,22 @@ class StartupLayoutProbe
   def run_probe_case(label)
     puts "   ↳ startup probe: #{label}"
     result = yield
+    @cases << result
     puts "   ✅ startup probe: #{label}"
     result
+  rescue StandardError => e
+    partial = {
+      name: label,
+      status: 'fail',
+      error: e.message
+    }
+    begin
+      partial[:last_snapshot] = read_layout_snapshot!
+    rescue StandardError => snapshot_error
+      partial[:last_snapshot_error] = "#{snapshot_error.class}: #{snapshot_error.message}"
+    end
+    @cases << partial
+    raise
   end
 
   def validate_target!
@@ -258,9 +273,9 @@ class StartupLayoutProbe
   def backup_state!
     _out, status = capture('defaults', 'export', bundle_identifier, @defaults_backup_path)
     @had_defaults_domain = status.success? && File.exist?(@defaults_backup_path)
-    if File.exist?(SETTINGS_PATH)
+    if safe_existing_file?(SETTINGS_PATH)
       FileUtils.mkdir_p(File.dirname(@settings_backup_path))
-      FileUtils.cp(SETTINGS_PATH, @settings_backup_path)
+      safe_copy_file(SETTINGS_PATH, @settings_backup_path)
       @had_settings_file = true
     end
     backup_current_host_status_item_state!
@@ -283,9 +298,9 @@ class StartupLayoutProbe
       raise "Missing settings backup #{@settings_backup_path}" unless File.exist?(@settings_backup_path)
 
       FileUtils.mkdir_p(File.dirname(SETTINGS_PATH))
-      FileUtils.cp(@settings_backup_path, SETTINGS_PATH)
+      safe_copy_file(@settings_backup_path, SETTINGS_PATH)
     else
-      FileUtils.rm_f(SETTINGS_PATH)
+      safe_remove_file(SETTINGS_PATH)
     end
 
     restore_original_launch_mode!
@@ -606,15 +621,37 @@ class StartupLayoutProbe
       label: '#155 AH-to-Visible after dirty startup'
     )
     idle_snapshot = assert_move_idle!('#155 dirty AH replay outbound moves')
+    resource_soak = run_resource_soak_after_155! if resource_soak_after_155_enabled?
+    post_soak = nil
+    if resource_soak
+      post_soak = {
+        hidden_zone: wait_for_icon_zone!(
+          hidden_exit_candidate[:unique_id],
+          'hidden',
+          label: '#155 hidden-exit remains Hidden after resource soak'
+        ),
+        visible_zone: wait_for_icon_zone!(
+          visible_exit_candidate[:unique_id],
+          'visible',
+          label: '#155 visible-exit remains Visible after resource soak'
+        ),
+        idle: assert_move_idle!('#155 dirty AH replay post-resource-soak')
+      }
+    end
+    completed_scenarios = [
+      '#155 dirty startup does not give up AH replay',
+      '#155 dirty startup restores pinned icons into Always Hidden before outbound moves',
+      '#155 pinned icon exits Always Hidden after dirty startup',
+      '#155 Always Hidden outbound moves leave move state idle'
+    ]
+    if resource_soak
+      completed_scenarios << '#155 dirty startup resource soak remains stable after outbound moves'
+      completed_scenarios << '#155 outbound move state remains durable after resource soak'
+    end
 
-    {
+    result = {
       name: '#155 dirty startup AH replay allows outbound moves',
-      completed_scenarios: [
-        '#155 dirty startup does not give up AH replay',
-        '#155 dirty startup restores pinned icons into Always Hidden before outbound moves',
-        '#155 pinned icon exits Always Hidden after dirty startup',
-        '#155 Always Hidden outbound moves leave move state idle'
-      ],
+      completed_scenarios: completed_scenarios,
       width_bucket: width_bucket,
       candidates: [
         sanitized_replay_candidate(hidden_exit_candidate, role: 'hidden_exit', observed_zone: hidden_replay_zone),
@@ -628,8 +665,98 @@ class StartupLayoutProbe
         idle: idle_snapshot
       }
     }
+    result[:resource_soak] = resource_soak if resource_soak
+    result[:post_soak] = post_soak if post_soak
+    result
   ensure
     restore_current_host_defaults(original_visibility_values) if original_visibility_values
+  end
+
+  def resource_soak_after_155_enabled?
+    ENV['SANEBAR_STARTUP_PROBE_RESOURCE_SOAK_AFTER_155'] == '1'
+  end
+
+  def run_resource_soak_after_155!
+    duration_seconds = resource_soak_duration_seconds
+    min_duration_seconds = resource_soak_min_duration_seconds(duration_seconds)
+    env = {
+      'SANEMASTER_RESOURCE_SOAK_SECONDS' => duration_seconds.to_s,
+      'SANEMASTER_RESOURCE_SOAK_MIN_SECONDS' => min_duration_seconds.to_s,
+      'SANEMASTER_RESOURCE_SOAK_PROGRESS' => '0'
+    }
+    command = [
+      File.join('.', 'scripts', 'SaneMaster.rb'),
+      'resource_soak',
+      '--adaptive',
+      '--duration-seconds',
+      duration_seconds.to_s,
+      '--json'
+    ]
+    log(
+      "#155 dirty AH replay starting resource soak " \
+      "duration=#{duration_seconds}s min=#{min_duration_seconds}s"
+    )
+    out, status = capture_with_env(env, *command)
+    report = parse_json_object_output(out, label: '#155 resource soak report')
+    raise "#155 resource soak command failed: #{truncated_log_output(out)}" unless status.success?
+    raise "#155 resource soak failed: #{Array(report['issues']).join('; ')}" unless report['ok']
+
+    artifact_path = report['artifact_path'].to_s
+    artifact = JSON.parse(safe_read_file(artifact_path))
+    unless artifact['status'] == 'pass'
+      raise "#155 resource soak artifact status is #{artifact['status'].inspect}, expected pass"
+    end
+    durable_artifact_path = durable_resource_soak_path(artifact_path)
+    safe_copy_file(artifact_path, durable_artifact_path)
+    log_path = report['log_path'].to_s
+    durable_log_path = nil
+    unless log_path.empty?
+      safe_existing_file?(log_path)
+      durable_log_path = durable_resource_soak_path(log_path)
+      safe_copy_file(log_path, durable_log_path)
+    end
+
+    {
+      status: 'pass',
+      completed_scenarios: ['#155 dirty startup resource soak remains stable after outbound moves'],
+      artifact_completed_scenarios: Array(artifact['completed_scenarios']),
+      artifact_path: durable_artifact_path,
+      log_path: durable_log_path,
+      ephemeral_artifact_path: artifact_path,
+      ephemeral_log_path: log_path,
+      candidate: artifact['candidate'],
+      duration_seconds: report['duration_seconds'],
+      sample_count: report['sample_count'],
+      adaptive_status: report['adaptive_status'],
+      avg_cpu: report['avg_cpu'],
+      peak_rss_mb: report['peak_rss_mb'],
+      peak_physical_footprint_mb: report['peak_physical_footprint_mb']
+    }
+  end
+
+  def durable_resource_soak_path(source)
+    extension = File.extname(source.to_s)
+    extension = '.txt' if extension.empty?
+    base = File.basename(@artifact_path, File.extname(@artifact_path))
+    File.join(File.dirname(@artifact_path), "#{base}_155_resource_soak#{extension}")
+  end
+
+  def resource_soak_duration_seconds
+    Integer(
+      ENV.fetch('SANEBAR_STARTUP_PROBE_RESOURCE_SOAK_SECONDS', DEFAULT_RESOURCE_SOAK_SECONDS.to_s),
+      10
+    ).tap do |value|
+      raise 'SANEBAR_STARTUP_PROBE_RESOURCE_SOAK_SECONDS must be positive' unless value.positive?
+    end
+  end
+
+  def resource_soak_min_duration_seconds(duration_seconds)
+    Integer(
+      ENV.fetch('SANEBAR_STARTUP_PROBE_RESOURCE_SOAK_MIN_SECONDS', duration_seconds.to_s),
+      10
+    ).tap do |value|
+      raise 'SANEBAR_STARTUP_PROBE_RESOURCE_SOAK_MIN_SECONDS must be non-negative' if value.negative?
+    end
   end
 
   def dirty_reboot_settings(settings)
@@ -656,8 +783,8 @@ class StartupLayoutProbe
 
   def preferred_always_hidden_replay_candidates
     preferred_bundles = [
-      'com.sanebar.hostsentinel',
-      'com.sanebar.sharedfixture'
+      'com.sanebar.sharedfixture',
+      'com.sanebar.hostsentinel'
     ]
     list_icon_zones
       .select { |item| item[:movable] && deterministic_replay_candidate_id?(item) }
@@ -978,22 +1105,50 @@ class StartupLayoutProbe
   end
 
   def app_pids
-    return [] unless @app_name
+    app_processes.map { |process| process[:pid] }
+  end
 
+  def app_processes
+    return [] unless @app_name
     process_path = File.join(@app_path, 'Contents', 'MacOS', @app_name)
     out, status = Open3.capture2e('ps', '-axo', 'pid=,command=')
     return [] unless status.success?
 
-    out.lines.map do |line|
-      next unless line.include?(process_path)
+    out.lines.each_with_object([]) do |line, result|
+      stripped = line.strip
+      pid, command = stripped.split(/\s+/, 2)
+      next unless pid && command
+      next unless command.split(/\s+/, 2).first.to_s == process_path
 
-      line.split.first.to_i
-    end.compact.select(&:positive?)
+      numeric_pid = pid.to_i
+      result << { pid: numeric_pid, command: command } if numeric_pid.positive?
+    end
+  end
+
+  def ensure_single_target_process!(context)
+    processes = app_processes
+    raise "#{context}: #{@app_name} test target is not running" if processes.empty?
+
+    if processes.length > 1
+      raise "#{context}: duplicate #{@app_name} test processes: #{format_app_processes(processes)}"
+    end
+
+    process = processes.first
+    if no_keychain_launch? && !process[:command].include?('--sane-no-keychain')
+      raise "#{context}: expected no-keychain #{@app_name} process, got #{format_app_processes(processes)}"
+    end
+
+    true
+  end
+
+  def format_app_processes(processes)
+    processes.map { |process| "#{process[:pid]} #{process[:command]}" }.join(' | ')
   end
 
   def launch_app
     if no_keychain_launch?
       launch_app_direct
+      sleep NO_KEYCHAIN_LAUNCH_REGISTRATION_GRACE_SECONDS
     else
       out, status = capture('open', @app_path)
       raise "Failed to launch #{@app_path}: #{out}" unless status.success?
@@ -1002,7 +1157,7 @@ class StartupLayoutProbe
     launched = false
     deadline = Time.now + 20
     until Time.now >= deadline
-      if layout_snapshot_available?
+      if target_process_ready? && layout_snapshot_available?
         launched = true
         break
       end
@@ -1010,6 +1165,12 @@ class StartupLayoutProbe
     end
 
     raise "Timed out waiting for #{@app_name} launch" unless launched
+  end
+
+  def target_process_ready?
+    ensure_single_target_process!('launch wait')
+  rescue StandardError
+    false
   end
 
   def no_keychain_launch?
@@ -1056,6 +1217,7 @@ class StartupLayoutProbe
 
     path = automation_quit_marker_path
     temp_path = "#{path}.#{Process.pid}.tmp"
+    safe_directory_path!(File.dirname(path))
     File.open(temp_path, File::WRONLY | File::CREAT | File::TRUNC, 0o600) do |file|
       file.write("#{@automation_quit_token}\n")
     end
@@ -1069,8 +1231,8 @@ class StartupLayoutProbe
     return if @automation_quit_token.to_s.empty?
 
     path = automation_quit_marker_path
-    return unless File.file?(path)
-    return unless File.read(path).strip == @automation_quit_token
+    return unless safe_existing_file?(path)
+    return unless safe_read_file(path).strip == @automation_quit_token
 
     FileUtils.rm_f(path)
   rescue Errno::ENOENT
@@ -1095,6 +1257,7 @@ class StartupLayoutProbe
   end
 
   def read_layout_snapshot!
+    ensure_single_target_process!('layout snapshot')
     out, status = capture('osascript', '-e', "tell application id \"#{bundle_identifier}\" to layout snapshot")
     raise "layout snapshot failed: #{out}" unless status.success?
 
@@ -1348,8 +1511,8 @@ class StartupLayoutProbe
   end
 
   def restore_current_host_status_item_state!
-    original_state = if File.exist?(@current_host_backup_path)
-                       JSON.parse(File.read(@current_host_backup_path))
+    original_state = if safe_existing_file?(@current_host_backup_path)
+                       JSON.parse(safe_read_file(@current_host_backup_path))
                      else
                        {}
                      end
@@ -1406,16 +1569,16 @@ class StartupLayoutProbe
   end
 
   def load_settings_json
-    return {} unless File.exist?(SETTINGS_PATH)
+    return {} unless safe_existing_file?(SETTINGS_PATH)
 
-    JSON.parse(File.read(SETTINGS_PATH))
+    JSON.parse(safe_read_file(SETTINGS_PATH))
   rescue JSON::ParserError => e
     raise "Could not parse #{SETTINGS_PATH}: #{e.message}"
   end
 
   def save_settings_json(payload)
     FileUtils.mkdir_p(File.dirname(SETTINGS_PATH))
-    File.write(SETTINGS_PATH, JSON.pretty_generate(payload) + "\n")
+    safe_write_file(SETTINGS_PATH, JSON.pretty_generate(payload) + "\n")
   end
 
   def parsed_snapshot_value(snapshot, key)
@@ -1440,6 +1603,7 @@ class StartupLayoutProbe
   end
 
   def applescript_command(statement)
+    ensure_single_target_process!("AppleScript #{statement}")
     capture(
       'osascript',
       '-e',
@@ -1462,6 +1626,25 @@ class StartupLayoutProbe
     log("$ #{cmd.join(' ')}")
     log_capture_output(out)
     [out, status]
+  end
+
+  def capture_with_env(env, *cmd)
+    out, status = Open3.capture2e(env, *cmd)
+    env_prefix = env.keys.sort.map { |key| "#{key}=#{env[key]}" }.join(' ')
+    log("$ #{env_prefix} #{cmd.join(' ')}")
+    log_capture_output(out)
+    [out, status]
+  end
+
+  def parse_json_object_output(output, label:)
+    text = output.to_s
+    start_index = text.index('{')
+    end_index = text.rindex('}')
+    raise "#{label} did not include a JSON object" unless start_index && end_index && end_index >= start_index
+
+    JSON.parse(text[start_index..end_index])
+  rescue JSON::ParserError => e
+    raise "#{label} returned invalid JSON: #{e.message}"
   end
 
   def log_capture_output(output)
@@ -1493,16 +1676,114 @@ class StartupLayoutProbe
     safe_write_file(@artifact_path, JSON.pretty_generate(payload) + "\n")
   end
 
+  def runtime_provenance
+    {
+      mini_runtime: mini_runtime_host?,
+      host: Socket.gethostname,
+      generated_at: Time.now.utc.iso8601,
+      app_path: @app_path,
+      bundle_id: @bundle_id
+    }
+  end
+
+  def runtime_candidate_metadata
+    {
+      app_path: @app_path,
+      app_version: bundle_info_value('CFBundleShortVersionString'),
+      app_build: bundle_info_value('CFBundleVersion')
+    }
+  end
+
+  def bundle_info_value(key)
+    info_plist = File.join(@app_path.to_s, 'Contents', 'Info.plist')
+    return nil unless File.exist?(info_plist)
+
+    out, status = Open3.capture2e('/usr/libexec/PlistBuddy', '-c', "Print :#{key}", info_plist)
+    status.success? ? out.strip : nil
+  end
+
+  def mini_runtime_host?
+    Socket.gethostname.to_s.downcase.include?('mini')
+  rescue StandardError
+    false
+  end
+
   def safe_write_file(path, content)
+    safe_directory_path!(File.dirname(path))
+    FileUtils.mkdir_p(File.dirname(path))
     File.open(path, safe_file_write_flags, 0o600) do |file|
       file.write(content)
     end
+  end
+
+  def safe_copy_file(source, destination)
+    safe_write_file(destination, safe_read_file(source))
+  end
+
+  def safe_read_file(path)
+    safe_directory_path!(File.dirname(path))
+    File.open(path, safe_file_read_flags) do |file|
+      file.read
+    end
+  end
+
+  def safe_remove_file(path)
+    return unless safe_existing_file?(path)
+
+    FileUtils.rm_f(path)
+  end
+
+  def safe_existing_file?(path)
+    safe_directory_path!(File.dirname(path))
+    stat = File.lstat(path)
+    raise "Unsafe symlink settings path: #{path}" if stat.symlink?
+    raise "Unsafe non-file settings path: #{path}" unless stat.file?
+
+    true
+  rescue Errno::ENOENT
+    false
   end
 
   def safe_file_write_flags
     flags = File::WRONLY | File::CREAT | File::TRUNC
     flags |= File::NOFOLLOW if File.const_defined?(:NOFOLLOW)
     flags
+  end
+
+  def safe_file_read_flags
+    flags = File::RDONLY
+    flags |= File::NOFOLLOW if File.const_defined?(:NOFOLLOW)
+    flags
+  end
+
+  def safe_directory_path!(path)
+    expanded = File.expand_path(path)
+    current = expanded.start_with?(File::SEPARATOR) ? File::SEPARATOR : Dir.pwd
+    expanded.split(File::SEPARATOR).reject(&:empty?).each do |component|
+      current = current == File::SEPARATOR ? File.join(current, component) : File.join(current, component)
+      next unless File.exist?(current)
+
+      stat = File.lstat(current)
+      if stat.symlink?
+        real = File.realpath(current) rescue nil
+        next if allowed_system_temp_directory_symlink?(current, real)
+
+        raise "Unsafe symlink directory path: #{current}"
+      end
+      raise "Unsafe non-directory path: #{current}" unless stat.directory?
+    end
+    true
+  end
+
+  def allowed_system_temp_directory_symlink?(path, real)
+    expanded = File.expand_path(path)
+    canonical = File.expand_path(real.to_s)
+    return true if expanded == '/tmp' && canonical == '/private/tmp'
+    return true if expanded == '/var' && canonical == '/private/var'
+
+    expanded == File.expand_path(Dir.tmpdir) && canonical == File.realpath(Dir.tmpdir)
+  rescue StandardError
+    false
   end
 
   def completed_scenarios_from_cases(cases)

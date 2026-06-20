@@ -1,17 +1,51 @@
 import AppKit
 import Combine
+import CoreGraphics
 import os.log
 
 private let logger = Logger(subsystem: "com.sanebar.app", category: "MenuBarObserverWorkflow")
+private let displayBeginConfigurationFlag = CGDisplayChangeSummaryFlags(rawValue: 1 << 0)
+private let displayMovedFlag = CGDisplayChangeSummaryFlags(rawValue: 1 << 1)
+private let displaySetMainFlag = CGDisplayChangeSummaryFlags(rawValue: 1 << 2)
+private let displaySetModeFlag = CGDisplayChangeSummaryFlags(rawValue: 1 << 3)
+private let displayAddFlag = CGDisplayChangeSummaryFlags(rawValue: 1 << 4)
+private let displayRemoveFlag = CGDisplayChangeSummaryFlags(rawValue: 1 << 5)
+private let displayEnabledFlag = CGDisplayChangeSummaryFlags(rawValue: 1 << 8)
+private let displayDisabledFlag = CGDisplayChangeSummaryFlags(rawValue: 1 << 9)
+private let displayMirrorFlag = CGDisplayChangeSummaryFlags(rawValue: 1 << 10)
+private let displayUnMirrorFlag = CGDisplayChangeSummaryFlags(rawValue: 1 << 11)
+private let displayDesktopShapeChangedFlag = CGDisplayChangeSummaryFlags(rawValue: 1 << 12)
+private let displayTopologyChangedFlags = CGDisplayChangeSummaryFlags(
+    rawValue: displayMovedFlag.rawValue |
+        displaySetMainFlag.rawValue |
+        displaySetModeFlag.rawValue |
+        displayAddFlag.rawValue |
+        displayRemoveFlag.rawValue |
+        displayEnabledFlag.rawValue |
+        displayDisabledFlag.rawValue |
+        displayMirrorFlag.rawValue |
+        displayUnMirrorFlag.rawValue |
+        displayDesktopShapeChangedFlag.rawValue
+)
 
 @MainActor
 final class MenuBarObserverWorkflow {
     private unowned let manager: MenuBarManager
     private var cancellables = Set<AnyCancellable>()
     private var previousObservedSettings = SaneBarSettings()
+    private var displayReconfigurationObserverInstalled = false
+    private var displayResumePendingAfterDisable = false
 
     init(manager: MenuBarManager) {
         self.manager = manager
+    }
+
+    deinit {
+        guard displayReconfigurationObserverInstalled else { return }
+        CGDisplayRemoveReconfigurationCallback(
+            Self.displayReconfigurationCallback,
+            Unmanaged.passUnretained(self).toOpaque()
+        )
     }
 
     func setInitialSettings(_ settings: SaneBarSettings) {
@@ -155,6 +189,7 @@ final class MenuBarObserverWorkflow {
             .sink { [weak self] _ in
                 guard let self else { return }
                 manager.clearCachedSeparatorGeometryForLifecycleTransition(reason: "screenParametersChanged")
+                manager.cancelVisibilityIntentReplayTask(reason: "screenParametersChanged")
                 logger.debug("Screen parameters changed - refreshed cached separator policy")
                 manager.enforceExternalMonitorVisibilityPolicy(reason: "screenParametersChanged")
                 // Replay pinned visibility intent only after validation reports healthy anchors.
@@ -169,6 +204,7 @@ final class MenuBarObserverWorkflow {
                 guard let self else { return }
                 manager.positionValidationGeneration += 1
                 manager.clearCachedSeparatorGeometryForLifecycleTransition(reason: "willSleep")
+                manager.cancelWakeVisibleAllowListReplay(reason: "willSleep")
                 logger.debug("System will sleep - cancelled pending position validation and refreshed cached separator policy")
             }
             .store(in: &cancellables)
@@ -180,6 +216,7 @@ final class MenuBarObserverWorkflow {
                 guard let self else { return }
                 manager.positionValidationGeneration += 1
                 manager.clearCachedSeparatorGeometryForLifecycleTransition(reason: "screensDidSleep")
+                manager.cancelWakeVisibleAllowListReplay(reason: "screensDidSleep")
                 logger.debug("Screens did sleep - cancelled pending position validation and refreshed cached separator policy")
             }
             .store(in: &cancellables)
@@ -212,22 +249,112 @@ final class MenuBarObserverWorkflow {
             .publisher(for: NSWorkspace.sessionDidBecomeActiveNotification)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
-                self?.handleWakeResume(notificationName: "Session became active")
+                self?.handleSessionBecameActive()
             }
             .store(in: &cancellables)
+
+        installDisplayReconfigurationObserver()
+    }
+
+    private func installDisplayReconfigurationObserver() {
+        guard !displayReconfigurationObserverInstalled else { return }
+
+        let result = CGDisplayRegisterReconfigurationCallback(
+            Self.displayReconfigurationCallback,
+            Unmanaged.passUnretained(self).toOpaque()
+        )
+        if result == .success {
+            displayReconfigurationObserverInstalled = true
+            logger.debug("Installed CoreGraphics display reconfiguration observer")
+        } else {
+            logger.error(
+                "Failed to install CoreGraphics display reconfiguration observer: \(result.rawValue, privacy: .public)"
+            )
+        }
+    }
+
+    nonisolated private static let displayReconfigurationCallback: CGDisplayReconfigurationCallBack = { display, flags, userInfo in
+        guard let userInfo else { return }
+        let workflow = Unmanaged<MenuBarObserverWorkflow>.fromOpaque(userInfo).takeUnretainedValue()
+        Task { @MainActor [workflow] in
+            workflow.handleDisplayReconfiguration(display: display, flags: flags)
+        }
+    }
+
+    private func handleDisplayReconfiguration(display: CGDirectDisplayID, flags: CGDisplayChangeSummaryFlags) {
+        if flags.contains(displayBeginConfigurationFlag) {
+            cancelStaleDisplayValidation(
+                reason: "displayReconfigurationBegin",
+                display: display,
+                flags: flags
+            )
+            return
+        }
+
+        if flags.contains(displayDisabledFlag) {
+            displayResumePendingAfterDisable = true
+            cancelStaleDisplayValidation(
+                reason: "displayReconfigurationDisabled",
+                display: display,
+                flags: flags
+            )
+            return
+        }
+
+        guard !flags.isDisjoint(with: displayTopologyChangedFlags) else { return }
+
+        if flags.contains(displayEnabledFlag) || displayResumePendingAfterDisable {
+            displayResumePendingAfterDisable = false
+            handleWakeResume(notificationName: "Display reconfiguration wake")
+            return
+        }
+
+        manager.clearCachedSeparatorGeometryForLifecycleTransition(reason: "screenParametersChanged")
+        manager.cancelVisibilityIntentReplayTask(reason: "screenParametersChanged")
+        logger.debug(
+            "Display reconfiguration changed - refreshed cached separator policy (display=\(display, privacy: .public), flags=\(flags.rawValue, privacy: .public))"
+        )
+        manager.enforceExternalMonitorVisibilityPolicy(reason: "screenParametersChanged")
+        manager.schedulePositionValidation(context: .screenParametersChanged)
+    }
+
+    private func cancelStaleDisplayValidation(
+        reason: String,
+        display: CGDirectDisplayID,
+        flags: CGDisplayChangeSummaryFlags
+    ) {
+        manager.positionValidationGeneration += 1
+        manager.clearCachedSeparatorGeometryForLifecycleTransition(reason: reason)
+        manager.cancelWakeVisibleAllowListReplay(reason: reason)
+        logger.debug(
+            "Display reconfiguration invalidated pending status-item validation (\(reason, privacy: .public), display=\(display, privacy: .public), flags=\(flags.rawValue, privacy: .public))"
+        )
     }
 
     private func handleWakeResume(notificationName: String) {
+        manager.positionValidationGeneration += 1
         manager.clearCachedSeparatorGeometryForLifecycleTransition(reason: "wakeResume")
         logger.debug("\(notificationName, privacy: .public) - refreshed cached separator policy")
         manager.enforceExternalMonitorVisibilityPolicy(reason: "wakeResume")
-        // Wake can briefly report stale menu-bar coordinates; validation owns replay once stable.
+        // Wake can briefly report stale menu-bar coordinates; validation owns
+        // any physical replay only after attachment loss is confirmed.
         manager.schedulePositionValidation(context: .wakeResume)
         manager.schedulePostRecoveryAutoRehideIfNeeded(reason: "wakeResume")
     }
 
+    private func handleSessionBecameActive() {
+        manager.clearCachedSeparatorGeometryForLifecycleTransition(reason: "sessionDidBecomeActive")
+        logger.debug("Session became active - refreshed cached separator policy")
+        manager.enforceExternalMonitorVisibilityPolicy(reason: "sessionDidBecomeActive")
+        // Unlock/fast-user-switch can disturb status items, but it must not grant
+        // the cached hidden-snapshot exception reserved for real wake recovery.
+        manager.schedulePositionValidation(context: .activeSpaceChanged)
+        manager.schedulePostRecoveryAutoRehideIfNeeded(reason: "sessionDidBecomeActive")
+    }
+
     private func handleActiveSpaceChange() {
         manager.clearCachedSeparatorGeometryForLifecycleTransition(reason: "activeSpaceChanged")
+        manager.cancelVisibilityIntentReplayTask(reason: "activeSpaceChanged")
         logger.debug("Active Space changed - refreshed cached separator policy")
         manager.enforceExternalMonitorVisibilityPolicy(reason: "activeSpaceChanged")
         // Space switches can briefly report stale menu-bar coordinates on macOS 27;

@@ -441,7 +441,11 @@ enum AccessibilityInteractionPolicy {
             // Always-hidden insertion should stay close to the AH separator instead
             // of using the deeper generic hidden target, which can overshoot across
             // sibling icons and fail exact-identity verification.
-            return separatorX - moveOffset
+            let wideAlwaysHiddenThreshold: CGFloat = 56
+            let alwaysHiddenOffset = iconWidth >= wideAlwaysHiddenThreshold
+                ? max(moveOffset, iconWidth + 40)
+                : moveOffset
+            return separatorX - alwaysHiddenOffset
 
         case .visibleFromAlwaysHidden:
             return visibleInsertionTargetX(

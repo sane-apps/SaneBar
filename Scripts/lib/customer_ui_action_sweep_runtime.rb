@@ -3,6 +3,7 @@
 class CustomerUIActionSweep
   RELEASE_RUNTIME_EVIDENCE_MAX_AGE_SECONDS = 2 * 60 * 60
   SWEEP_RUNTIME_ARTIFACT_MAX_AGE_SECONDS = 30 * 60
+  RUNTIME_PREFLIGHT_EVIDENCE_DIR = File.join(PROJECT_ROOT, 'outputs', 'runtime-preflight')
   RESOURCE_SOAK_ARTIFACT_PATH = '/tmp/sanebar_runtime_resource_soak.json'
   RESOURCE_SOAK_MAX_AGE_SECONDS = SWEEP_RUNTIME_ARTIFACT_MAX_AGE_SECONDS
   RESOURCE_SOAK_CLOCK_SKEW_SECONDS = 5 * 60
@@ -18,8 +19,14 @@ class CustomerUIActionSweep
 
   def verify_recent_runtime_smoke
     smoke_log = '/tmp/sanebar_runtime_smoke.log'
-    startup_log = '/tmp/sanebar_runtime_startup_probe.log'
-    wake_log = '/tmp/sanebar_runtime_wake_probe.log'
+    startup_log = first_fresh_runtime_evidence_path(
+      File.join(RUNTIME_PREFLIGHT_EVIDENCE_DIR, 'sanebar_runtime_startup_probe.log'),
+      '/tmp/sanebar_runtime_startup_probe.log'
+    )
+    wake_log = first_fresh_runtime_evidence_path(
+      File.join(RUNTIME_PREFLIGHT_EVIDENCE_DIR, 'sanebar_runtime_wake_probe.log'),
+      '/tmp/sanebar_runtime_wake_probe.log'
+    )
     shared_log = '/tmp/sanebar_runtime_shared_bundle_smoke.log'
     native_log = '/tmp/sanebar_runtime_native_apple_smoke.log'
     host_log = '/tmp/sanebar_runtime_host_exact_id_smoke.log'
@@ -29,15 +36,24 @@ class CustomerUIActionSweep
     end
     exact_logs = [strict_fixture_log, shared_log, native_log, host_log]
       .select { |path| fresh_release_runtime_evidence?(path) }
-    exact_runtime = exact_logs.map { |path| File.read(path) }.join("\n")
+    smoke_runtime = verified_runtime_log_body!(smoke_log, label: 'Runtime smoke')
+    exact_runtime = exact_logs.map { |path| verified_runtime_log_body!(path, label: 'Exact-ID runtime smoke') }.join("\n")
     if exact_logs.empty? || !exact_runtime.include?('Live zone smoke passed')
       raise "Missing exact-ID runtime evidence #{[strict_fixture_log, shared_log, native_log, host_log].join(', ')}"
     end
 
-    runtime = [smoke_log, startup_log, wake_log, *exact_logs]
-      .select { |path| File.exist?(path) }
-      .map { |path| File.read(path) }
-      .join("\n")
+    startup_artifact = first_fresh_runtime_evidence_path(
+      File.join(RUNTIME_PREFLIGHT_EVIDENCE_DIR, 'sanebar_runtime_startup_probe.json'),
+      '/tmp/sanebar_runtime_startup_probe.json'
+    )
+    verify_runtime_artifact_candidate!(startup_artifact, label: 'Startup layout probe')
+    wake_artifact = first_fresh_runtime_evidence_path(
+      File.join(RUNTIME_PREFLIGHT_EVIDENCE_DIR, 'sanebar_runtime_wake_probe.json'),
+      '/tmp/sanebar_runtime_wake_probe.json'
+    )
+    verify_runtime_artifact_candidate!(wake_artifact, label: 'Wake layout probe')
+
+    runtime = [smoke_runtime, safe_read_artifact(startup_log), safe_read_artifact(wake_log), exact_runtime].join("\n")
     required = [
       ['Settings window visual check ok'],
       ['Hidden/Visible move actions ok'],
@@ -60,28 +76,28 @@ class CustomerUIActionSweep
     )
     raise 'Exact-ID smoke did not pass' unless exact_runtime.include?('Candidate set passed') || exact_runtime.include?('Candidate passed')
     if fresh_release_runtime_evidence?(strict_fixture_log)
-      strict_fixture = File.read(strict_fixture_log)
+      strict_fixture = safe_read_artifact(strict_fixture_log)
       raise 'Strict exact-ID fixture smoke did not pass' unless strict_fixture.include?('Candidate set passed') && strict_fixture.include?('Browse mode findIcon activation ok') && strict_fixture.include?('Browse mode secondMenuBar activation ok')
     end
-    if fresh_release_runtime_evidence?(shared_log) && File.read(shared_log).include?('Live zone smoke passed')
-      shared = File.read(shared_log)
+    if fresh_release_runtime_evidence?(shared_log) && safe_read_artifact(shared_log).include?('Live zone smoke passed')
+      shared = safe_read_artifact(shared_log)
       raise 'Shared exact-ID smoke did not pass' unless shared.include?('Candidate set passed') || shared.include?('Candidate passed')
     end
-    if fresh_release_runtime_evidence?(native_log) && File.read(native_log).include?('Live zone smoke passed')
-      native = File.read(native_log)
+    if fresh_release_runtime_evidence?(native_log) && safe_read_artifact(native_log).include?('Live zone smoke passed')
+      native = safe_read_artifact(native_log)
       raise 'Native exact-ID smoke did not pass' unless native.include?('Candidate set passed') || native.include?('Candidate passed')
     end
-    if fresh_release_runtime_evidence?(host_log) && File.read(host_log).include?('Live zone smoke passed')
-      host = File.read(host_log)
+    if fresh_release_runtime_evidence?(host_log) && safe_read_artifact(host_log).include?('Live zone smoke passed')
+      host = safe_read_artifact(host_log)
       raise 'Host exact-ID smoke did not pass' unless host.include?('Candidate set passed') || host.include?('Candidate passed')
     end
     @transcript << "runtime_smoke=#{smoke_log} ok"
-    @transcript << "strict_exact_id=#{strict_fixture_log} ok" if fresh_release_runtime_evidence?(strict_fixture_log) && File.read(strict_fixture_log).include?('Live zone smoke passed')
-    @transcript << "shared_exact_id=#{shared_log} ok" if fresh_release_runtime_evidence?(shared_log) && File.read(shared_log).include?('Live zone smoke passed')
+    @transcript << "strict_exact_id=#{strict_fixture_log} ok" if fresh_release_runtime_evidence?(strict_fixture_log) && safe_read_artifact(strict_fixture_log).include?('Live zone smoke passed')
+    @transcript << "shared_exact_id=#{shared_log} ok" if fresh_release_runtime_evidence?(shared_log) && safe_read_artifact(shared_log).include?('Live zone smoke passed')
     @transcript << "startup_probe=#{startup_log} ok"
     @transcript << "wake_probe=#{wake_log} ok"
-    @transcript << "native_exact_id=#{native_log} ok" if fresh_release_runtime_evidence?(native_log) && File.read(native_log).include?('Live zone smoke passed')
-    @transcript << "host_exact_id=#{host_log} ok" if fresh_release_runtime_evidence?(host_log) && File.read(host_log).include?('Live zone smoke passed')
+    @transcript << "native_exact_id=#{native_log} ok" if fresh_release_runtime_evidence?(native_log) && safe_read_artifact(native_log).include?('Live zone smoke passed')
+    @transcript << "host_exact_id=#{host_log} ok" if fresh_release_runtime_evidence?(host_log) && safe_read_artifact(host_log).include?('Live zone smoke passed')
     retained = retain_runtime_evidence_paths([smoke_log, startup_log, wake_log, *exact_logs], label: 'runtime-smoke')
     @transcript << "runtime_evidence_retained=#{retained.join(',')}" unless retained.empty?
   end
@@ -91,7 +107,14 @@ class CustomerUIActionSweep
   end
 
   def fresh_runtime_evidence?(path, max_age_seconds:)
-    File.exist?(path) && File.mtime(path) >= @started_at - max_age_seconds
+    stat = File.lstat(path)
+    stat.file? && stat.mtime >= @started_at - max_age_seconds
+  rescue StandardError
+    false
+  end
+
+  def first_fresh_runtime_evidence_path(*paths)
+    paths.find { |path| fresh_release_runtime_evidence?(path) } || paths.first
   end
 
   def verify_recent_appearance_overlay_screenshots
@@ -110,6 +133,27 @@ class CustomerUIActionSweep
     return if runtime.include?(primary) || runtime.include?(fallback)
 
     raise "Runtime smoke missing marker #{primary} or #{fallback}"
+  end
+
+  def verified_runtime_log_body!(path, label:)
+    body = safe_read_artifact(path)
+    raise "#{label} #{path} cannot be validated before running SaneBar version/build are known" unless @running_bundle_version && @running_bundle_build
+    return body if runtime_log_candidate_matches?(body)
+
+    raise "#{label} #{path} candidate metadata does not match running SaneBar #{@running_bundle_version}(#{@running_bundle_build})"
+  end
+
+  def verify_runtime_artifact_candidate!(path, label:)
+    raise "Missing runtime artifact evidence #{path}" unless fresh_release_runtime_evidence?(path)
+    raise "#{label} #{path} cannot be validated before running SaneBar version/build are known" unless @running_bundle_version && @running_bundle_build
+
+    payload = JSON.parse(safe_read_artifact(path))
+    raise "#{label} #{path} status is #{payload['status'].inspect}, expected pass" unless payload['status'] == 'pass'
+    raise "#{label} #{path} candidate metadata does not match running SaneBar #{@running_bundle_version}(#{@running_bundle_build})" unless runtime_candidate_matches?(payload)
+
+    nil
+  rescue JSON::ParserError => e
+    raise "#{label} #{path} artifact is invalid JSON: #{e.message}"
   end
 
   def write_receipt
@@ -144,17 +188,17 @@ class CustomerUIActionSweep
     receipt_json = JSON.pretty_generate(receipt) + "\n"
     [RECEIPT_PATH, OUTPUT_RECEIPT_PATH].each do |path|
       FileUtils.mkdir_p(File.dirname(path))
-      File.write(path, receipt_json)
+      safe_copy_artifact_content(path, receipt_json)
     end
 
     transcript_path = File.join(OUTPUT_DIR, "customer-ui-action-sweep-#{@timestamp}.txt")
     FileUtils.mkdir_p(File.dirname(transcript_path))
-    File.write(transcript_path, @transcript.join("\n") + "\n")
+    safe_copy_artifact_content(transcript_path, @transcript.join("\n") + "\n")
     puts "🧾 Transcript: #{relative(transcript_path)}"
   end
 
   def runtime_state_results(report)
-    manifest = YAML.safe_load(File.read(MANIFEST_PATH), permitted_classes: [Date, Time], aliases: true) || {}
+    manifest = YAML.safe_load(safe_read_artifact(MANIFEST_PATH), permitted_classes: [Date, Time], aliases: true) || {}
     matrix = manifest.fetch('runtime_state_matrix', {})
     matrix.map do |id, row|
       action_ids = Array(row['action_ids']).map(&:to_s)
@@ -192,6 +236,16 @@ class CustomerUIActionSweep
       if completed_scenarios.empty? && informational_reason.to_s.empty?
         failure_reasons << 'missing completed_scenarios for named runtime state'
       end
+      runtime_candidate = if runtime_artifact && runtime_artifact[:candidate]
+                            runtime_artifact[:candidate]
+                          elsif id.to_s == 'resource_soak_growth'
+                            nil
+                          else
+                            current_runtime_candidate
+                          end
+      if runtime_candidate.nil? && informational_reason.to_s.empty?
+        failure_reasons << 'missing runtime candidate metadata'
+      end
       status = if failure_reasons.empty?
                  'passed'
                elsif informational_reason.to_s.empty?
@@ -209,10 +263,21 @@ class CustomerUIActionSweep
         completed_scenarios: completed_scenarios.uniq,
         informational_reason: informational_reason,
         failure_reasons: failure_reasons,
-        runtime_candidate: runtime_artifact && runtime_artifact[:candidate],
+        runtime_candidate: runtime_candidate,
         manifest_sha256: report.fetch('manifest_sha256')
       }
     end
+  end
+
+  def current_runtime_candidate
+    return nil unless @running_bundle_version && @running_bundle_build
+
+    {
+      app_path: '/Applications/SaneBar.app',
+      app_version: @running_bundle_version,
+      app_build: @running_bundle_build,
+      process_path: '/Applications/SaneBar.app/Contents/MacOS/SaneBar'
+    }
   end
 
   def runtime_state_completed_scenarios(action_ids, runtime_artifact)
@@ -253,9 +318,13 @@ class CustomerUIActionSweep
     when 'shared_bundle_exact_id_moves'
       shared_bundle_exact_id_artifact
     when 'hover_auto_rehide'
-      runtime_json_artifact('/tmp/sanebar_runtime_hover_rehide.json')
+      runtime_json_artifact(
+        File.join(RUNTIME_PREFLIGHT_EVIDENCE_DIR, 'sanebar_runtime_hover_rehide.json')
+      )
     when 'license_clipboard_paste'
-      runtime_json_artifact('/tmp/sanebar_runtime_license_paste.json')
+      runtime_json_artifact(
+        File.join(RUNTIME_PREFLIGHT_EVIDENCE_DIR, 'sanebar_runtime_license_paste.json')
+      )
     when 'resource_soak_growth'
       resource_soak_artifact
     end
@@ -265,7 +334,7 @@ class CustomerUIActionSweep
     path = '/tmp/sanebar_runtime_fullscreen_matrix.json'
     return nil unless fresh_release_runtime_evidence?(path)
 
-    payload = JSON.parse(File.read(path))
+    payload = JSON.parse(safe_read_artifact(path))
     return nil unless payload['status'] == 'pass'
     return nil unless runtime_candidate_matches?(payload)
 
@@ -280,10 +349,13 @@ class CustomerUIActionSweep
   end
 
   def wake_visible_zone_artifact
-    path = '/tmp/sanebar_runtime_wake_probe.json'
+    path = first_fresh_runtime_evidence_path(
+      File.join(RUNTIME_PREFLIGHT_EVIDENCE_DIR, 'sanebar_runtime_wake_probe.json'),
+      '/tmp/sanebar_runtime_wake_probe.json'
+    )
     return nil unless fresh_release_runtime_evidence?(path)
 
-    payload = JSON.parse(File.read(path))
+    payload = JSON.parse(safe_read_artifact(path))
     return nil unless runtime_candidate_matches?(payload)
 
     visible_proof = payload['visible_zone_persistence']
@@ -294,7 +366,16 @@ class CustomerUIActionSweep
 
     {
       evidence_types: %w[mini_runtime log state_receipt],
-      evidence_paths: runtime_evidence_with_retained_paths([path, '/tmp/sanebar_runtime_wake_probe.log'], label: 'wake-visible-zone'),
+      evidence_paths: runtime_evidence_with_retained_paths(
+        [
+          path,
+          first_fresh_runtime_evidence_path(
+            File.join(RUNTIME_PREFLIGHT_EVIDENCE_DIR, 'sanebar_runtime_wake_probe.log'),
+            '/tmp/sanebar_runtime_wake_probe.log'
+          )
+        ],
+        label: 'wake-visible-zone'
+      ),
       completed_scenarios: (
         Array(visible_proof['completed_scenarios']) +
           Array(hidden_proof['completed_scenarios'])
@@ -308,7 +389,7 @@ class CustomerUIActionSweep
   def runtime_json_artifact(path, max_age_seconds: SWEEP_RUNTIME_ARTIFACT_MAX_AGE_SECONDS)
     return nil unless fresh_runtime_evidence?(path, max_age_seconds: max_age_seconds)
 
-    payload = JSON.parse(File.read(path))
+    payload = JSON.parse(safe_read_artifact(path))
     return nil unless payload['status'] == 'pass'
     return nil unless runtime_candidate_matches?(payload)
 
@@ -336,16 +417,15 @@ class CustomerUIActionSweep
     durable_paths = Dir.glob(File.join(OUTPUT_DIR, '**', 'resource-soak-*.json'))
     ([RESOURCE_SOAK_ARTIFACT_PATH] + durable_paths)
       .uniq
-      .select { |path| File.file?(path) }
+      .select { |path| safe_regular_artifact_file?(path) }
       .sort_by { |path| File.mtime(path) }
       .reverse
   end
 
   def resource_soak_artifact_at(path)
     return nil unless fresh_runtime_evidence?(path, max_age_seconds: RESOURCE_SOAK_MAX_AGE_SECONDS)
-    return nil if File.symlink?(path)
 
-    payload = JSON.parse(File.read(path))
+    payload = JSON.parse(safe_read_artifact(path))
     return nil unless payload['status'] == 'pass'
     return nil unless runtime_candidate_matches?(payload)
 
@@ -426,13 +506,13 @@ class CustomerUIActionSweep
       end
 
       durable_path = File.join(evidence_dir, "resource-soak-#{File.basename(path)}")
-      FileUtils.cp(path, durable_path)
+      safe_copy_artifact(path, durable_path)
       durable_paths << durable_path if File.file?(durable_path)
     end.uniq
   end
 
   def resource_soak_regular_file?(path)
-    File.file?(path) && !File.symlink?(path)
+    safe_regular_artifact_file?(path)
   end
 
   def resource_soak_payload_fresh?(payload)
@@ -453,7 +533,7 @@ class CustomerUIActionSweep
     return 'resource proof log file is stale or future-dated' unless fresh_runtime_evidence?(log_path, max_age_seconds: RESOURCE_SOAK_MAX_AGE_SECONDS)
     return 'resource proof log file is a symlink' if File.symlink?(log_path)
 
-    lines = File.readlines(log_path, chomp: true)
+    lines = safe_read_artifact_lines(log_path)
     return 'resource proof log has missing process or physical samples' if lines.any? { |line| line.include?('sample_missing') || line.include?('physical=unknown') }
 
     finished_at = lines.find { |line| line.start_with?('resource_soak_finished_at=') }.to_s.sub(/\Aresource_soak_finished_at=/, '')
@@ -506,7 +586,7 @@ class CustomerUIActionSweep
   end
 
   def resource_soak_log_trend_samples(log_path)
-    File.readlines(log_path, chomp: true).select do |line|
+    safe_read_artifact_lines(log_path).select do |line|
       line.match?(/\bsample=\d+\b/) &&
         line.match?(/\belapsed=\d+(?:\.\d+)?s\b/) &&
         line.match?(/\bcpu=\d+(?:\.\d+)?\b/) &&
@@ -521,7 +601,7 @@ class CustomerUIActionSweep
     path = '/tmp/sanebar_runtime_shared_bundle_smoke.log'
     return nil unless fresh_release_runtime_evidence?(path)
 
-    body = File.read(path)
+    body = safe_read_artifact(path)
     return nil unless runtime_log_candidate_matches?(body)
 
     required_line = body.lines.find { |line| line.start_with?('required_ids=') }
@@ -543,10 +623,13 @@ class CustomerUIActionSweep
   end
 
   def dynamic_helper_wake_artifact
-    path = '/tmp/sanebar_runtime_wake_probe.json'
+    path = first_fresh_runtime_evidence_path(
+      File.join(RUNTIME_PREFLIGHT_EVIDENCE_DIR, 'sanebar_runtime_wake_probe.json'),
+      '/tmp/sanebar_runtime_wake_probe.json'
+    )
     return nil unless fresh_release_runtime_evidence?(path)
 
-    payload = JSON.parse(File.read(path))
+    payload = JSON.parse(safe_read_artifact(path))
     return nil unless runtime_candidate_matches?(payload)
 
     proof = payload['dynamic_helper_wake_drift']
@@ -554,7 +637,16 @@ class CustomerUIActionSweep
 
     {
       evidence_types: %w[mini_runtime log state_receipt],
-      evidence_paths: runtime_evidence_with_retained_paths([path, '/tmp/sanebar_runtime_wake_probe.log'], label: 'dynamic-helper-wake'),
+      evidence_paths: runtime_evidence_with_retained_paths(
+        [
+          path,
+          first_fresh_runtime_evidence_path(
+            File.join(RUNTIME_PREFLIGHT_EVIDENCE_DIR, 'sanebar_runtime_wake_probe.log'),
+            '/tmp/sanebar_runtime_wake_probe.log'
+          )
+        ],
+        label: 'dynamic-helper-wake'
+      ),
       completed_scenarios: Array(proof['completed_scenarios']).map(&:to_s),
       candidate: runtime_candidate(payload)
     }
@@ -617,7 +709,7 @@ class CustomerUIActionSweep
   end
 
   def runtime_evidence_with_retained_paths(paths, label:)
-    raw_paths = Array(paths).map(&:to_s).map(&:strip).reject(&:empty?).select { |path| File.exist?(path) }
+    raw_paths = Array(paths).map(&:to_s).map(&:strip).reject(&:empty?).select { |path| safe_regular_artifact_file?(path) }
     (raw_paths + retain_runtime_evidence_paths(raw_paths, label: label)).uniq
   end
 
@@ -625,7 +717,7 @@ class CustomerUIActionSweep
     evidence_dir = @evidence_dir || OUTPUT_DIR
     FileUtils.mkdir_p(evidence_dir)
     retained = Array(paths).each_with_object([]) do |path, retained_paths|
-      next unless path && File.file?(path) && !File.symlink?(path)
+      next unless path && safe_regular_artifact_file?(path)
 
       expanded_path = File.expand_path(path)
       project_root = File.expand_path(PROJECT_ROOT) + File::SEPARATOR
@@ -636,7 +728,7 @@ class CustomerUIActionSweep
 
       safe_label = label.to_s.gsub(/[^A-Za-z0-9_.-]/, '-')
       destination = File.join(evidence_dir, "#{safe_label}-#{File.basename(path)}")
-      FileUtils.cp(path, destination)
+      safe_copy_artifact(path, destination)
       retained_paths << destination if File.file?(destination)
     end.uniq
     @retained_runtime_evidence_paths = (Array(@retained_runtime_evidence_paths) + retained).uniq
@@ -646,7 +738,7 @@ class CustomerUIActionSweep
   def write_failure_artifact(error)
     FileUtils.mkdir_p(OUTPUT_DIR)
     path = File.join(OUTPUT_DIR, "customer-ui-action-sweep-failed-#{@timestamp}.txt")
-    File.write(path, ([@transcript, "#{error.class}: #{error.message}", *error.backtrace].flatten.join("\n") + "\n"))
+    safe_copy_artifact_content(path, ([@transcript, "#{error.class}: #{error.message}", *error.backtrace].flatten.join("\n") + "\n"))
     warn "Failure transcript: #{relative(path)}"
   rescue StandardError
     nil

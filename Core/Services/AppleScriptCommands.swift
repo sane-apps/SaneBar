@@ -18,7 +18,7 @@ class SaneBarScriptCommand: NSScriptCommand {
     /// Set AppleScript error when a command requires Pro.
     func setProRequiredError() {
         scriptErrorNumber = errOSAGeneralError
-        scriptErrorString = "This command requires SaneBar Pro. Basic can browse and click icons, but moving icons is Pro-only."
+        scriptErrorString = "Hide, show, and move icon commands require SaneBar Pro. Basic can browse, click, and list icons. Open SaneBar's License window to unlock these commands."
     }
     /// Check if Accessibility permission is granted (safe to call from any thread)
     func checkAccessibilityTrusted() -> Bool {
@@ -260,7 +260,7 @@ final class ShowSecondMenuBarCommand: SaneBarScriptCommand {
 final class CloseBrowsePanelCommand: SaneBarScriptCommand {
     override func performDefaultImplementation() -> Any? {
         Task { @MainActor in
-            SearchWindowController.shared.close()
+            SearchWindowController.shared.close(ignoringBrowseActivationGrace: true)
         }
         return true
     }

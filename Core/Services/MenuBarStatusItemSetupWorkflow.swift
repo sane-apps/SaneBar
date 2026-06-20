@@ -181,7 +181,10 @@ final class MenuBarStatusItemSetupWorkflow {
         manager.updateAlwaysHiddenSeparator()
         manager.updateSpacers()
         manager.schedulePostRecoveryGeometryWarmup(restoreHiddenStateAfterWarmup: shouldRestoreHidden)
-        manager.schedulePostRecoveryVisibilityIntentReplay(reason: "status-item-recreate")
+        let visibilityReplayReason = manager.statusItemRecoveryWorkflow.hasPendingWakeVisibleAllowListReplay()
+            ? "status-item-recreate-wake-resume"
+            : "status-item-recreate"
+        manager.schedulePostRecoveryVisibilityIntentReplay(reason: visibilityReplayReason)
 
         if shouldRestoreHidden {
             logger.info("Preserved hidden state during status item recovery")
@@ -333,7 +336,9 @@ final class MenuBarStatusItemSetupWorkflow {
         manager.executeStatusItemRecoveryAction(
             .repairPersistedLayoutAndRecreate(.invalidStatusItems),
             trigger: "unexpected-visibility-loss-\(role.rawValue)",
-            validationContext: .manualLayoutRestore,
+            // Keep autonomous visibility-loss repair on the background recovery
+            // track so it cannot surface the manual Health fallback.
+            validationContext: .startupFollowUp,
             recoveryCount: 0
         )
     }

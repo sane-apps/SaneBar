@@ -14,6 +14,7 @@ class CustomerUIActionSweep
   PROJECT_ROOT = File.expand_path('..', __dir__)
   SANEAPPS_ROOT = File.expand_path('../..', PROJECT_ROOT)
   OUTPUT_DIR = File.join(PROJECT_ROOT, 'outputs', 'customer-ui')
+  RUNTIME_PREFLIGHT_DIR = File.join(PROJECT_ROOT, 'outputs', 'runtime-preflight')
   RECEIPT_PATH = File.join(PROJECT_ROOT, '.sane', 'customer_ui_action_receipt.json')
   OUTPUT_RECEIPT_PATH = File.join(PROJECT_ROOT, 'outputs', 'customer_ui_action_receipt.json')
   MANIFEST_PATH = File.join(PROJECT_ROOT, 'Tests', 'CustomerUIActions.yml')
@@ -76,6 +77,9 @@ class CustomerUIActionSweep
     mini_runtime
   ].freeze
 
+  DURABLE_RUNTIME_PREFLIGHT_EVIDENCE_PATTERN =
+    "\\A#{Regexp.escape(RUNTIME_PREFLIGHT_DIR)}/sanebar_runtime_(?:startup_probe|wake_probe|hover_rehide|license_paste)\\.(?:json|log)(?::|\\z)"
+
   SNAPSHOT_SUMMARY_FIELDS = %w[
     hidingState
     autoRehideEnabled
@@ -92,11 +96,11 @@ class CustomerUIActionSweep
   ].freeze
 
   STRICT_MINI_EVIDENCE_PATTERNS = {
-    'mini_click' => /\A(?:\/tmp\/sanebar_runtime_|applescript=|settings_ax_tab_index=|settings_tab=|icon_hotkeys_groups_|url_route=|runtime_visual=)/,
+    'mini_click' => /\A(?:\/tmp\/sanebar_runtime_|#{DURABLE_RUNTIME_PREFLIGHT_EVIDENCE_PATTERN}|applescript=|settings_ax_tab_index=|settings_tab=|icon_hotkeys_groups_|url_route=|runtime_visual=)/,
     'mini_automation' => /\A(?:applescript=|url_route=|settings_ax_tab_index=|icon_hotkeys_groups_)/,
     'mini_ax' => /\Asettings_ax_tab_index=/,
     'mini_url_route' => /\Aurl_route=/,
-    'mini_runtime' => /\A\/tmp\/sanebar_runtime_/
+    'mini_runtime' => /(?:\A\/tmp\/sanebar_runtime_|#{DURABLE_RUNTIME_PREFLIGHT_EVIDENCE_PATTERN})/
   }.freeze
 
   PLACEHOLDER_MINI_EVIDENCE_PATTERNS = [
@@ -555,6 +559,7 @@ class CustomerUIActionSweep
 
   def exercise_hover_auto_rehide_runtime_probe
     log_lines = []
+    restore_hover_setting = ensure_hover_reveal_enabled_for_probe
     2.times do |index|
       settle_runtime_ui_for_rehide_probe(index + 1)
       app_script('hide items')
@@ -564,18 +569,21 @@ class CustomerUIActionSweep
         raise "Hover/rehide probe cycle #{index + 1} did not start hidden: #{snapshot_summary(hidden_before)}"
       end
 
-      app_script('show hidden')
+      move_pointer_to_menu_bar_for_hover_probe(index + 1)
       revealed = wait_for_hiding_state('expanded', timeout: 3.0)
+      park_pointer_away_from_menu_bar(index + 1)
 
       rehide_timeout = [revealed.fetch('rehideDelay', 5).to_f + 8.0, 15.0].max
       wait_for_hiding_state('hidden', timeout: rehide_timeout)
       hidden_after = layout_snapshot
-      log_lines << "cycle=#{index + 1} before=#{snapshot_summary(hidden_before)} reveal=#{snapshot_summary(revealed)} after=#{snapshot_summary(hidden_after)} timeout=#{rehide_timeout}"
+      log_lines << "cycle=#{index + 1} pointer_hover=menu_bar before=#{snapshot_summary(hidden_before)} reveal=#{snapshot_summary(revealed)} after=#{snapshot_summary(hidden_after)} timeout=#{rehide_timeout}"
     end
 
+    json_path = runtime_probe_artifact_path('hover_rehide', 'json')
+    log_path = runtime_probe_artifact_path('hover_rehide', 'log')
     write_runtime_probe_artifact(
-      '/tmp/sanebar_runtime_hover_rehide.json',
-      '/tmp/sanebar_runtime_hover_rehide.log',
+      json_path,
+      log_path,
       log_lines,
       completed_scenarios: [
         'hover reveal opens hidden items',
@@ -584,47 +592,92 @@ class CustomerUIActionSweep
       ],
       evidence_types: %w[mini_click mini_runtime log state_receipt]
     )
-    @transcript << 'hover_auto_rehide_runtime_probe=/tmp/sanebar_runtime_hover_rehide.json ok'
+    @transcript << "hover_auto_rehide_runtime_probe=#{relative(json_path)} ok"
   ensure
     app_script('hide items') rescue nil
+    restore_hover_setting.call if restore_hover_setting
   end
 
   def exercise_license_clipboard_paste_runtime_probe
-    license_source = File.read(File.join(SANEAPPS_ROOT, 'infra/SaneUI/Sources/SaneUI/License/LicenseEntryView.swift'))
-    required_markers = [
-      'pasteLicenseKeyFromClipboard()',
-      'NSPasteboard.general.string(forType: .string)',
-      'licenseKey = pastedText.trimmingCharacters(in: .whitespacesAndNewlines)',
-      'await licenseService.activate(key: licenseKey)',
-      '.accessibilityIdentifier("saneui-license-key-field")',
-      '.accessibilityIdentifier("saneui-license-activate")',
-      '.accessibilityIdentifier("saneui-license-paste")'
-    ]
-    missing = required_markers.reject { |marker| license_source.include?(marker) }
-    raise "License clipboard source guard missing #{missing.join(', ')}" unless missing.empty?
-
     pasteboard_value = "SANEBAR-QA-INVALID-#{@timestamp}"
     Open3.capture2e('/usr/bin/pbcopy', stdin_data: pasteboard_value)
     pasted_value, status = Open3.capture2e('/usr/bin/pbpaste')
     raise 'License clipboard pasteboard probe failed' unless status.success? && pasted_value.strip == pasteboard_value
 
+    ui_result = drive_license_clipboard_paste_ui(pasteboard_value)
+    screenshot_path = runtime_probe_artifact_path('license_paste', 'png')
+    capture_snapshot('settings window', screenshot_path)
+    raise "License clipboard paste screenshot was not usable: #{screenshot_path}" unless usable_screenshot?(screenshot_path)
+
     log_lines = [
       "pasteboard_value=#{pasteboard_value}",
-      'source_guard=saneui-license-key-field saneui-license-paste saneui-license-activate',
-      'validation_path=LicenseEntryView activates the current licenseKey binding and keeps validationError visible on invalid keys'
+      "ui_result=#{ui_result.gsub(/\s+/, ' ')[0, 1200]}",
+      "screenshot=#{relative(screenshot_path)}",
+      'validation_path=real LicenseEntryView paste button populated the key field and Activate produced visible validation copy'
     ]
+    json_path = runtime_probe_artifact_path('license_paste', 'json')
+    log_path = runtime_probe_artifact_path('license_paste', 'log')
     write_runtime_probe_artifact(
-      '/tmp/sanebar_runtime_license_paste.json',
-      '/tmp/sanebar_runtime_license_paste.log',
+      json_path,
+      log_path,
       log_lines,
       completed_scenarios: [
         'license sheet accepts clipboard paste into the key field',
         'Activate uses the pasted value instead of an empty or stale field',
         'invalid test key shows a visible validation result without dismissing the sheet'
       ],
-      evidence_types: %w[mini_click screenshot log state_receipt]
+      evidence_types: %w[mini_click screenshot log state_receipt],
+      evidence_paths: [log_path, screenshot_path]
     )
-    @transcript << 'license_clipboard_paste_runtime_probe=/tmp/sanebar_runtime_license_paste.json ok'
+    @screenshots << relative(screenshot_path)
+    @visual_screenshots['license-paste'] = relative(screenshot_path)
+    @transcript << "license_clipboard_paste_runtime_probe=#{relative(json_path)} ok"
+  end
+
+  def drive_license_clipboard_paste_ui(expected_value)
+    app_script('open settings window')
+    press_settings_tab(6)
+    run_osascript(system_events_recursive_helpers + [
+      'tell application "System Events"',
+      %(tell process "#{APP_NAME}"),
+      'set frontmost to true',
+      'set settingsWindow to first window whose subrole is "AXStandardWindow"',
+      'set deactivateButton to my findButtonNamed(settingsWindow, "Deactivate Pro")',
+      'if deactivateButton is not missing value then',
+      'click deactivateButton',
+      'delay 0.8',
+      'end if',
+      'set entryButton to my findButtonNamed(settingsWindow, "Enter License Key")',
+      'if entryButton is missing value then set entryButton to my findButtonNamed(settingsWindow, "I Have a License Key")',
+      'if entryButton is missing value then error "License entry button not found after opening License settings"',
+      'click entryButton',
+      'delay 0.8',
+      'set pasteButton to my findElementByIdentifier(settingsWindow, "saneui-license-paste")',
+      'if pasteButton is missing value then error "License paste button AXIdentifier not found"',
+      'click pasteButton',
+      'delay 0.4',
+      'set keyField to my findElementByIdentifier(settingsWindow, "saneui-license-key-field")',
+      'if keyField is missing value then error "License key field AXIdentifier not found"',
+      'set pastedValue to value of keyField as text',
+      %(if pastedValue is not "#{escape_applescript(expected_value)}" then error "License key field did not receive pasted value: " & pastedValue),
+      'set activateButton to my findElementByIdentifier(settingsWindow, "saneui-license-activate")',
+      'if activateButton is missing value then set activateButton to my findButtonNamed(settingsWindow, "Activate")',
+      'if activateButton is missing value then error "License activate button not found"',
+      'click activateButton',
+      'set validationText to ""',
+      'repeat 24 times',
+      'delay 0.5',
+      'try',
+      'set validationText to (value of static texts of settingsWindow as text)',
+      'end try',
+      'if validationText contains "Invalid" or validationText contains "purchase server" or validationText contains "Please enter" then',
+      'return "pasted=" & pastedValue & " validation=" & validationText',
+      'end if',
+      'end repeat',
+      'error "License validation text did not appear after Activate; last text=" & validationText',
+      'end tell',
+      'end tell'
+    ], timeout: 25)
   end
 
   def layout_snapshot
@@ -669,6 +722,64 @@ class CustomerUIActionSweep
     @transcript << "pointer_park=cycle#{cycle} ok #{snapshot_summary(snapshot)}"
   end
 
+  def move_pointer_to_menu_bar_for_hover_probe(cycle)
+    cliclick = ['/opt/homebrew/bin/cliclick', '/usr/local/bin/cliclick']
+      .find { |path| File.executable?(path) }
+    raise 'Hover/rehide probe requires cliclick on the Mini to move the pointer into the menu bar' unless cliclick
+
+    out, status = Open3.capture2e(cliclick, 'm:400,4')
+    raise "Pointer hover move failed during hover/rehide probe cycle #{cycle}: #{out}" unless status.success?
+
+    @transcript << "pointer_hover=cycle#{cycle} ok"
+  end
+
+  def ensure_hover_reveal_enabled_for_probe
+    app_script('open settings window')
+    press_settings_tab(1)
+    result = run_osascript(system_events_recursive_helpers + [
+      'tell application "System Events"',
+      %(tell process "#{APP_NAME}"),
+      'set frontmost to true',
+      'set settingsWindow to first window whose subrole is "AXStandardWindow"',
+      'set hoverControl to my findElementNamed(settingsWindow, "Reveal hidden icons on hover")',
+      'if hoverControl is missing value then error "Reveal hidden icons on hover control not found"',
+      'set wasEnabled to false',
+      'try',
+      'set wasEnabled to ((value of hoverControl as integer) is 1)',
+      'end try',
+      'if wasEnabled is false then',
+      'click hoverControl',
+      'delay 0.5',
+      'return "enabled_for_probe"',
+      'end if',
+      'return "already_enabled"',
+      'end tell',
+      'end tell'
+    ], timeout: 12).strip
+    @transcript << "hover_reveal_setting=#{result}"
+    app_script('close settings window') rescue nil
+    return nil unless result == 'enabled_for_probe'
+
+    lambda do
+      app_script('open settings window')
+      press_settings_tab(1)
+      run_osascript(system_events_recursive_helpers + [
+        'tell application "System Events"',
+        %(tell process "#{APP_NAME}"),
+        'set frontmost to true',
+        'set settingsWindow to first window whose subrole is "AXStandardWindow"',
+        'set hoverControl to my findElementNamed(settingsWindow, "Reveal hidden icons on hover")',
+        'if hoverControl is not missing value then click hoverControl',
+        'end tell',
+        'end tell'
+      ], timeout: 12)
+      app_script('close settings window') rescue nil
+      @transcript << 'hover_reveal_setting=restored_disabled'
+    rescue StandardError => e
+      @transcript << "hover_reveal_setting_restore_failed=#{e.class}: #{e.message}"
+    end
+  end
+
   def wait_for_hiding_state(expected, timeout:)
     deadline = Time.now + timeout
     last = nil
@@ -696,14 +807,14 @@ class CustomerUIActionSweep
     value == true || value.to_s == 'true'
   end
 
-  def write_runtime_probe_artifact(json_path, log_path, log_lines, completed_scenarios:, evidence_types:)
-    File.write(log_path, log_lines.join("\n") + "\n")
-    File.write(
+  def write_runtime_probe_artifact(json_path, log_path, log_lines, completed_scenarios:, evidence_types:, evidence_paths: nil)
+    safe_write_runtime_probe_file(log_path, log_lines.join("\n") + "\n")
+    safe_write_runtime_probe_file(
       json_path,
       JSON.pretty_generate(
         status: 'pass',
         evidence_types: evidence_types,
-        evidence_paths: [log_path],
+        evidence_paths: Array(evidence_paths || [log_path]),
         completed_scenarios: completed_scenarios,
         candidate: {
           app_path: '/Applications/SaneBar.app',
@@ -713,6 +824,95 @@ class CustomerUIActionSweep
         }
       ) + "\n"
     )
+  end
+
+  def runtime_probe_artifact_path(name, extension)
+    safe_name = name.to_s.gsub(/[^a-zA-Z0-9_-]/, '-')
+    safe_extension = extension.to_s.gsub(/[^a-zA-Z0-9]/, '')
+    File.join(RUNTIME_PREFLIGHT_DIR, "sanebar_runtime_#{safe_name}.#{safe_extension}")
+  end
+
+  def safe_write_runtime_probe_file(path, content)
+    expanded = File.expand_path(path)
+    root = File.expand_path(PROJECT_ROOT)
+    raise "Runtime probe artifact path must stay under project root: #{path}" unless expanded.start_with?("#{root}/")
+
+    safe_runtime_probe_directory_path!(File.dirname(expanded))
+    FileUtils.mkdir_p(File.dirname(expanded))
+    safe_runtime_probe_directory_path!(File.dirname(expanded))
+    flags = File::WRONLY | File::CREAT | File::TRUNC
+    flags |= File::NOFOLLOW if File.const_defined?(:NOFOLLOW)
+    File.open(expanded, flags, 0o600) do |file|
+      file.write(content)
+    end
+  end
+
+  def safe_runtime_probe_directory_path!(path)
+    expanded = File.expand_path(path)
+    root = File.expand_path(PROJECT_ROOT)
+    raise "Unsafe runtime probe directory outside project root: #{path}" unless expanded == root || expanded.start_with?("#{root}/")
+
+    current = File::SEPARATOR
+    expanded.split(File::SEPARATOR).reject(&:empty?).each do |component|
+      current = File.join(current, component)
+      next unless File.exist?(current)
+
+      stat = File.lstat(current)
+      raise "Unsafe symlink runtime probe directory: #{current}" if stat.symlink?
+      raise "Unsafe non-directory runtime probe path: #{current}" unless stat.directory?
+    end
+    true
+  end
+
+  def system_events_recursive_helpers
+    [
+      'on elementName(elementRef)',
+      'try',
+      'return name of elementRef as text',
+      'on error',
+      'return ""',
+      'end try',
+      'end elementName',
+      'on elementIdentifier(elementRef)',
+      'try',
+      'return value of attribute "AXIdentifier" of elementRef as text',
+      'on error',
+      'return ""',
+      'end try',
+      'end elementIdentifier',
+      'on findElementByIdentifier(rootElement, targetIdentifier)',
+      'if my elementIdentifier(rootElement) is targetIdentifier then return rootElement',
+      'try',
+      'repeat with childElement in UI elements of rootElement',
+      'set foundElement to my findElementByIdentifier(childElement, targetIdentifier)',
+      'if foundElement is not missing value then return foundElement',
+      'end repeat',
+      'end try',
+      'return missing value',
+      'end findElementByIdentifier',
+      'on findElementNamed(rootElement, targetName)',
+      'if my elementName(rootElement) is targetName then return rootElement',
+      'try',
+      'repeat with childElement in UI elements of rootElement',
+      'set foundElement to my findElementNamed(childElement, targetName)',
+      'if foundElement is not missing value then return foundElement',
+      'end repeat',
+      'end try',
+      'return missing value',
+      'end findElementNamed',
+      'on findButtonNamed(rootElement, targetName)',
+      'try',
+      'if role of rootElement is "AXButton" and my elementName(rootElement) is targetName then return rootElement',
+      'end try',
+      'try',
+      'repeat with childElement in UI elements of rootElement',
+      'set foundElement to my findButtonNamed(childElement, targetName)',
+      'if foundElement is not missing value then return foundElement',
+      'end repeat',
+      'end try',
+      'return missing value',
+      'end findButtonNamed'
+    ]
   end
 
 

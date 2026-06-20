@@ -36,7 +36,8 @@ final class MenuBarMoveTaskCoordinator {
                 AccessibilityService.shared.beginMenuBarCacheWarmupSuppression()
             }
             logger.info("\(operationName, privacy: .public) task started")
-            let success = await operation(manager)
+            let operationSuccess = await operation(manager)
+            let success = !Task.isCancelled && operationSuccess
             await MainActor.run {
                 if success {
                     self.applyQueuedAlwaysHiddenMutation(optimisticAlwaysHiddenMutation)

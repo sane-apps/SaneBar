@@ -11,9 +11,9 @@ project:
 # --- KNOWN FACTS (don't re-explain these) ---
 known_facts:
   - "Lemon Squeezy delivers downloads directly on purchase page. Bounced emails are NOT a problem — customers already have their download. Many use throwaway emails for privacy."
-  - "SaneBar is unsandboxed (Accessibility API requires it). Distribution is DMG, not Mac App Store."
+  - "SaneBar is unsandboxed (Accessibility API requires it). Direct distribution uses signed/notarized ZIP updates outside the Mac App Store, and SaneBar is also distributed through Setapp."
   - "GitHub releases are public — use Cloudflare R2 (dist.sanebar.com) for gated downloads."
-  - "Sparkle handles auto-updates via appcast.xml on sanebar.com (GitHub Pages)."
+  - "Sparkle handles auto-updates via appcast.xml on sanebar.com (Cloudflare Pages)."
   - "Touch ID lock is the #1 unique feature. No competitor has it."
 
 # --- ACTIVE LAUNCHES ---
@@ -107,20 +107,20 @@ launch_calendar:
       action: "Scan competitor issues and high-fit X/HN/Reddit threads; do not post unless the user is asking for a menu bar manager/Bartender/Ice alternative and the reply discloses 'I built SaneBar'."
       gate: "No Product Hunt relaunch, no Show HN repost, and no generic standalone launch posts."
       success_metric: "0-2 high-fit replies per week or a recorded no-go."
-      last_reviewed: "2026-06-18"
-      result: "On 2026-06-18, canonical Mini `launch_readiness --json` reran from the repo root and returned `ok: false`: SaneBar still remains relaunch-blocked because it already used its real Product Hunt/Hacker News launch and open layout-stability/icon-movement support issues still make broad amplification weak. Fresh Mini `release_preflight` remains green with warnings only at 0.92 days old, which keeps the patch lane viable but does not create a new meaningful relaunch story. The latest shared validation receipt at `/Users/sj/SaneApps/infra/SaneProcess/outputs/validation/2026-06-18.json` remains `NOT READY FOR RELEASE` and now adds stale customer-UI and durable resource-soak proof blockers for SaneBar. No opportunity monitoring action, public reply, public post, scheduling action, or directory action was executed."
+      last_reviewed: "2026-06-20"
+      result: "On 2026-06-20, canonical Mini `launch_readiness --json` reran from the repo root and returned `ok: false`: SaneBar remains relaunch-blocked because it already used its real Product Hunt/Hacker News launch and open layout-stability/icon-movement support issues still make broad amplification weak. Today the gate also regressed because fresh Mini `release_preflight` is now failed with 1 issue and 6 warnings at 0.66 days old. The latest shared validation receipt at `/Users/sj/SaneApps/infra/SaneProcess/outputs/validation/2026-06-20.json` returned `NOT READY FOR RELEASE` with 176 customer-facing release blockers, including stale SaneBar customer-UI proof and missing durable resource-soak evidence. No opportunity monitoring action, public reply, public post, scheduling action, or directory action was executed."
   last_launch_readiness:
-    date: "2026-06-18"
+    date: "2026-06-20"
     status: "no_go"
     launch_readiness_exit: 1
     blocker_summary:
-      - "Canonical Mini `launch_readiness --json` reran on 2026-06-18 and exited nonzero."
+      - "Canonical Mini `launch_readiness --json` reran on 2026-06-20 and exited nonzero."
       - "SaneBar remains launch no-go because it already had the real Product Hunt/Hacker News launch and a repost without a major new story would still be weak."
       - "Open support issues remain around layout stability and icon movement; do not amplify broadly until the current patch is live and stable."
-      - "Fresh Mini `release_preflight` remains passed on 2026-06-18 with warning-only status at 0.92 days old."
-      - "Latest shared validation evidence is `/Users/sj/SaneApps/infra/SaneProcess/outputs/validation/2026-06-18.json`, which still returned `NOT READY FOR RELEASE` and now also flags stale customer-UI plus missing durable resource-soak proof for SaneBar."
-      - "No weekly opportunity monitoring action was executed on 2026-06-18 because the app gate remained red and the schedule only allows targeted disclosed replies, not a relaunch."
-    next_date: "2026-06-25"
+      - "Fresh Mini `release_preflight` reran through the launch gate on 2026-06-20 and is now failed with 1 issue and 6 warnings at 0.66 days old, so even the patch lane is no longer warning-green."
+      - "The latest shared validation receipt at `/Users/sj/SaneApps/infra/SaneProcess/outputs/validation/2026-06-20.json` returned `NOT READY FOR RELEASE` with 176 customer-facing release blockers, including stale customer-UI plus missing durable resource-soak proof for SaneBar."
+      - "No weekly opportunity monitoring action was executed on 2026-06-20 because the app gate remained red and the schedule only allows targeted disclosed replies, not a relaunch."
+    next_date: "2026-06-27"
 
 x_search_keywords:
   - "\"Bartender\" (macOS OR Mac OR \"menu bar\" OR app) (alternative OR replacement OR acquired OR privacy) lang:en -is:retweet"

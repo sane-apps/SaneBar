@@ -151,7 +151,8 @@ class ProjectQA
       focused_out, focused_status = capture2e_with_progress(
         focused_env.merge('SANEBAR_SMOKE_RESOURCE_SAMPLE_PATH' => focused_sample_path),
         smoke_script,
-        heartbeat_label: "runtime smoke #{lane_name} (try #{focused_attempt})"
+        heartbeat_label: "runtime smoke #{lane_name} (try #{focused_attempt})",
+        timeout: RUNTIME_SMOKE_FOCUSED_PASS_TIMEOUT_SECONDS
       )
       focused_outputs << [
         "required_ids=#{exact_ids.join(',')}",

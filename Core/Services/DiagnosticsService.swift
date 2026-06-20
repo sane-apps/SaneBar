@@ -31,6 +31,7 @@ private func collectSaneBarSettings() -> String {
     let mainScreenFrame = mainButton?.window?.screen?.frame ?? NSScreen.main?.frame
     let separatorWindowFrame = separatorButton?.window?.frame
     let separatorScreenFrame = separatorButton?.window?.screen?.frame ?? mainScreenFrame
+    let statusItemScreen = mainButton?.window?.screen ?? separatorButton?.window?.screen
     let mainWindowValid = StatusBarController.isStatusItemWindowFrameValid(
         windowFrame: mainWindowFrame,
         screenFrame: mainScreenFrame
@@ -39,7 +40,24 @@ private func collectSaneBarSettings() -> String {
         windowFrame: separatorWindowFrame,
         screenFrame: separatorScreenFrame
     )
-    let menuBarSuppressionHint = StatusBarDiagnostics.systemMenuBarSuppressionHint(
+    let mainRightGap: CGFloat? = {
+        guard mainWindowValid, let mainWindowFrame else { return nil }
+        guard let rightEdge = mainButton?.window?.screen?.frame.maxX else { return nil }
+        return rightEdge - mainWindowFrame.origin.x
+    }()
+    let hiddenCollapsedSeparatorHealthy = StatusBarDiagnostics.hiddenCollapsedSeparatorIsStructurallyHealthy(.init(
+        hidingState: manager.hidingService.state,
+        mainWindowValid: mainWindowValid,
+        separatorVisible: manager.separatorItem?.isVisible,
+        separatorX: manager.geometryResolver.separatorOriginX(allowEstimatedFallback: false),
+        mainX: manager.geometryResolver.mainStatusItemLeftEdgeX(),
+        mainRightGap: mainRightGap,
+        screenWidth: statusItemScreen?.frame.width ?? NSScreen.main?.frame.width,
+        notchRightSafeMinX: statusItemScreen?.auxiliaryTopRightArea?.minX,
+        persistedMainDistanceFromRight: StatusBarDiagnostics.persistedMainDistanceFromRight()
+    ))
+    let startupItemsValid = mainWindowValid && (separatorWindowValid || hiddenCollapsedSeparatorHealthy)
+    let menuBarSuppressionHint = startupItemsValid ? "none" : StatusBarDiagnostics.systemMenuBarSuppressionHint(
         main: .init(
             isVisibleFlag: manager.mainStatusItem?.isVisible,
             windowFrame: mainWindowFrame,
@@ -63,7 +81,6 @@ private func collectSaneBarSettings() -> String {
     let separatorPreferred = defaults.object(forKey: "NSStatusItem Preferred Position \(StatusBarController.separatorAutosaveName)")
     let alwaysHiddenPreferred = defaults.object(forKey: "NSStatusItem Preferred Position \(StatusBarController.alwaysHiddenSeparatorAutosaveName)")
     let legacyAlwaysHiddenPreferred = defaults.object(forKey: "NSStatusItem Preferred Position SaneBar_AlwaysHiddenSeparator")
-    let statusItemScreen = mainButton?.window?.screen ?? separatorButton?.window?.screen
     let pointerScreen = NSScreen.screens.first(where: { NSMouseInRect(NSEvent.mouseLocation, $0.frame, false) })
     let currentScreenWidth = statusItemScreen?.frame.width ?? NSScreen.main?.frame.width
     let currentScreenCount = NSScreen.screens.count
@@ -138,9 +155,10 @@ private func collectSaneBarSettings() -> String {
     statusMenuItemCount: \(manager.statusMenu?.items.count ?? 0)
 
     statusItemForensics:
-      startupItemsValid: \(mainWindowValid && separatorWindowValid)
+      startupItemsValid: \(startupItemsValid)
       mainWindowValid: \(mainWindowValid)
       separatorWindowValid: \(separatorWindowValid)
+      hiddenCollapsedSeparatorHealthy: \(hiddenCollapsedSeparatorHealthy)
       systemMenuBarSuppressionHint: \(menuBarSuppressionHint)
       visibilityOverrideCount: \(visibilityOverrideSnapshots.count)
       visibilityOverrides: \(visibilityOverrideSummary)
@@ -212,6 +230,8 @@ private func collectSaneBarSettings() -> String {
       iconHotkeys: \(settings.iconHotkeys.count)
       disableOnExternalMonitor: \(settings.disableOnExternalMonitor)
       useSecondMenuBar: \(settings.useSecondMenuBar)
+      hideAllOtherMenuBarItems: \(settings.hideAllOtherMenuBarItems)
+      hideAllOtherVisibleItemCount: \(settings.hideAllOtherVisibleItemIds.count)
       alwaysHiddenSectionEnabled: \(settings.alwaysHiddenSectionEnabled)
       alwaysHiddenPinnedItemCount: \(settings.alwaysHiddenPinnedItemIds.count)
 

@@ -91,7 +91,8 @@ final class LayoutSnapshotCommand: SaneBarScriptCommand {
             mainX: mainX,
             mainRightGap: rightGap,
             screenWidth: screenWidth,
-            notchRightSafeMinX: notchRightSafeMinX
+            notchRightSafeMinX: notchRightSafeMinX,
+            persistedMainDistanceFromRight: StatusBarDiagnostics.persistedMainDistanceFromRight()
         ))
         let startupItemsValid = mainWindowValid && (separatorWindowValid || hiddenCollapsedSeparatorHealthy)
         let suppressionHint = startupItemsValid ? "none" : StatusBarDiagnostics.systemMenuBarSuppressionHint(

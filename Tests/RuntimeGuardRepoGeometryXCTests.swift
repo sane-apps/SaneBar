@@ -175,6 +175,8 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
         let setupSource = try String(contentsOf: setupURL, encoding: .utf8)
         let recoveryURL = projectRootURL().appendingPathComponent("Core/Services/MenuBarStatusItemRecoveryWorkflow.swift")
         let recoverySource = try String(contentsOf: recoveryURL, encoding: .utf8)
+        let diagnosticsURL = projectRootURL().appendingPathComponent("Core/Services/DiagnosticsService.swift")
+        let diagnosticsSource = try String(contentsOf: diagnosticsURL, encoding: .utf8)
 
         XCTAssertTrue(
             source.contains("var statusBarControllerStorage: StatusBarController?"),
@@ -187,8 +189,16 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
         XCTAssertTrue(
             recoverySource.contains("StatusBarController.validateItemPosition(mainItem)") &&
                 recoverySource.contains("StatusBarController.validateItemPosition(separator)") &&
-                recoverySource.contains("hiddenCollapsedSeparatorIsStructurallyHealthy"),
-            "Startup validation should require attached status-item windows except for the hidden collapsed separator state, where the main item must stay attached and ordered near Control Center"
+                recoverySource.contains("hiddenCollapsedSeparatorIsStructurallyHealthy") &&
+                recoverySource.contains("persistedMainDistanceFromRight: persistedMainDistanceFromRight"),
+            "Startup validation should require attached status-item windows except for the hidden collapsed separator state, where the main item must stay attached and ordered by persisted user intent"
+        )
+        XCTAssertTrue(
+            diagnosticsSource.contains("hiddenCollapsedSeparatorIsStructurallyHealthy") &&
+                diagnosticsSource.contains("startupItemsValid = mainWindowValid && (separatorWindowValid || hiddenCollapsedSeparatorHealthy)") &&
+                diagnosticsSource.contains("hiddenCollapsedSeparatorHealthy:") &&
+                diagnosticsSource.contains("persistedMainDistanceFromRight: StatusBarDiagnostics.persistedMainDistanceFromRight()"),
+            "Diagnostics should report startup item health using the same hidden collapsed separator exception as runtime recovery"
         )
         let coordinatorURL = projectRootURL().appendingPathComponent("Core/Services/MenuBarOperationCoordinator.swift")
         let coordinatorSource = try String(contentsOf: coordinatorURL, encoding: .utf8)
@@ -221,12 +231,28 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
                 recoverySource.contains("func currentRuntimeSnapshot("),
             "Runtime position validation should route startup, validation, and restore through one typed recovery snapshot plus one recovery executor"
         )
+        guard let visibilityPhaseRange = recoverySource.range(of: "let visibilityPhase: MenuBarVisibilityPhase"),
+              let geometrySnapshotRange = recoverySource.range(of: "let geometrySnapshot = MenuBarRuntimeSnapshot("),
+              let returnedVisibilityRange = recoverySource.range(of: "visibilityPhase: visibilityPhase,") else {
+            XCTFail("Could not locate runtime snapshot visibility-phase wiring")
+            return
+        }
+        XCTAssertLessThan(
+            visibilityPhaseRange.lowerBound,
+            geometrySnapshotRange.lowerBound,
+            "Runtime snapshot should compute the real visibility phase before misorder/geometry checks use the snapshot"
+        )
+        XCTAssertTrue(
+            geometrySnapshotRange.lowerBound < returnedVisibilityRange.lowerBound,
+            "Runtime snapshot should reuse the same visibility phase in the returned snapshot"
+        )
         XCTAssertTrue(
             setupSource.contains("observe(\\.isVisible") &&
                 setupSource.contains("handleUnexpectedStatusItemVisibilityChange(") &&
                 setupSource.contains("unexpected-visibility-loss-") &&
-                setupSource.contains(".repairPersistedLayoutAndRecreate(.invalidStatusItems)"),
-            "MenuBarManager should observe unexpected status-item visibility loss and route it through the existing structural recovery path"
+                setupSource.contains(".repairPersistedLayoutAndRecreate(.invalidStatusItems)") &&
+                setupSource.contains("validationContext: .startupFollowUp"),
+            "MenuBarManager should observe unexpected status-item visibility loss, repair it on the background recovery path, and avoid promoting it to manual-repair UX"
         )
         XCTAssertTrue(
             source.contains("geometryCache.clearSeparatorGeometry()"),
@@ -256,6 +282,8 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
         let replaySource = try String(contentsOf: replayURL, encoding: .utf8)
         let setupURL = projectRootURL().appendingPathComponent("Core/Services/MenuBarStatusItemSetupWorkflow.swift")
         let setupSource = try String(contentsOf: setupURL, encoding: .utf8)
+        let recoveryURL = projectRootURL().appendingPathComponent("Core/Services/MenuBarStatusItemRecoveryWorkflow.swift")
+        let recoverySource = try String(contentsOf: recoveryURL, encoding: .utf8)
 
         XCTAssertTrue(
             source.contains("func schedulePostRecoveryGeometryWarmup(restoreHiddenStateAfterWarmup: Bool = false)"),
@@ -268,12 +296,16 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
                 source.contains("let snapshot = self.currentStatusItemRecoverySnapshot()") &&
                 source.contains("snapshot.separatorAnchorSource == .live, snapshot.mainAnchorSource == .live") &&
                 setupSource.contains("manager.schedulePostRecoveryGeometryWarmup(restoreHiddenStateAfterWarmup: shouldRestoreHidden)") &&
-                setupSource.contains("manager.schedulePostRecoveryVisibilityIntentReplay(reason: \"status-item-recreate\")") &&
+                setupSource.contains("let visibilityReplayReason = manager.statusItemRecoveryWorkflow.hasPendingWakeVisibleAllowListReplay()") &&
+                setupSource.contains("? \"status-item-recreate-wake-resume\"") &&
+                setupSource.contains("manager.schedulePostRecoveryVisibilityIntentReplay(reason: visibilityReplayReason)") &&
                 source.contains("func shouldRunVisibilityIntentEnforcement(reason: String) -> Bool") &&
-                source.contains("snapshot.hasLiveCoreAnchors") &&
-                source.contains("snapshot.geometryConfidence == .live") &&
+                source.contains("MenuBarVisibilityPolicy.shouldRunVisibilityIntentEnforcement(") &&
+                replaySource.contains("func canRepairWakeVisibleAllowListFromHiddenSnapshot(") &&
+                replaySource.contains("hasPendingWakeVisibleAllowListReplay") &&
                 source.contains("visibilityIntentReplayTask = Task { @MainActor [weak self] in") &&
-                source.contains("for attempt in 1 ... Self.maxVisibilityIntentReplayAttempts") &&
+                source.contains("while attempt < Self.maxVisibilityIntentReplayAttempts ||") &&
+                source.contains("self.statusItemRecoveryWorkflow.hasPendingWakeVisibleAllowListReplay()") &&
                 source.contains("schedulePostRecoveryAutoRehideIfNeeded(reason: \"\\(reason)-no-visibility-intent\")") &&
                 source.contains("await self.alwaysHiddenPinWorkflow.enforce(") &&
                 source.contains("mode: .auditOnly") &&
@@ -284,16 +316,32 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
                 source.contains("Visibility intent replay waiting for healthy always-hidden anchors") &&
                 source.contains("let hideAllOtherEnforced = await self.hideAllOtherWorkflow.enforce(") &&
                 source.contains("Visibility intent replay waiting for hide-all-other completion") &&
+                source.contains("var completedWakeVisibleAllowListRepair = false") &&
+                source.contains("completedWakeVisibleAllowListRepair = true") &&
+                source.contains("if completedWakeVisibleAllowListRepair {\n                    self.statusItemRecoveryWorkflow.clearWakeVisibleAllowListReplayPending()") &&
+                source.contains("if hideAllOtherMode.mode == .repairWithPhysicalMoves") &&
                 replaySource.contains("func restoreHiddenStateAfterHealthyValidationIfNeeded(reason: String)") &&
                 replaySource.contains("hidingService.applyCurrentStateToLiveItems()") &&
                 replaySource.contains("hidingService.configureAlwaysHiddenDelimiter(alwaysHiddenSeparatorItem)") &&
+                replaySource.contains("shouldDeferHiddenStateForWakeVisibleAllowList(") &&
+                replaySource.contains("Deferring hidden state after wake until Hide All Other visible allow-list replay completes") &&
                 source.contains("self.schedulePostRecoveryAutoRehideIfNeeded(reason: replayReason)") &&
+                source.contains("self.restorePendingHiddenStateAfterVisibilityReplayFailure(reason: \"\\(reason)-replay-gave-up\")") &&
                 source.contains("self.schedulePostRecoveryAutoRehideIfNeeded(reason: \"\\(reason)-replay-gave-up\")") &&
                 replaySource.contains("func schedulePostRecoveryAutoRehideIfNeeded(reason: String)") &&
-                replaySource.contains("if reason.contains(\"wakeResume\") { isRevealPinned = false }") &&
+                replaySource.contains("clearWakeVisibleAllowListReplayPending(clearDeferredReason: false)") &&
+                recoverySource.contains("func clearWakeVisibleAllowListReplayPending(clearDeferredReason: Bool = true)") &&
+                recoverySource.contains("clearWakeVisibleAllowListReplayPending(clearDeferredReason: false)") &&
+                !recoverySource.contains("self.pendingWakeVisibleAllowListReplayUntil = nil\n            return false") &&
+                replaySource.contains("Deferring post-recovery hidden state warmup until wake visible allow-list replay completes") &&
+                source.contains("func cancelWakeVisibleAllowListReplay(reason: String)") &&
+                source.contains("statusItemRecoveryWorkflow.clearWakeVisibleAllowListReplayPending(clearDeferredReason: false)") &&
+                !replaySource.contains("if reason.contains(\"wakeResume\") || reason.contains(\"wake-resume\") { isRevealPinned = false }") &&
+                replaySource.contains("shouldReplayWakeVisibleAllowListBeforeAutoRehide(") &&
+                replaySource.contains("schedulePostRecoveryVisibilityIntentReplay(reason: \"healthy-validation-wake-resume\")") &&
                 replaySource.contains("hidingService.scheduleRehide(after: 0.5)") &&
                 source.contains("self.appearanceService.refreshAfterStatusItemRecovery()"),
-            "Structural recovery should re-warm live core anchors before hidden replay, replay persisted visibility intent, clear stale wake reveal pins, rearm auto-rehide after recovery movement cancels prior timers, then refresh appearance overlay visibility"
+            "Structural recovery should re-warm live core anchors before hidden replay, replay persisted visibility intent, cancel stale wake allow-list replay without unpinning explicit reveals, rearm auto-rehide after recovery movement cancels prior timers, then refresh appearance overlay visibility"
         )
         let replayRetryStart = try XCTUnwrap(source.range(of: "private func alwaysHiddenAnchorsNeedReplayRetry() -> Bool {"))
         let replayRetryEnd = try XCTUnwrap(source.range(of: "func shouldRunVisibilityIntentEnforcement(reason: String) -> Bool {"))
@@ -321,6 +369,49 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
                 source.contains("NSStatusItem (Visible(CC)?|Preferred Position) SaneBar_") &&
                 source.contains("defaults -currentHost delete NSGlobalDomain"),
             "Uninstall should remove current-host NSStatusItem visibility and preferred-position state that survives reinstall"
+        )
+    }
+
+    func testManualHealthRepairRunsDeferredWakeReplayBeforeClearingHealthNote() throws {
+        let profileSource = try String(
+            contentsOf: projectRootURL().appendingPathComponent("Core/Services/MenuBarProfileWorkflow.swift"),
+            encoding: .utf8
+        )
+        let healthSource = try String(
+            contentsOf: projectRootURL().appendingPathComponent("UI/Settings/HealthSettingsView.swift"),
+            encoding: .utf8
+        )
+        let recoverySource = try String(
+            contentsOf: projectRootURL().appendingPathComponent("Core/Services/MenuBarStatusItemRecoveryWorkflow.swift"),
+            encoding: .utf8
+        )
+        let managerSource = try String(
+            contentsOf: projectRootURL().appendingPathComponent("Core/MenuBarManager.swift"),
+            encoding: .utf8
+        )
+
+        XCTAssertTrue(
+            profileSource.contains("private func repairVisibilityReplayReason(reason: String) -> String") &&
+                profileSource.contains("manager.hasActionableDeferredWakeVisibleAllowListRepair()") &&
+                profileSource.contains("manager.markWakeVisibleAllowListReplayPending(") &&
+                profileSource.contains("reason: \"manual-repair-\\(reason)\"") &&
+                profileSource.contains("requiresHiddenState: false") &&
+                profileSource.contains("return \"healthy-validation-wake-resume-manual-repair-\\(reason)\"") &&
+                profileSource.contains("manager.schedulePostRecoveryVisibilityIntentReplay(reason: replayReason)"),
+            "Manual Health repair should re-arm the deferred wake replay and use the post-wake physical replay path before claiming the repair is complete"
+        )
+        XCTAssertTrue(
+            !healthSource.contains("pendingDeferredWakeRestoreReason = nil") &&
+                healthSource.contains("menuBarManager.hasActionableDeferredWakeVisibleAllowListRepair()") &&
+                healthSource.contains("Repair is running. SaneBar will clear the wake repair note after the layout restore finishes."),
+            "Health UI should not clear deferred wake guidance until the replay path clears it after a successful physical repair"
+        )
+        XCTAssertTrue(
+            recoverySource.contains("clearWakeVisibleAllowListReplayPending(clearDeferredReason: false)") &&
+                recoverySource.contains("guard now <= pendingWakeVisibleAllowListReplayUntil else") &&
+                recoverySource.contains("func pendingWakeVisibleAllowListReplayExpired") &&
+                managerSource.contains("self.statusItemRecoveryWorkflow.clearWakeVisibleAllowListReplayPending(clearDeferredReason: false)"),
+            "Replay TTL expiry should clear only the short-lived replay window, not the customer-visible Health guidance"
         )
     }
 
@@ -569,21 +660,38 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
         )
 
         XCTAssertTrue(
-            source.contains("var shouldRetryVisibilityReplay = false") &&
+                source.contains("var shouldRetryVisibilityReplay = false") &&
+                source.contains("let shouldReplayHideAllOther = settings.hideAllOtherMenuBarItems &&\n            !settings.hideAllOtherVisibleItemIds.isEmpty") &&
+                source.contains("statusItemRecoveryWorkflow.recoveryDormantUntil") &&
                 source.contains("await self.alwaysHiddenPinWorkflow.enforce(") &&
                 source.contains("mode: .auditOnly") &&
                 source.contains("let hideAllOtherEnforced = await self.hideAllOtherWorkflow.enforce(") &&
                 source.contains("let hideAllOtherMode = self.visibilityIntentReplayHideAllOtherMode(reason: replayReason)") &&
                 source.contains("physicalMoveOrigin: hideAllOtherMode.physicalMoveOrigin") &&
-                replaySource.contains("let isWakeReplay = reason.contains(\"wake-resume\")") &&
-                replaySource.contains("if isWakeReplay {\n            return (.auditOnly, nil)\n        }") &&
+                replaySource.contains("let isPostWakeHealthyValidation = isPostWakeVisibleAllowListReplayReason(reason)") &&
+                replaySource.contains("let isImmediateWakeReplay = reason.hasPrefix(\"wake-resume\")") &&
+                replaySource.contains("let isStartupReconciliation = isStartupVisibilityIntentReplayReason(reason)") &&
+                replaySource.contains("if isImmediateWakeReplay {\n            return (.auditOnly, nil)\n        }") &&
+                replaySource.contains("if isStartupReconciliation, confidenceAllowsMoves") &&
+                replaySource.contains("let hasVisibleAllowList = settings.hideAllOtherMenuBarItems") &&
+                replaySource.contains("hasVisibleAllowList: hasVisibleAllowList") &&
+                replaySource.contains("isPostWakeHealthyValidation &&") &&
+                replaySource.contains("hasPendingWakeVisibleAllowListReplay") &&
+                replaySource.contains("canRepairHiddenWakeVisibleAllowList") &&
+                replaySource.contains("reason.hasPrefix(\"healthy-validation-wake-resume\")") &&
+                replaySource.contains("reason.hasPrefix(\"status-item-recreate-wake-resume\")") &&
+                replaySource.contains("reason.hasPrefix(\"healthy-validation-startup-follow-up\")") &&
+                !replaySource.contains("reason.contains(\"healthy-validation\")") &&
                 replaySource.contains("hidingState: hidingService.state") &&
                 replaySource.contains("return (.repairWithPhysicalMoves, .systemWakeRecovery)") &&
+                source.contains("var completedWakeVisibleAllowListRepair = false") &&
+                source.contains("if completedWakeVisibleAllowListRepair") &&
                 source.contains("Visibility intent replay waiting for hide-all-other completion") &&
+                source.contains("self.restorePendingHiddenStateAfterVisibilityReplayFailure(reason: \"\\(reason)-replay-gave-up\")") &&
                 source.contains("if shouldRetryVisibilityReplay") &&
-                source.contains("snapshot.geometryConfidence == .live") &&
+                source.contains("MenuBarVisibilityPolicy.shouldRunVisibilityIntentEnforcement(") &&
                 !source.contains("snapshot.geometryConfidence == .live || snapshot.geometryConfidence == .cached"),
-            "Replay should still audit the regular Hidden allow-list when Always Hidden needs another retry, retry incomplete hide-all-other checks, avoid stale geometry, keep wake replay passive, and restrict physical repair to trustworthy healthy validation"
+            "Replay should still audit the regular Hidden allow-list when Always Hidden needs another retry, retry incomplete hide-all-other checks, avoid stale geometry, keep immediate wake passive, and allow post-wake visible allow-list repair only on trustworthy healthy validation"
         )
     }
 
@@ -601,6 +709,13 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
                 source.contains("let alwaysHiddenBoundaryX = manager.geometryResolver.currentLiveAlwaysHiddenSeparatorBoundaryX()") &&
                 source.contains("var initialZoneByUniqueId: [String: HideAllOtherZone]") &&
                 source.contains("initialZoneByUniqueId[item.app.uniqueId] = Self.hideAllOtherZone(") &&
+                source.contains("let orderedItems = items.enumerated().sorted") &&
+                source.contains("Hide-all-other enforcement skipped because the visible allow-list is empty") &&
+                source.contains("Hide-all-other enforcement rejected because the visible allow-list is empty") &&
+                source.contains("SearchMenuBarZoneClassifier.classifyZone(") &&
+                source.contains("SearchMenuBarZoneClassifier.isAlwaysHiddenZone(") &&
+                !source.contains("width * 0.3") &&
+                source.contains("Self.hideAllOtherReplayMovePriority(shouldShow: lhsShouldShow)") &&
                 source.contains("guard Self.hideAllOtherMoveNeeded(initialZone: initialZone, shouldShow: shouldShow)") &&
                 source.contains("if shouldShow, isCurrentlyAlwaysHidden") &&
                 source.contains("let isCurrentlyAlwaysHidden = initialZone == .alwaysHidden") &&
@@ -608,13 +723,15 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
                 source.contains("moveIconAlwaysHiddenAndWait(") &&
                 source.contains("for pass in 1 ... 2") &&
                 source.contains("let verificationItems = await AccessibilityService.shared.refreshMenuBarItemsWithPositions()") &&
+                source.contains("let orderedVerificationItems = verificationItems.enumerated().sorted") &&
                 source.contains("hideAllOtherFinalMoveNeeded(currentZone: currentZone, shouldShow: shouldShow)") &&
                 source.contains("if shouldShow, currentZone == .alwaysHidden") &&
                 source.contains("failedMoveUniqueIds.formUnion(finalMoveFailedUniqueIds)") &&
                 source.contains("var failedMoveUniqueIds = Set<String>()") &&
                 source.contains("var finalMoveFailedUniqueIds = Set<String>()") &&
                 source.contains("failedMoveUniqueIds.insert(app.uniqueId)") &&
-                source.contains("let shouldRestoreHiddenState = wasHidden || isWakeReplay") &&
+                source.contains("let shouldRestoreHiddenState = manager.hidingService.state == .hidden") &&
+                !source.contains("let shouldRestoreHiddenState = wasHidden || isWakeReplay") &&
                 source.contains("if shouldRestoreHiddenState { await manager.hidingService.hide() }") &&
                 source.contains("Hide-all-other enforcement incomplete") &&
                 source.contains("return false") &&
@@ -639,22 +756,16 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
         )
     }
 
-    func testAlwaysHiddenPinEnforcementDoesNotRemoveItsOwnPin() throws {
+    func testAlwaysHiddenPinEnforcementUsesDedicatedLaneAndAuditDefault() throws {
         let alwaysHiddenSource = try String(
             contentsOf: projectRootURL().appendingPathComponent("Core/Services/MenuBarAlwaysHiddenPinWorkflow.swift"),
             encoding: .utf8
         )
-        let queueSource = try String(
-            contentsOf: projectRootURL().appendingPathComponent("Core/Services/MenuBarMoveQueueWorkflow.swift"),
-            encoding: .utf8
-        )
-        let standardSource = try String(
-            contentsOf: projectRootURL().appendingPathComponent("Core/Services/MenuBarStandardIconMoveWorkflow.swift"),
-            encoding: .utf8
-        )
 
         XCTAssertTrue(
-            alwaysHiddenSource.contains("clearAlwaysHiddenPinAfterMove: false") &&
+            alwaysHiddenSource.contains("await manager.moveQueueWorkflow.moveIconAlwaysHiddenAndWait(") &&
+                alwaysHiddenSource.contains("preferredCenterX: item.app.preferredCenterX") &&
+                alwaysHiddenSource.contains("toAlwaysHidden: true") &&
                 alwaysHiddenSource.contains("mode: MenuBarVisibilityIntentMode = .auditOnly") &&
                 alwaysHiddenSource.contains("physicalMoveOrigin: MenuBarPhysicalMoveOrigin? = nil") &&
                 alwaysHiddenSource.contains("Physical menu bar moves rejected without an explicit user/automation origin") &&
@@ -663,13 +774,11 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
                 alwaysHiddenSource.contains("let shouldRestoreHiddenState = wasHidden || isWakeReplay") &&
                 alwaysHiddenSource.contains("automaticMoveBudget(forCandidateItemCount: filteredPins.count)") &&
                 alwaysHiddenSource.contains("if shouldRestoreHiddenState { await manager.hidingService.hide() }") &&
-                queueSource.contains("clearAlwaysHiddenPinAfterMove: Bool = true") &&
-                standardSource.contains("context.request.clearAlwaysHiddenPinAfterMove") &&
                 alwaysHiddenSource.contains("@discardableResult") &&
                 alwaysHiddenSource.contains("return false") &&
                 alwaysHiddenSource.contains("failedMoveUniqueIds.insert(uniqueId)") &&
                 alwaysHiddenSource.contains("Always-hidden pin enforcement incomplete"),
-            "Always Hidden pin replay should move pinned items without clearing the persisted pin it is enforcing, but scheduled recovery must not perform background physical cursor-moving drags"
+            "Always Hidden pin replay should use the dedicated Always Hidden lane, but scheduled recovery must not perform background physical cursor-moving drags"
         )
     }
 
@@ -715,6 +824,19 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
                 !source.contains("manager.settings.hideAllOtherVisibleItemIds = []") &&
                 !source.contains("settings.hideAllOtherVisibleItemIds = []"),
             "Hide-all-other setup should seed from a fresh, healthy menu bar snapshot without erasing the existing allow-list on transient geometry failures"
+        )
+    }
+
+    func testDiagnosticsIncludeHideAllOtherState() throws {
+        let source = try String(
+            contentsOf: projectRootURL().appendingPathComponent("Core/Services/DiagnosticsService.swift"),
+            encoding: .utf8
+        )
+
+        XCTAssertTrue(
+            source.contains("hideAllOtherMenuBarItems: \\(settings.hideAllOtherMenuBarItems)") &&
+                source.contains("hideAllOtherVisibleItemCount: \\(settings.hideAllOtherVisibleItemIds.count)"),
+            "Bug reports must include Hide All Other state because it changes hidden-state replay safety decisions"
         )
     }
 
@@ -898,8 +1020,10 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
 
         XCTAssertTrue(
             source.contains("case .alwaysHidden:") &&
-                source.contains("return separatorX - moveOffset"),
-            "Always-hidden moves should use a dedicated separator-adjacent target instead of reusing the deeper generic hidden-lane target"
+                source.contains("let wideAlwaysHiddenThreshold: CGFloat = 56") &&
+                source.contains("? max(moveOffset, iconWidth + 40)") &&
+                source.contains("return separatorX - alwaysHiddenOffset"),
+            "Always-hidden moves should use a dedicated separator-adjacent target with extra depth for wide status items"
         )
 
         let target = AccessibilityService.moveTargetX(
@@ -909,6 +1033,17 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
             visibleBoundaryX: nil
         )
         XCTAssertEqual(target, 786, accuracy: 0.001)
+    }
+
+    func testWideAlwaysHiddenMoveTargetUsesExtraDepthWithoutGenericOvershoot() {
+        let target = AccessibilityService.moveTargetX(
+            targetLane: .alwaysHidden,
+            iconWidth: 69,
+            separatorX: 858,
+            visibleBoundaryX: nil
+        )
+
+        XCTAssertEqual(target, 749, accuracy: 0.001)
     }
 
     func testMoveVerificationContainsDirectionGuard() throws {

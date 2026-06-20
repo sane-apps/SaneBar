@@ -8,6 +8,7 @@ require 'tmpdir'
 require 'time'
 require 'set'
 require 'securerandom'
+require 'socket'
 
 class WakeLayoutProbe
   SETTINGS_PATH = File.expand_path('~/Library/Application Support/SaneBar/settings.json')
@@ -29,6 +30,7 @@ class WakeLayoutProbe
   REQUIRED_HIDDEN_ID_LIMIT = 6
   DEFAULT_GRACEFUL_QUIT_TIMEOUT_SECONDS = 3.0
   DEFAULT_FORCE_QUIT_TIMEOUT_SECONDS = 2.0
+  NO_KEYCHAIN_LAUNCH_REGISTRATION_GRACE_SECONDS = 1.5
   AUTOMATION_QUIT_TOKEN_ENV = 'SANEBAR_AUTOMATION_QUIT_TOKEN'
   DEFAULT_AUTOMATION_QUIT_MARKER_PATH = '/tmp/sanebar_explicit_termination.token'
   BLOCKED_LOG_PATTERNS = [
@@ -265,9 +267,9 @@ class WakeLayoutProbe
     raise "Target app missing: #{@app_path}" unless File.directory?(@app_path)
   end
   def backup_state!
-    if File.exist?(SETTINGS_PATH)
+    if safe_existing_file?(SETTINGS_PATH)
       FileUtils.mkdir_p(File.dirname(@settings_backup_path))
-      FileUtils.cp(SETTINGS_PATH, @settings_backup_path)
+      safe_copy_file(SETTINGS_PATH, @settings_backup_path)
       @had_settings_file = true
     end
     log("Backed up settings file=#{@had_settings_file}")
@@ -277,9 +279,9 @@ class WakeLayoutProbe
     if @had_settings_file
       raise "Missing settings backup #{@settings_backup_path}" unless File.exist?(@settings_backup_path)
       FileUtils.mkdir_p(File.dirname(SETTINGS_PATH))
-      FileUtils.cp(@settings_backup_path, SETTINGS_PATH)
+      safe_copy_file(@settings_backup_path, SETTINGS_PATH)
     else
-      FileUtils.rm_f(SETTINGS_PATH)
+      safe_remove_file(SETTINGS_PATH)
     end
     launch_app if @was_running
     log('Restored wake probe state')
@@ -1025,22 +1027,50 @@ class WakeLayoutProbe
   end
 
   def app_pids
-    return [] unless @app_name
+    app_processes.map { |process| process[:pid] }
+  end
 
+  def app_processes
+    return [] unless @app_name
     process_path = File.join(@app_path, 'Contents', 'MacOS', @app_name)
     out, status = Open3.capture2e('ps', '-axo', 'pid=,command=')
     return [] unless status.success?
 
-    out.lines.map do |line|
-      next unless line.include?(process_path)
+    out.lines.each_with_object([]) do |line, result|
+      stripped = line.strip
+      pid, command = stripped.split(/\s+/, 2)
+      next unless pid && command
+      next unless command.split(/\s+/, 2).first.to_s == process_path
 
-      line.split.first.to_i
-    end.compact.select(&:positive?)
+      numeric_pid = pid.to_i
+      result << { pid: numeric_pid, command: command } if numeric_pid.positive?
+    end
+  end
+
+  def ensure_single_target_process!(context)
+    processes = app_processes
+    raise "#{context}: #{@app_name} test target is not running" if processes.empty?
+
+    if processes.length > 1
+      raise "#{context}: duplicate #{@app_name} test processes: #{format_app_processes(processes)}"
+    end
+
+    process = processes.first
+    if no_keychain_launch? && !process[:command].include?('--sane-no-keychain')
+      raise "#{context}: expected no-keychain #{@app_name} process, got #{format_app_processes(processes)}"
+    end
+
+    true
+  end
+
+  def format_app_processes(processes)
+    processes.map { |process| "#{process[:pid]} #{process[:command]}" }.join(' | ')
   end
 
   def launch_app
     if no_keychain_launch?
       launch_app_direct
+      sleep NO_KEYCHAIN_LAUNCH_REGISTRATION_GRACE_SECONDS
     else
       out, status = capture('open', @app_path)
       raise "Failed to launch #{@app_path}: #{out}" unless status.success?
@@ -1048,11 +1078,17 @@ class WakeLayoutProbe
 
     deadline = Time.now + 20
     until Time.now >= deadline
-      break if app_running? && layout_snapshot_available?
+      break if target_process_ready? && layout_snapshot_available?
       sleep 0.25
     end
 
-    raise "Timed out waiting for #{@app_name} launch" unless app_running? && layout_snapshot_available?
+    raise "Timed out waiting for #{@app_name} launch" unless target_process_ready? && layout_snapshot_available?
+  end
+
+  def target_process_ready?
+    ensure_single_target_process!('launch wait')
+  rescue StandardError
+    false
   end
 
   def no_keychain_launch?
@@ -1127,6 +1163,7 @@ class WakeLayoutProbe
   end
 
   def read_layout_snapshot!
+    ensure_single_target_process!('layout snapshot')
     out, status = capture('osascript', '-e', "tell application id \"#{bundle_identifier}\" to layout snapshot")
     raise "layout snapshot failed: #{out}" unless status.success?
 
@@ -1147,16 +1184,94 @@ class WakeLayoutProbe
   end
 
   def load_settings_json
-    return {} unless File.exist?(SETTINGS_PATH)
+    return {} unless safe_existing_file?(SETTINGS_PATH)
 
-    JSON.parse(File.read(SETTINGS_PATH))
+    JSON.parse(safe_read_file(SETTINGS_PATH))
   rescue JSON::ParserError => e
     raise "Could not parse #{SETTINGS_PATH}: #{e.message}"
   end
 
   def save_settings_json(payload)
     FileUtils.mkdir_p(File.dirname(SETTINGS_PATH))
-    File.write(SETTINGS_PATH, JSON.pretty_generate(payload) + "\n")
+    safe_write_file(SETTINGS_PATH, JSON.pretty_generate(payload) + "\n")
+  end
+
+  def safe_write_file(path, content)
+    safe_directory_path!(File.dirname(path))
+    FileUtils.mkdir_p(File.dirname(path))
+    File.open(path, safe_file_write_flags, 0o600) do |file|
+      file.write(content)
+    end
+  end
+
+  def safe_copy_file(source, destination)
+    safe_write_file(destination, safe_read_file(source))
+  end
+
+  def safe_read_file(path)
+    safe_directory_path!(File.dirname(path))
+    File.open(path, safe_file_read_flags) do |file|
+      file.read
+    end
+  end
+
+  def safe_remove_file(path)
+    return unless safe_existing_file?(path)
+
+    FileUtils.rm_f(path)
+  end
+
+  def safe_existing_file?(path)
+    safe_directory_path!(File.dirname(path))
+    stat = File.lstat(path)
+    raise "Unsafe symlink settings path: #{path}" if stat.symlink?
+    raise "Unsafe non-file settings path: #{path}" unless stat.file?
+
+    true
+  rescue Errno::ENOENT
+    false
+  end
+
+  def safe_file_write_flags
+    flags = File::WRONLY | File::CREAT | File::TRUNC
+    flags |= File::NOFOLLOW if File.const_defined?(:NOFOLLOW)
+    flags
+  end
+
+  def safe_file_read_flags
+    flags = File::RDONLY
+    flags |= File::NOFOLLOW if File.const_defined?(:NOFOLLOW)
+    flags
+  end
+
+  def safe_directory_path!(path)
+    expanded = File.expand_path(path)
+    current = expanded.start_with?(File::SEPARATOR) ? File::SEPARATOR : Dir.pwd
+    expanded.split(File::SEPARATOR).reject(&:empty?).each do |component|
+      current = current == File::SEPARATOR ? File.join(current, component) : File.join(current, component)
+      next unless File.exist?(current)
+
+      stat = File.lstat(current)
+      if stat.symlink?
+        real = File.realpath(current) rescue nil
+        next if allowed_system_temp_directory_symlink?(current, real)
+
+        raise "Unsafe symlink directory path: #{current}"
+      end
+      raise "Unsafe non-directory path: #{current}" unless stat.directory?
+    end
+    true
+  end
+
+  def allowed_system_temp_directory_symlink?(path, real)
+    expanded = File.expand_path(path)
+    canonical = File.expand_path(real.to_s)
+    return true if expanded == '/tmp' && canonical == '/private/tmp'
+    return true if expanded == '/var' && canonical == '/private/var'
+
+    expanded == File.expand_path(Dir.tmpdir) && canonical == File.realpath(Dir.tmpdir)
+  rescue StandardError
+    false
   end
 
   def numeric_snapshot_value(snapshot, key)

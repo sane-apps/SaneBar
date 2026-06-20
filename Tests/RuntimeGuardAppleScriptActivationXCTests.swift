@@ -59,7 +59,7 @@ final class RuntimeGuardAppleScriptActivationXCTests: RuntimeGuardTestCase {
             "MoveIconScriptCommand should block Basic mode before attempting any icon move through the shared Pro-check helper"
         )
         XCTAssertTrue(
-            source.contains("Basic can browse and click icons, but moving icons is Pro-only."),
+            source.contains("Hide, show, and move icon commands require SaneBar Pro. Basic can browse, click, and list icons. Open SaneBar's License window to unlock these commands."),
             "The AppleScript move gate should explain the exact Basic vs Pro boundary"
         )
     }

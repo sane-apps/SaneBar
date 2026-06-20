@@ -136,8 +136,91 @@ struct MenuBarOperationRuntimeValidationTests {
         )
     }
 
-    @Test("Lifecycle validation treats cached separator anchors as missing until live")
-    func lifecycleValidationRecreatesForCachedSeparatorAnchor() {
+    @Test("Runtime attachment loss arms visible allow-list replay only after hidden lifecycle anchor loss")
+    func runtimeAttachmentLossArmsVisibleAllowListReplayNarrowly() {
+        let hiddenMissingAnchor = MenuBarRuntimeSnapshot(
+            geometryConfidence: .missing,
+            structuralState: .ready,
+            separatorAnchorSource: .missing,
+            mainAnchorSource: .live,
+            visibilityPhase: .hidden,
+            startupItemsValid: true,
+            separatorX: nil,
+            mainX: 1700,
+            mainRightGap: 220,
+            screenWidth: 1920
+        )
+        let expandedMissingAnchor = MenuBarRuntimeSnapshot(
+            geometryConfidence: .missing,
+            structuralState: .ready,
+            separatorAnchorSource: .missing,
+            mainAnchorSource: .live,
+            visibilityPhase: .expanded,
+            startupItemsValid: true,
+            separatorX: nil,
+            mainX: 1700,
+            mainRightGap: 220,
+            screenWidth: 1920
+        )
+        let driftedHidden = MenuBarRuntimeSnapshot(
+            geometryConfidence: .stale,
+            structuralState: .ready,
+            separatorAnchorSource: .live,
+            mainAnchorSource: .live,
+            visibilityPhase: .hidden,
+            startupItemsValid: true,
+            separatorX: 900,
+            mainX: 930,
+            mainRightGap: 990,
+            screenWidth: 1920
+        )
+
+        #expect(
+            !MenuBarOperationCoordinator.shouldArmWakeVisibleAllowListReplayAfterRuntimeAttachmentLoss(
+                snapshot: hiddenMissingAnchor,
+                validationContext: .activeSpaceChanged,
+                action: .waitForLiveAnchor
+            )
+        )
+        #expect(
+            !MenuBarOperationCoordinator.shouldArmWakeVisibleAllowListReplayAfterRuntimeAttachmentLoss(
+                snapshot: hiddenMissingAnchor,
+                validationContext: .screenParametersChanged,
+                action: .recreateFromPersistedLayout(.missingCoordinates)
+            )
+        )
+        #expect(
+            MenuBarOperationCoordinator.shouldArmWakeVisibleAllowListReplayAfterRuntimeAttachmentLoss(
+                snapshot: hiddenMissingAnchor,
+                validationContext: .wakeResume,
+                action: .repairPersistedLayoutAndRecreate(.missingCoordinates)
+            )
+        )
+        #expect(
+            !MenuBarOperationCoordinator.shouldArmWakeVisibleAllowListReplayAfterRuntimeAttachmentLoss(
+                snapshot: hiddenMissingAnchor,
+                validationContext: .startupFollowUp,
+                action: .waitForLiveAnchor
+            )
+        )
+        #expect(
+            !MenuBarOperationCoordinator.shouldArmWakeVisibleAllowListReplayAfterRuntimeAttachmentLoss(
+                snapshot: expandedMissingAnchor,
+                validationContext: .activeSpaceChanged,
+                action: .waitForLiveAnchor
+            )
+        )
+        #expect(
+            !MenuBarOperationCoordinator.shouldArmWakeVisibleAllowListReplayAfterRuntimeAttachmentLoss(
+                snapshot: driftedHidden,
+                validationContext: .activeSpaceChanged,
+                action: .repairPersistedLayoutAndRecreate(.invalidGeometry)
+            )
+        )
+    }
+
+    @Test("Lifecycle validation protects hidden cached separator presentation")
+    func lifecycleValidationProtectsHiddenCachedSeparatorPresentation() {
         let snapshot = MenuBarRuntimeSnapshot(
             geometryConfidence: .cached,
             separatorAnchorSource: .cached,
@@ -150,6 +233,57 @@ struct MenuBarOperationRuntimeValidationTests {
             screenWidth: 1920
         )
 
+        #expect(MenuBarOperationCoordinator.startupRecoveryReason(snapshot: snapshot) == .missingCoordinates)
+        #expect(MenuBarOperationCoordinator.positionValidationRecoveryReason(snapshot: snapshot) == nil)
+        #expect(
+            MenuBarOperationCoordinator.statusItemRecoveryAction(
+                snapshot: snapshot,
+                context: .positionValidation(.wakeResume),
+                recoveryCount: 0,
+                maxRecoveryCount: 4
+            ) == .captureCurrentDisplayBackup
+        )
+        #expect(
+            MenuBarOperationCoordinator.statusItemRecoveryAction(
+                snapshot: snapshot,
+                context: .positionValidation(.screenParametersChanged),
+                recoveryCount: 1,
+                maxRecoveryCount: 4
+            ) == .captureCurrentDisplayBackup
+        )
+        #expect(
+            MenuBarOperationCoordinator.statusItemRecoveryAction(
+                snapshot: snapshot,
+                context: .positionValidation(.activeSpaceChanged),
+                recoveryCount: 2,
+                maxRecoveryCount: 4
+            ) == .captureCurrentDisplayBackup
+        )
+        #expect(
+            MenuBarOperationCoordinator.statusItemRecoveryAction(
+                snapshot: snapshot,
+                context: .positionValidation(.startupFollowUp),
+                recoveryCount: 0,
+                maxRecoveryCount: 4
+            ) == .captureCurrentDisplayBackup
+        )
+    }
+
+    @Test("Lifecycle validation does not protect misordered hidden cached separator presentation")
+    func lifecycleValidationRejectsMisorderedHiddenCachedSeparatorPresentation() {
+        let snapshot = MenuBarRuntimeSnapshot(
+            geometryConfidence: .shielded,
+            separatorAnchorSource: .cached,
+            mainAnchorSource: .live,
+            visibilityPhase: .hidden,
+            startupItemsValid: true,
+            separatorX: 1712,
+            mainX: 1684,
+            mainRightGap: 236,
+            screenWidth: 1920
+        )
+
+        #expect(MenuBarOperationCoordinator.positionValidationRecoveryReason(snapshot: snapshot) == .missingCoordinates)
         #expect(
             MenuBarOperationCoordinator.statusItemRecoveryAction(
                 snapshot: snapshot,
@@ -158,25 +292,44 @@ struct MenuBarOperationRuntimeValidationTests {
                 maxRecoveryCount: 4
             ) == .waitForLiveAnchor
         )
+    }
+
+    @Test("Lifecycle validation still rejects unsafe cached separator anchors")
+    func lifecycleValidationStillRejectsUnsafeCachedSeparatorAnchors() {
+        let expandedSnapshot = MenuBarRuntimeSnapshot(
+            geometryConfidence: .cached,
+            separatorAnchorSource: .cached,
+            mainAnchorSource: .live,
+            visibilityPhase: .expanded,
+            startupItemsValid: true,
+            separatorX: 1661,
+            mainX: 1691,
+            mainRightGap: 229,
+            screenWidth: 1920
+        )
+        let liveConfidenceSnapshot = MenuBarRuntimeSnapshot(
+            geometryConfidence: .live,
+            separatorAnchorSource: .cached,
+            mainAnchorSource: .live,
+            visibilityPhase: .hidden,
+            startupItemsValid: true,
+            separatorX: 1661,
+            mainX: 1691,
+            mainRightGap: 229,
+            screenWidth: 1920
+        )
+
         #expect(
             MenuBarOperationCoordinator.statusItemRecoveryAction(
-                snapshot: snapshot,
-                context: .positionValidation(.screenParametersChanged),
-                recoveryCount: 1,
+                snapshot: expandedSnapshot,
+                context: .positionValidation(.wakeResume),
+                recoveryCount: 0,
                 maxRecoveryCount: 4
-            ) == .recreateFromPersistedLayout(.missingCoordinates)
+            ) == .waitForLiveAnchor
         )
         #expect(
             MenuBarOperationCoordinator.statusItemRecoveryAction(
-                snapshot: snapshot,
-                context: .positionValidation(.activeSpaceChanged),
-                recoveryCount: 2,
-                maxRecoveryCount: 4
-            ) == .repairPersistedLayoutAndRecreate(.missingCoordinates)
-        )
-        #expect(
-            MenuBarOperationCoordinator.statusItemRecoveryAction(
-                snapshot: snapshot,
+                snapshot: liveConfidenceSnapshot,
                 context: .positionValidation(.startupFollowUp),
                 recoveryCount: 0,
                 maxRecoveryCount: 4

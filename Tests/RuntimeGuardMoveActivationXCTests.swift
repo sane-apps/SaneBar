@@ -106,6 +106,16 @@ final class RuntimeGuardMoveActivationXCTests: RuntimeGuardTestCase {
             source.contains("func runScriptMove(timeoutSeconds: TimeInterval = 9.0"),
             "AppleScript move commands should allow enough time for the hardened fallback path before reporting a timeout"
         )
+        XCTAssertTrue(
+            source.contains("task.cancel()") &&
+                source.contains("MenuBarManager.shared.activeMoveTask?.cancel()"),
+            "AppleScript move timeouts should cancel the wrapper and active move task"
+        )
+        XCTAssertFalse(
+            source.contains("MenuBarManager.shared.activeMoveTask = nil") ||
+                source.contains("SearchWindowController.shared.setMoveInProgress(false)"),
+            "AppleScript timeout handling must not mark the move lane idle before the shared move coordinator finishes rollback and cleanup"
+        )
     }
 
     func testMoveTargetResolutionWaitsForLiveSeparatorFrame() throws {
@@ -259,12 +269,14 @@ final class RuntimeGuardMoveActivationXCTests: RuntimeGuardTestCase {
         let source = try String(contentsOf: fileURL, encoding: .utf8)
 
         XCTAssertTrue(
-            source.contains("requiresAlwaysHiddenToHiddenTargets: true") &&
+                source.contains("requiresAlwaysHiddenToHiddenTargets: true") &&
                 source.contains("if requiresAlwaysHiddenToHiddenTargets") &&
                 source.contains("liveTargetsReady = await currentAlwaysHiddenToHiddenTargets() != nil") &&
-                source.contains("Outbound always-hidden geometry is not live after showAll; recreating AH separator before retry") &&
+                source.contains("repairStatusItemsForAlwaysHiddenToHiddenTargetsIfNeeded") &&
+                source.contains(".recreateFromPersistedLayout(.invalidStatusItems)") &&
+                source.contains("Always-hidden move geometry is not live after showAll; recreating AH separator before retry") &&
                 source.contains("Outbound AH-to-Hidden targets stayed unavailable after AH separator repair"),
-            "AH-to-Hidden moves must repair missing live AH/main separator targets after reveal instead of failing just because the source icon is visible"
+            "AH-to-Hidden moves must repair missing live AH/main separator targets after reveal, including the main/separator status-item graph, instead of failing just because the source icon is visible"
         )
     }
 

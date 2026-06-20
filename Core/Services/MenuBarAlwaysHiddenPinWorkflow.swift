@@ -494,13 +494,12 @@ final class MenuBarAlwaysHiddenPinWorkflow {
 
             logger.info("Enforcing always-hidden pin (\(reason, privacy: .public)): moving \(uniqueId, privacy: .private)")
 
-            let moveSucceeded = await manager.moveQueueWorkflow.moveIconAndWait(
+            let moveSucceeded = await manager.moveQueueWorkflow.moveIconAlwaysHiddenAndWait(
                 bundleID: item.app.bundleId,
                 menuExtraId: item.app.menuExtraIdentifier,
                 statusItemIndex: item.app.statusItemIndex,
-                toHidden: true,
-                separatorOverrideX: currentAHBoundaryX,
-                clearAlwaysHiddenPinAfterMove: false,
+                preferredCenterX: item.app.preferredCenterX,
+                toAlwaysHidden: true,
                 physicalMoveOrigin: repairOrigin
             )
             if !moveSucceeded {

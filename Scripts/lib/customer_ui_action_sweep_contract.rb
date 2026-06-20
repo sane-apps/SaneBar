@@ -158,7 +158,7 @@ class CustomerUIActionSweep
       evidence('mini_click', "#{url_line(url_lines, 'health')} | #{url_line(url_lines, 'repair')}"),
       evidence('screenshot', 'Health/repair settings window rendered from deep-link route on Mini', [screenshot_for_action('health-repair-rescue-diagnostics')]),
       evidence('fixture', source_line(source_lines, 'health')),
-      evidence('log', 'Startup and health/repair runtime logs captured', ['/tmp/sanebar_runtime_startup_probe.log']),
+      evidence('log', 'Startup and health/repair runtime logs captured', runtime_startup_probe_log_paths),
       evidence('source_guard', source_line(source_lines, 'health')),
       evidence('mini_url_route', url_line(url_lines, 'health')),
       evidence('mini_url_route', url_line(url_lines, 'repair'))
@@ -201,7 +201,7 @@ class CustomerUIActionSweep
       evidence('screenshot', 'Startup recovery includes Custom Appearance overlay tint pixel evidence from Mini runtime smoke', [screenshot_for_action('startup-wake-appearance-recovery')]),
       evidence('state_receipt', runtime_line(runtime_lines, 'Appearance tint pixels ok')),
       evidence('state_receipt', runtime_line(runtime_lines, 'Visible fullscreen transition contract ok')),
-      evidence('log', 'Startup, wake, and appearance recovery runtime logs captured', runtime_log_artifacts + ['/tmp/sanebar_runtime_startup_probe.log', '/tmp/sanebar_runtime_wake_probe.log']),
+      evidence('log', 'Startup, wake, and appearance recovery runtime logs captured', runtime_log_artifacts + runtime_startup_probe_log_paths + ['/tmp/sanebar_runtime_wake_probe.log']),
       evidence('source_guard', source_line(source_lines, 'recovery'))
     ])
   end
@@ -375,7 +375,7 @@ class CustomerUIActionSweep
   end
 
   def log_artifact_path(id, evidence_items)
-    candidates = evidence_items.flat_map { |item| Array(item[:artifacts]) }.select { |path| File.file?(path.to_s) }
+    candidates = evidence_items.flat_map { |item| Array(item[:artifacts]) }.select { |path| safe_regular_artifact_file?(path.to_s) }
     candidates.find { |path| path.to_s.end_with?('.log', '.txt') } ||
       artifact_file(id, 'log', ([@transcript, evidence_items].flatten.join("\n") + "\n"))
   end
@@ -394,7 +394,7 @@ class CustomerUIActionSweep
     safe_id = id.gsub(/[^a-zA-Z0-9_-]/, '-')
     path = File.join(@evidence_dir, "#{safe_id}-#{kind}.json")
     FileUtils.mkdir_p(File.dirname(path))
-    File.write(path, content.to_s.end_with?("\n") ? content : "#{content}\n")
+    safe_copy_artifact_content(path, content.to_s.end_with?("\n") ? content : "#{content}\n")
     relative(path)
   end
 
@@ -455,8 +455,8 @@ class CustomerUIActionSweep
     destination = File.join(@evidence_dir, "#{safe_id}-screenshot#{extension.empty? ? '.png' : extension}")
     FileUtils.mkdir_p(File.dirname(destination))
     unless File.expand_path(destination) == absolute
-      FileUtils.cp(absolute, destination)
-      add_png_text_chunk(destination, 'SaneSource', absolute)
+      safe_copy_artifact(absolute, destination)
+      add_png_text_chunk(destination, 'SaneSource', relative(absolute))
       add_png_text_chunk(destination, 'SaneAction', id)
     end
     relative(destination)
@@ -495,18 +495,94 @@ class CustomerUIActionSweep
     value = path.to_s.strip
     return nil if value.empty?
     return value unless value.start_with?('/')
-    return value unless File.file?(value)
+    return value unless safe_regular_artifact_file?(value)
 
     safe_name = File.basename(value).gsub(/[^a-zA-Z0-9_.-]/, '-')
     destination = File.join(@evidence_dir, safe_name)
-    FileUtils.cp(value, destination)
+    safe_copy_artifact(value, destination)
     relative(destination)
+  end
+
+  def safe_regular_artifact_file?(path)
+    safe_artifact_directory_path!(File.dirname(path))
+    stat = File.lstat(path)
+    stat.file?
+  rescue StandardError
+    false
+  end
+
+  def safe_copy_artifact(source, destination)
+    source_flags = File::RDONLY
+    source_flags |= File::NOFOLLOW if File.const_defined?(:NOFOLLOW)
+    destination_flags = File::WRONLY | File::CREAT | File::TRUNC
+    destination_flags |= File::NOFOLLOW if File.const_defined?(:NOFOLLOW)
+    FileUtils.mkdir_p(File.dirname(destination))
+    safe_artifact_directory_path!(File.dirname(source))
+    safe_artifact_directory_path!(File.dirname(destination))
+    File.open(source, source_flags) do |input|
+      File.open(destination, destination_flags, 0o600) do |output|
+        IO.copy_stream(input, output)
+      end
+    end
+  end
+
+  def safe_copy_artifact_content(destination, content)
+    destination_flags = File::WRONLY | File::CREAT | File::TRUNC
+    destination_flags |= File::NOFOLLOW if File.const_defined?(:NOFOLLOW)
+    FileUtils.mkdir_p(File.dirname(destination))
+    safe_artifact_directory_path!(File.dirname(destination))
+    File.open(destination, destination_flags, 0o600) do |output|
+      output.write(content)
+    end
+  end
+
+  def safe_read_artifact(path)
+    safe_artifact_directory_path!(File.dirname(path))
+    flags = File::RDONLY
+    flags |= File::NOFOLLOW if File.const_defined?(:NOFOLLOW)
+    File.open(path, flags) do |file|
+      file.read
+    end
+  end
+
+  def safe_read_artifact_lines(path)
+    safe_read_artifact(path).lines(chomp: true)
+  end
+
+  def safe_artifact_directory_path!(path)
+    expanded = File.expand_path(path)
+    current = expanded.start_with?(File::SEPARATOR) ? File::SEPARATOR : Dir.pwd
+    expanded.split(File::SEPARATOR).reject(&:empty?).each do |component|
+      current = current == File::SEPARATOR ? File.join(current, component) : File.join(current, component)
+      next unless File.exist?(current)
+
+      stat = File.lstat(current)
+      if stat.symlink?
+        real = File.realpath(current) rescue nil
+        next if allowed_system_temp_directory_symlink?(current, real)
+
+        raise "Unsafe symlink artifact directory path: #{current}"
+      end
+      raise "Unsafe non-directory artifact path: #{current}" unless stat.directory?
+    end
+    true
+  end
+
+  def allowed_system_temp_directory_symlink?(path, real)
+    expanded = File.expand_path(path)
+    canonical = File.expand_path(real.to_s)
+    return true if expanded == '/tmp' && canonical == '/private/tmp'
+    return true if expanded == '/var' && canonical == '/private/var'
+
+    expanded == File.expand_path(Dir.tmpdir) && canonical == File.realpath(Dir.tmpdir)
+  rescue StandardError
+    false
   end
 
   def runtime_evidence_lines
     paths = [
       '/tmp/sanebar_runtime_smoke.log',
-      '/tmp/sanebar_runtime_startup_probe.log',
+      *runtime_startup_probe_log_paths,
       '/tmp/sanebar_runtime_wake_probe.log',
       '/tmp/sanebar_runtime_strict_fixture_smoke.log',
       '/tmp/sanebar_runtime_shared_bundle_smoke.log',
@@ -515,12 +591,21 @@ class CustomerUIActionSweep
     ]
     lines = paths
       .select { |path| fresh_release_runtime_evidence?(path) }
-      .flat_map { |path| File.readlines(path, chomp: true).map { |line| "#{path}: #{line}" } }
+      .flat_map do |path|
+        body = safe_read_artifact(path)
+        if runtime_candidate_log_path?(path) && !runtime_log_candidate_matches?(body)
+          raise "Runtime evidence #{path} candidate metadata does not match running SaneBar #{@running_bundle_version}(#{@running_bundle_build})."
+        end
+        body.lines.map { |line| "#{path}: #{line.chomp}" }
+      end
 
-    startup_artifact = '/tmp/sanebar_runtime_startup_probe.json'
+    startup_artifact = runtime_startup_probe_artifact_paths.find { |path| fresh_release_runtime_evidence?(path) }
     if fresh_release_runtime_evidence?(startup_artifact)
-      payload = JSON.parse(File.read(startup_artifact))
+      payload = JSON.parse(safe_read_artifact(startup_artifact))
       if payload['status'] == 'pass'
+        if (provenance_error = startup_probe_runtime_provenance_error(payload, startup_artifact))
+          raise provenance_error
+        end
         case_names = Array(payload['cases']).map { |entry| entry['name'] }.compact.join(', ')
         lines << "#{startup_artifact}: Startup layout probe passed (#{case_names})"
       end
@@ -528,8 +613,11 @@ class CustomerUIActionSweep
 
     wake_artifact = '/tmp/sanebar_runtime_wake_probe.json'
     if fresh_release_runtime_evidence?(wake_artifact)
-      payload = JSON.parse(File.read(wake_artifact))
+      payload = JSON.parse(safe_read_artifact(wake_artifact))
       if payload['status'] == 'pass'
+        if (provenance_error = wake_probe_runtime_provenance_error(payload, wake_artifact))
+          raise provenance_error
+        end
         case_names = Array(payload['cases']).map { |entry| entry['name'] }.compact.join(', ')
         lines << "#{wake_artifact}: Wake layout probe passed (#{case_names})"
       end
@@ -545,6 +633,73 @@ class CustomerUIActionSweep
       '/tmp/sanebar_runtime_native_apple_smoke.log',
       '/tmp/sanebar_runtime_host_exact_id_smoke.log'
     ].select { |path| fresh_release_runtime_evidence?(path) }
+  end
+
+  def runtime_startup_probe_log_paths
+    [
+      File.join(PROJECT_ROOT, 'outputs', 'runtime-preflight', 'sanebar_runtime_startup_probe.log'),
+      '/tmp/sanebar_runtime_startup_probe.log'
+    ]
+  end
+
+  def runtime_startup_probe_artifact_paths
+    [
+      File.join(PROJECT_ROOT, 'outputs', 'runtime-preflight', 'sanebar_runtime_startup_probe.json'),
+      '/tmp/sanebar_runtime_startup_probe.json'
+    ]
+  end
+
+  def runtime_candidate_log_path?(path)
+    File.basename(path).start_with?('sanebar_runtime_') && File.basename(path).end_with?('_smoke.log')
+  end
+
+  def startup_probe_runtime_provenance_error(payload, artifact_path)
+    provenance = payload['runtime_provenance']
+    return "Startup layout probe artifact #{artifact_path} missing Mini runtime provenance." unless provenance.is_a?(Hash)
+    return "Startup layout probe artifact #{artifact_path} does not mark mini_runtime=true." unless provenance['mini_runtime'] == true
+    return "Startup layout probe artifact #{artifact_path} missing provenance host." if provenance['host'].to_s.strip.empty?
+    return "Startup layout probe artifact #{artifact_path} provenance host #{provenance['host'].inspect} is not the Mini." unless provenance['host'].to_s.downcase.include?('mini')
+    return "Startup layout probe artifact #{artifact_path} missing provenance generated_at." if provenance['generated_at'].to_s.strip.empty?
+
+    artifact_app_path = payload['app_path'].to_s
+    provenance_app_path = provenance['app_path'].to_s
+    if !artifact_app_path.empty? && provenance_app_path != artifact_app_path
+      return "Startup layout probe artifact #{artifact_path} provenance app_path #{provenance_app_path.inspect} does not match artifact app_path #{artifact_app_path.inspect}."
+    end
+    unless runtime_artifact_candidate_matches_project?(payload)
+      return "Startup layout probe artifact #{artifact_path} candidate metadata does not match project #{project_version('MARKETING_VERSION')}(#{project_version('CURRENT_PROJECT_VERSION')})."
+    end
+
+    nil
+  end
+
+  def wake_probe_runtime_provenance_error(payload, artifact_path)
+    provenance = payload['runtime_provenance']
+    return "Wake layout probe artifact #{artifact_path} missing Mini runtime provenance." unless provenance.is_a?(Hash)
+    return "Wake layout probe artifact #{artifact_path} does not mark mini_runtime=true." unless provenance['mini_runtime'] == true
+    return "Wake layout probe artifact #{artifact_path} missing provenance host." if provenance['host'].to_s.strip.empty?
+    return "Wake layout probe artifact #{artifact_path} provenance host #{provenance['host'].inspect} is not the Mini." unless provenance['host'].to_s.downcase.include?('mini')
+    return "Wake layout probe artifact #{artifact_path} missing provenance generated_at." if provenance['generated_at'].to_s.strip.empty?
+
+    artifact_app_path = payload['app_path'].to_s
+    provenance_app_path = provenance['app_path'].to_s
+    if !artifact_app_path.empty? && !provenance_app_path.empty? && provenance_app_path != artifact_app_path
+      return "Wake layout probe artifact #{artifact_path} provenance app_path #{provenance_app_path.inspect} does not match artifact app_path #{artifact_app_path.inspect}."
+    end
+    unless runtime_artifact_candidate_matches_project?(payload)
+      return "Wake layout probe artifact #{artifact_path} candidate metadata does not match project #{project_version('MARKETING_VERSION')}(#{project_version('CURRENT_PROJECT_VERSION')})."
+    end
+
+    nil
+  end
+
+  def runtime_artifact_candidate_matches_project?(payload)
+    candidate = payload['candidate']
+    return false unless candidate.is_a?(Hash)
+
+    File.expand_path(candidate['app_path'].to_s) == '/Applications/SaneBar.app' &&
+      candidate['app_version'].to_s == project_version('MARKETING_VERSION') &&
+      candidate['app_build'].to_s == project_version('CURRENT_PROJECT_VERSION')
   end
 
   def runtime_line(lines, marker)
@@ -617,7 +772,7 @@ class CustomerUIActionSweep
   end
 
   def project_version(key)
-    source = File.exist?('project.yml') ? File.read('project.yml') : ''
+    source = safe_regular_artifact_file?('project.yml') ? safe_read_artifact('project.yml') : ''
     match = source.match(/#{Regexp.escape(key)}:\s*(.+)$/)
     match ? match[1].strip.delete('"') : 'unknown'
   end
@@ -650,7 +805,7 @@ class CustomerUIActionSweep
     raise "#{target} snapshot was not written: #{staged}" unless File.size?(staged)
 
     unless File.expand_path(staged) == destination
-      FileUtils.cp(staged, destination)
+      safe_copy_artifact(staged, destination)
       @transcript << "snapshot_staged=#{relative(destination)} source=#{staged}"
     end
     destination

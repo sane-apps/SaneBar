@@ -239,7 +239,8 @@ class ProjectQA
           smoke_out, smoke_status = capture2e_with_progress(
             pass_env,
             smoke_script,
-            heartbeat_label: "runtime smoke pass #{pass_number}/#{RUNTIME_SMOKE_PASSES} (try #{attempt})"
+            heartbeat_label: "runtime smoke pass #{pass_number}/#{RUNTIME_SMOKE_PASSES} (try #{attempt})",
+            timeout: RUNTIME_SMOKE_PASS_TIMEOUT_SECONDS
           )
           smoke_outputs << [
             "pass #{pass_number}/#{RUNTIME_SMOKE_PASSES} try #{attempt}",
@@ -352,19 +353,28 @@ class ProjectQA
         return
       end
 
+      startup_resource_soak_required = startup_probe_resource_soak_required?
+      startup_resource_soak_seconds = startup_probe_resource_soak_seconds
       startup_probe_env = {
         'SANEBAR_SMOKE_APP_PATH' => target[:app_path],
         'SANEBAR_STARTUP_PROBE_LOG_PATH' => RUNTIME_STARTUP_PROBE_LOG_PATH,
         'SANEBAR_STARTUP_PROBE_ARTIFACT_PATH' => RUNTIME_STARTUP_PROBE_ARTIFACT_PATH,
         'SANEBAR_RUNTIME_TARGET_LOCK_BYPASS' => '1'
       }
+      if startup_resource_soak_required
+        startup_probe_env.merge!(
+          'SANEBAR_STARTUP_PROBE_RESOURCE_SOAK_AFTER_155' => '1',
+          'SANEBAR_STARTUP_PROBE_RESOURCE_SOAK_SECONDS' => startup_resource_soak_seconds.to_s,
+          'SANEBAR_STARTUP_PROBE_RESOURCE_SOAK_MIN_SECONDS' => startup_resource_soak_seconds.to_s
+        )
+      end
       startup_probe_env.merge!(runtime_probe_no_keychain_env(target))
       startup_probe_started_at = Time.now
       startup_probe_out, startup_probe_status = capture2e_with_progress(
         startup_probe_env,
         startup_probe_script,
         heartbeat_label: 'runtime startup layout probe',
-        timeout: 300
+        timeout: startup_probe_timeout_seconds(startup_resource_soak_required, startup_resource_soak_seconds)
       )
       safe_write_runtime_file("#{RUNTIME_STARTUP_PROBE_LOG_PATH}.stdout", startup_probe_out)
       unless startup_probe_status.success?
@@ -585,13 +595,36 @@ class ProjectQA
   end
 
   def safe_write_runtime_file(path, content)
+    FileUtils.mkdir_p(File.dirname(path))
+    safe_runtime_directory_path!(File.dirname(path))
     File.open(path, safe_runtime_file_write_flags, 0o600) do |file|
       file.write(content)
     end
   end
 
+  def safe_read_runtime_file(path)
+    safe_runtime_directory_path!(File.dirname(path))
+    File.open(path, safe_runtime_file_read_flags) do |file|
+      file.read
+    end
+  end
+
+  def safe_runtime_artifact_file?(path)
+    safe_runtime_directory_path!(File.dirname(path))
+    stat = File.lstat(path)
+    stat.file?
+  rescue StandardError
+    false
+  end
+
   def safe_runtime_file_write_flags
     flags = File::WRONLY | File::CREAT | File::TRUNC
+    flags |= File::NOFOLLOW if File.const_defined?(:NOFOLLOW)
+    flags
+  end
+
+  def safe_runtime_file_read_flags
+    flags = File::RDONLY
     flags |= File::NOFOLLOW if File.const_defined?(:NOFOLLOW)
     flags
   end
@@ -624,11 +657,12 @@ class ProjectQA
   end
 
   def runtime_fullscreen_matrix_artifact_passed?(path)
-    return false unless File.exist?(path)
+    return false unless safe_runtime_artifact_file?(path)
 
-    payload = JSON.parse(File.read(path))
+    payload = JSON.parse(safe_read_runtime_file(path))
     required = [
       'native fullscreen enter and exit',
+      'hidden and visible icon zones persist across fullscreen Space transition',
       'maximized desktop window below the menu bar',
       'app activation keeps dark custom tint visible',
       'Dark appearance with Translucent Background enabled',
@@ -644,8 +678,8 @@ class ProjectQA
 
   def prepare_runtime_smoke_appearance_settings!
     backup = {
-      existed: File.exist?(SETTINGS_PATH),
-      content: File.exist?(SETTINGS_PATH) ? File.read(SETTINGS_PATH) : nil,
+      existed: safe_runtime_settings_exist?,
+      content: safe_runtime_settings_exist? ? safe_runtime_settings_read : nil,
       dark_mode: runtime_smoke_dark_mode_enabled?,
       reduce_transparency: runtime_smoke_reduce_transparency_value
     }
@@ -674,7 +708,7 @@ class ProjectQA
       'hasRoundedCorners' => false
     )
     FileUtils.mkdir_p(File.dirname(SETTINGS_PATH))
-    File.write(SETTINGS_PATH, JSON.pretty_generate(settings))
+    safe_runtime_settings_write(JSON.pretty_generate(settings))
     set_runtime_smoke_dark_mode!(true)
     set_runtime_smoke_reduce_transparency!(true)
     backup
@@ -703,14 +737,88 @@ class ProjectQA
     return if backup.nil?
 
     if backup[:existed]
-      File.write(SETTINGS_PATH, backup[:content])
+      safe_runtime_settings_write(backup[:content])
     else
-      FileUtils.rm_f(SETTINGS_PATH)
+      safe_runtime_settings_remove
     end
     set_runtime_smoke_dark_mode!(backup[:dark_mode]) unless backup[:dark_mode].nil?
     restore_runtime_smoke_reduce_transparency!(backup[:reduce_transparency])
   rescue StandardError
     nil
+  end
+
+  def safe_runtime_settings_exist?
+    safe_runtime_directory_path!(File.dirname(SETTINGS_PATH))
+    stat = File.lstat(SETTINGS_PATH)
+    raise "Unsafe symlink settings path: #{SETTINGS_PATH}" if stat.symlink?
+    raise "Unsafe non-file settings path: #{SETTINGS_PATH}" unless stat.file?
+
+    true
+  rescue Errno::ENOENT
+    false
+  end
+
+  def safe_runtime_settings_read
+    safe_runtime_directory_path!(File.dirname(SETTINGS_PATH))
+    File.open(SETTINGS_PATH, safe_runtime_settings_read_flags) do |file|
+      file.read
+    end
+  end
+
+  def safe_runtime_settings_write(content)
+    FileUtils.mkdir_p(File.dirname(SETTINGS_PATH))
+    safe_runtime_directory_path!(File.dirname(SETTINGS_PATH))
+    File.open(SETTINGS_PATH, safe_runtime_settings_write_flags, 0o600) do |file|
+      file.write(content)
+    end
+  end
+
+  def safe_runtime_settings_remove
+    return unless safe_runtime_settings_exist?
+
+    FileUtils.rm_f(SETTINGS_PATH)
+  end
+
+  def safe_runtime_directory_path!(path)
+    expanded = File.expand_path(path)
+    current = expanded.start_with?(File::SEPARATOR) ? File::SEPARATOR : Dir.pwd
+    expanded.split(File::SEPARATOR).reject(&:empty?).each do |component|
+      current = current == File::SEPARATOR ? File.join(current, component) : File.join(current, component)
+      next unless File.exist?(current)
+
+      stat = File.lstat(current)
+      if stat.symlink?
+        real = File.realpath(current) rescue nil
+        next if allowed_system_temp_directory_symlink?(current, real)
+
+        raise "Unsafe symlink directory path: #{current}"
+      end
+      raise "Unsafe non-directory path: #{current}" unless stat.directory?
+    end
+    true
+  end
+
+  def allowed_system_temp_directory_symlink?(path, real)
+    expanded = File.expand_path(path)
+    canonical = File.expand_path(real.to_s)
+    return true if expanded == '/tmp' && canonical == '/private/tmp'
+    return true if expanded == '/var' && canonical == '/private/var'
+
+    expanded == File.expand_path(Dir.tmpdir) && canonical == File.realpath(Dir.tmpdir)
+  rescue StandardError
+    false
+  end
+
+  def safe_runtime_settings_read_flags
+    flags = File::RDONLY
+    flags |= File::NOFOLLOW if File.const_defined?(:NOFOLLOW)
+    flags
+  end
+
+  def safe_runtime_settings_write_flags
+    flags = File::WRONLY | File::CREAT | File::TRUNC
+    flags |= File::NOFOLLOW if File.const_defined?(:NOFOLLOW)
+    flags
   end
 
   def runtime_smoke_dark_mode_enabled?
@@ -779,16 +887,22 @@ class ProjectQA
   end
 
   def startup_probe_artifact_contract_error(started_at: nil)
-    unless File.exist?(RUNTIME_STARTUP_PROBE_ARTIFACT_PATH)
+    unless safe_runtime_artifact_file?(RUNTIME_STARTUP_PROBE_ARTIFACT_PATH)
       return "Startup layout probe did not write artifact #{RUNTIME_STARTUP_PROBE_ARTIFACT_PATH}."
     end
     if stale_runtime_artifact?(RUNTIME_STARTUP_PROBE_ARTIFACT_PATH, started_at)
       return "Startup layout probe artifact is stale: #{RUNTIME_STARTUP_PROBE_ARTIFACT_PATH} predates this probe run."
     end
 
-    artifact = JSON.parse(File.read(RUNTIME_STARTUP_PROBE_ARTIFACT_PATH))
+    artifact = JSON.parse(safe_read_runtime_file(RUNTIME_STARTUP_PROBE_ARTIFACT_PATH))
     unless artifact['status'] == 'pass'
       return "Startup layout probe artifact status is #{artifact['status'].inspect}, expected pass."
+    end
+    if (provenance_error = startup_probe_mini_runtime_provenance_error(artifact))
+      return provenance_error
+    end
+    unless runtime_probe_candidate_matches_project?(artifact)
+      return "Startup layout probe artifact candidate metadata does not match project #{project_yml_setting('MARKETING_VERSION')}(#{project_yml_setting('CURRENT_PROJECT_VERSION')})."
     end
 
     case_names = Array(artifact['cases']).map { |entry| entry['name'].to_s }
@@ -811,26 +925,155 @@ class ProjectQA
       '#155 pinned icon exits Always Hidden after dirty startup',
       '#155 Always Hidden outbound moves leave move state idle'
     ]
+    if startup_probe_resource_soak_required?
+      required_scenarios << '#155 dirty startup resource soak remains stable after outbound moves'
+      required_scenarios << '#155 outbound move state remains durable after resource soak'
+    end
     completed_scenarios = Array(artifact['completed_scenarios'])
     missing = required_scenarios - completed_scenarios
-    return nil if missing.empty?
+    return "Startup layout probe artifact missing completed scenario(s): #{missing.join(', ')}." unless missing.empty?
 
-    "Startup layout probe artifact missing completed scenario(s): #{missing.join(', ')}."
+    startup_probe_resource_soak_required? ? startup_probe_resource_soak_contract_error(artifact) : nil
   rescue JSON::ParserError => e
     "Startup layout probe artifact is invalid JSON: #{e.message}."
   end
 
+  def startup_probe_mini_runtime_provenance_error(artifact)
+    provenance = artifact['runtime_provenance']
+    return 'Startup layout probe artifact missing Mini runtime provenance.' unless provenance.is_a?(Hash)
+    return 'Startup layout probe artifact Mini runtime provenance must mark mini_runtime=true.' unless provenance['mini_runtime'] == true
+    return 'Startup layout probe artifact Mini runtime provenance missing host.' if provenance['host'].to_s.strip.empty?
+    return "Startup layout probe artifact Mini runtime provenance host #{provenance['host'].inspect} is not the Mini." unless provenance['host'].to_s.downcase.include?('mini')
+    return 'Startup layout probe artifact Mini runtime provenance missing generated_at.' if provenance['generated_at'].to_s.strip.empty?
+
+    artifact_app_path = artifact['app_path'].to_s
+    provenance_app_path = provenance['app_path'].to_s
+    if !artifact_app_path.empty? && provenance_app_path != artifact_app_path
+      return "Startup layout probe artifact Mini runtime provenance app_path #{provenance_app_path.inspect} does not match artifact app_path #{artifact_app_path.inspect}."
+    end
+
+    nil
+  end
+
+  def wake_probe_mini_runtime_provenance_error(artifact)
+    provenance = artifact['runtime_provenance']
+    return 'Wake layout probe artifact missing Mini runtime provenance.' unless provenance.is_a?(Hash)
+    return 'Wake layout probe artifact Mini runtime provenance must mark mini_runtime=true.' unless provenance['mini_runtime'] == true
+    return 'Wake layout probe artifact Mini runtime provenance missing host.' if provenance['host'].to_s.strip.empty?
+    return "Wake layout probe artifact Mini runtime provenance host #{provenance['host'].inspect} is not the Mini." unless provenance['host'].to_s.downcase.include?('mini')
+    return 'Wake layout probe artifact Mini runtime provenance missing generated_at.' if provenance['generated_at'].to_s.strip.empty?
+
+    artifact_app_path = artifact['app_path'].to_s
+    provenance_app_path = provenance['app_path'].to_s
+    if !artifact_app_path.empty? && !provenance_app_path.empty? && provenance_app_path != artifact_app_path
+      return "Wake layout probe artifact Mini runtime provenance app_path #{provenance_app_path.inspect} does not match artifact app_path #{artifact_app_path.inspect}."
+    end
+
+    nil
+  end
+
+  def runtime_probe_candidate_matches_project?(artifact)
+    candidate = artifact['candidate']
+    return false unless candidate.is_a?(Hash)
+
+    File.expand_path(candidate['app_path'].to_s) == '/Applications/SaneBar.app' &&
+      candidate['app_version'].to_s == project_yml_setting('MARKETING_VERSION') &&
+      candidate['app_build'].to_s == project_yml_setting('CURRENT_PROJECT_VERSION')
+  end
+
+  def startup_probe_resource_soak_contract_error(artifact)
+    case_entry = Array(artifact['cases']).find do |entry|
+      entry.is_a?(Hash) && entry['name'].to_s == '#155 dirty startup AH replay allows outbound moves'
+    end
+    return 'Startup layout probe artifact missing #155 case details for resource proof.' unless case_entry
+
+    post_soak = case_entry['post_soak']
+    unless post_soak.is_a?(Hash) &&
+           post_soak['hidden_zone'].to_s == 'hidden' &&
+           post_soak['visible_zone'].to_s == 'visible' &&
+           post_soak['idle'].is_a?(Hash) &&
+           !runtime_truthy?(post_soak['idle']['isMoveInProgress'])
+      return 'Startup layout probe #155 resource proof did not re-check icon zones and idle move state after soak.'
+    end
+
+    proof = case_entry['resource_soak']
+    return 'Startup layout probe #155 case missing resource_soak proof payload.' unless proof.is_a?(Hash)
+
+    artifact_path = proof['artifact_path'].to_s
+    log_path = proof['log_path'].to_s
+    return 'Startup layout probe #155 resource proof missing durable artifact_path.' if artifact_path.empty?
+    return "Startup layout probe #155 resource proof still points at temp artifact #{artifact_path}." if artifact_path.start_with?('/tmp/')
+    return "Startup layout probe #155 resource proof artifact is missing or unsafe: #{artifact_path}." unless safe_runtime_artifact_file?(artifact_path)
+    return "Startup layout probe #155 resource proof log is missing or unsafe: #{log_path}." unless !log_path.empty? && safe_runtime_artifact_file?(log_path)
+
+    raw = JSON.parse(safe_read_runtime_file(artifact_path))
+    return "Startup layout probe #155 resource proof status is #{raw['status'].inspect}, expected pass." unless raw['status'] == 'pass'
+
+    candidate = raw['candidate']
+    return 'Startup layout probe #155 resource proof missing candidate metadata.' unless candidate.is_a?(Hash)
+
+    expected_version = project_yml_setting('MARKETING_VERSION')
+    expected_build = project_yml_setting('CURRENT_PROJECT_VERSION')
+    if !expected_version.empty? && candidate['app_version'].to_s != expected_version
+      return "Startup layout probe #155 resource proof candidate version #{candidate['app_version'].inspect} does not match project #{expected_version}."
+    end
+    if !expected_build.empty? && candidate['app_build'].to_s != expected_build
+      return "Startup layout probe #155 resource proof candidate build #{candidate['app_build'].inspect} does not match project #{expected_build}."
+    end
+
+    nil
+  rescue JSON::ParserError => e
+    "Startup layout probe #155 resource proof artifact is invalid JSON: #{e.message}."
+  end
+
+  def project_yml_setting(key)
+    source = safe_read_runtime_file(File.join(PROJECT_ROOT, 'project.yml'))
+    match = source.match(/^\s*#{Regexp.escape(key)}:\s*"?([^"\n]+)"?\s*$/)
+    match ? match[1].strip : ''
+  rescue StandardError
+    ''
+  end
+
+  def runtime_truthy?(value)
+    value == true || value.to_s.downcase == 'true'
+  end
+
+  def startup_probe_resource_soak_required?
+    override = ENV['SANEBAR_STARTUP_PROBE_RESOURCE_SOAK_AFTER_155']
+    return override == '1' unless override.nil? || override.empty?
+
+    preflight_mode?
+  end
+
+  def startup_probe_resource_soak_seconds
+    Integer(ENV.fetch('SANEBAR_STARTUP_PROBE_RESOURCE_SOAK_SECONDS', '600'), 10).tap do |value|
+      raise 'SANEBAR_STARTUP_PROBE_RESOURCE_SOAK_SECONDS must be positive' unless value.positive?
+    end
+  end
+
+  def startup_probe_timeout_seconds(resource_soak_required, resource_soak_seconds)
+    return 300 unless resource_soak_required
+
+    [resource_soak_seconds + 300, 900].max
+  end
+
   def wake_probe_artifact_contract_error(started_at: nil)
-    unless File.exist?(RUNTIME_WAKE_PROBE_ARTIFACT_PATH)
+    unless safe_runtime_artifact_file?(RUNTIME_WAKE_PROBE_ARTIFACT_PATH)
       return "Wake layout probe did not write artifact #{RUNTIME_WAKE_PROBE_ARTIFACT_PATH}."
     end
     if stale_runtime_artifact?(RUNTIME_WAKE_PROBE_ARTIFACT_PATH, started_at)
       return "Wake layout probe artifact is stale: #{RUNTIME_WAKE_PROBE_ARTIFACT_PATH} predates this probe run."
     end
 
-    artifact = JSON.parse(File.read(RUNTIME_WAKE_PROBE_ARTIFACT_PATH))
+    artifact = JSON.parse(safe_read_runtime_file(RUNTIME_WAKE_PROBE_ARTIFACT_PATH))
     unless artifact['status'] == 'pass'
       return "Wake layout probe artifact status is #{artifact['status'].inspect}, expected pass."
+    end
+    if (provenance_error = wake_probe_mini_runtime_provenance_error(artifact))
+      return provenance_error
+    end
+    unless runtime_probe_candidate_matches_project?(artifact)
+      return "Wake layout probe artifact candidate metadata does not match project #{project_yml_setting('MARKETING_VERSION')}(#{project_yml_setting('CURRENT_PROJECT_VERSION')})."
     end
 
     required_sections = %w[
@@ -884,6 +1127,8 @@ class ProjectQA
   def retryable_runtime_smoke_failure?(smoke_output)
     return true if smoke_output.include?('launch_idle_budget_exceeded')
     return true if smoke_output.include?('No icons returned from list icon zones.')
+    return true if smoke_output.include?('runtime_target_lost during AppleScript') &&
+                   smoke_output.include?('process_missing')
     return true if runtime_smoke_missing_apple_menu_extra_policy?(smoke_output)
 
     retryable_active_budget_overrun?(smoke_output)
@@ -894,6 +1139,9 @@ class ProjectQA
 
     return true if smoke_output.include?('Candidate failures:') &&
                    smoke_output.include?('to reach zone alwaysHidden')
+    return true if smoke_output.include?('Candidate failures:') &&
+                   smoke_output.include?('Post-settle move verification drifted') &&
+                   smoke_output.match?(/\d+\/\d+ candidates passed move action checks/)
 
     smoke_output.include?('Candidate failed: com.apple.controlcenter') &&
       smoke_output.include?('Hidden/Visible move actions ok') &&

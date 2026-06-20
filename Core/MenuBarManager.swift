@@ -607,9 +607,26 @@ final class MenuBarManager: NSObject, ObservableObject {
         lifecycleWorkflow.applySettingsSideEffects()
     }
 
+    func cancelWakeVisibleAllowListReplay(reason: String) {
+        visibilityIntentReplayTask?.cancel()
+        visibilityIntentReplayTask = nil
+        statusItemRecoveryWorkflow.clearWakeVisibleAllowListReplayPending(clearDeferredReason: false)
+        logger.info("Cancelled pending wake visible allow-list replay (\(reason, privacy: .public))")
+    }
+
+    func cancelVisibilityIntentReplayTask(reason: String) {
+        visibilityIntentReplayTask?.cancel()
+        visibilityIntentReplayTask = nil
+        logger.info("Cancelled visibility intent replay task while preserving pending wake repair (\(reason, privacy: .public))")
+    }
+
     func schedulePostRecoveryVisibilityIntentReplay(reason: String) {
-        let shouldReplayAlwaysHidden = !settings.alwaysHiddenPinnedItemIds.isEmpty
-        let shouldReplayHideAllOther = settings.hideAllOtherMenuBarItems
+        let shouldReplayAlwaysHidden = MenuBarVisibilityPolicy.shouldReplayAlwaysHiddenIntent(
+            alwaysHiddenSectionEnabled: currentEffectiveAlwaysHiddenSectionEnabled(),
+            pinnedItemCount: settings.alwaysHiddenPinnedItemIds.count
+        )
+        let shouldReplayHideAllOther = settings.hideAllOtherMenuBarItems &&
+            !settings.hideAllOtherVisibleItemIds.isEmpty
         guard shouldReplayAlwaysHidden || shouldReplayHideAllOther else {
             schedulePostRecoveryAutoRehideIfNeeded(reason: "\(reason)-no-visibility-intent")
             return
@@ -619,7 +636,10 @@ final class MenuBarManager: NSObject, ObservableObject {
         visibilityIntentReplayTask = Task { @MainActor [weak self] in
             guard let self else { return }
 
-            for attempt in 1 ... Self.maxVisibilityIntentReplayAttempts {
+            var attempt = 0
+            while attempt < Self.maxVisibilityIntentReplayAttempts ||
+                self.statusItemRecoveryWorkflow.hasPendingWakeVisibleAllowListReplay() {
+                attempt += 1
                 let delayMs = attempt == 1 ? 900 : 500
                 try? await Task.sleep(for: .milliseconds(delayMs))
                 guard !Task.isCancelled else { return }
@@ -630,6 +650,7 @@ final class MenuBarManager: NSObject, ObservableObject {
                 }
 
                 var shouldRetryVisibilityReplay = false
+                var completedWakeVisibleAllowListRepair = false
                 if shouldReplayAlwaysHidden {
                     let alwaysHiddenPinsEnforced = await self.alwaysHiddenPinWorkflow.enforce(reason: replayReason, mode: .auditOnly)
                     shouldRetryVisibilityReplay = !alwaysHiddenPinsEnforced || self.alwaysHiddenAnchorsNeedReplayRetry()
@@ -651,18 +672,28 @@ final class MenuBarManager: NSObject, ObservableObject {
                             "Visibility intent replay waiting for hide-all-other completion (\(replayReason, privacy: .public))"
                         )
                         shouldRetryVisibilityReplay = true
+                    } else {
+                        if hideAllOtherMode.mode == .repairWithPhysicalMoves {
+                            self.pendingRecoveryHideRestore = false
+                            completedWakeVisibleAllowListRepair = true
+                        }
                     }
                 }
                 if shouldRetryVisibilityReplay {
                     continue
+                }
+                if completedWakeVisibleAllowListRepair {
+                    self.statusItemRecoveryWorkflow.clearWakeVisibleAllowListReplayPending()
                 }
                 self.schedulePostRecoveryAutoRehideIfNeeded(reason: replayReason)
                 return
             }
 
             logger.warning(
-                "Visibility intent replay gave up after \(Self.maxVisibilityIntentReplayAttempts, privacy: .public) attempts (\(reason, privacy: .public))"
+                "Visibility intent replay gave up after \(attempt, privacy: .public) attempts (\(reason, privacy: .public))"
             )
+            self.statusItemRecoveryWorkflow.clearWakeVisibleAllowListReplayPending(clearDeferredReason: false)
+            self.restorePendingHiddenStateAfterVisibilityReplayFailure(reason: "\(reason)-replay-gave-up")
             self.schedulePostRecoveryAutoRehideIfNeeded(reason: "\(reason)-replay-gave-up")
         }
     }
@@ -682,17 +713,28 @@ final class MenuBarManager: NSObject, ObservableObject {
     }
 
     func shouldRunVisibilityIntentEnforcement(reason: String) -> Bool {
+        if let dormantUntil = statusItemRecoveryWorkflow.recoveryDormantUntil,
+           dormantUntil > Date() {
+            logger.debug("Visibility intent enforcement skipped during recovery dormancy (\(reason, privacy: .public))")
+            return false
+        }
+
         if isExecutingStatusItemRecovery {
             logger.debug("Visibility intent enforcement skipped during status-item recovery (\(reason, privacy: .public))")
             return false
         }
 
         let snapshot = currentStatusItemRecoverySnapshot()
-        guard snapshot.structuralState == .ready,
-              snapshot.hasLiveCoreAnchors,
-              snapshot.visibilityPhase != .transitioning,
-              snapshot.geometryConfidence == .live
-        else {
+        let hasVisibleAllowList = settings.hideAllOtherMenuBarItems &&
+            !settings.hideAllOtherVisibleItemIds.isEmpty
+        let hasPendingWakeVisibleAllowListReplay = statusItemRecoveryWorkflow
+            .hasPendingWakeVisibleAllowListReplay()
+        guard MenuBarVisibilityPolicy.shouldRunVisibilityIntentEnforcement(
+            reason: reason,
+            snapshot: snapshot,
+            hasVisibleAllowList: hasVisibleAllowList,
+            hasPendingWakeVisibleAllowListReplay: hasPendingWakeVisibleAllowListReplay
+        ) else {
             logger.warning(
                 "Visibility intent enforcement skipped until status-item anchors are healthy (\(reason, privacy: .public), structure=\(snapshot.structuralState.rawValue, privacy: .public), geometry=\(snapshot.geometryConfidence.rawValue, privacy: .public), main=\(snapshot.mainAnchorSource.rawValue, privacy: .public), separator=\(snapshot.separatorAnchorSource.rawValue, privacy: .public))"
             )

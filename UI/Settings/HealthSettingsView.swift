@@ -270,8 +270,8 @@ struct HealthSettingsView: View {
                 }
 
                 CompactSection("Repair", icon: "wrench.and.screwdriver", iconColor: .orange) {
-                    if menuBarManager.statusItemRecoveryWorkflow.pendingDeferredWakeRestoreReason != nil {
-                        SaneInlineHelp("A layout restore after wake was postponed because icon positions could not be confirmed. Click Run to apply it now.")
+                    if menuBarManager.hasActionableDeferredWakeVisibleAllowListRepair() {
+                        SaneInlineHelp("A layout restore after wake was postponed because icon positions could not be confirmed. Click Run to repair it now.")
                             .padding(.horizontal, 12)
                             .padding(.top, 4)
                         CompactDivider()
@@ -325,11 +325,16 @@ struct HealthSettingsView: View {
         repairInProgress = true
         layoutRescueMessage = "Repairing layout..."
         Task { @MainActor in
+            let hadDeferredWakeRepair = menuBarManager.hasActionableDeferredWakeVisibleAllowListRepair()
             let snapshot = await menuBarManager.profileWorkflow.repairMenuBarHealth(reason: reason)
             lastRepairDate = Date()
             if MenuBarProfileWorkflow.canCreateLayoutRescueRestorePoint(from: snapshot) {
-                menuBarManager.statusItemRecoveryWorkflow.pendingDeferredWakeRestoreReason = nil
-                layoutRescueMessage = message ?? "Layout is healthy."
+                if hadDeferredWakeRepair,
+                   menuBarManager.hasActionableDeferredWakeVisibleAllowListRepair() {
+                    layoutRescueMessage = "Repair is running. SaneBar will clear the wake repair note after the layout restore finishes."
+                } else {
+                    layoutRescueMessage = message ?? "Repair check finished."
+                }
             } else if snapshot.likelySystemSuppressedStatusItems {
                 layoutRescueMessage = "macOS may be hiding SaneBar's icons. Check System Settings > Menu Bar > Allow in Menu Bar for SaneBar."
             } else {

@@ -298,16 +298,43 @@ final class RuntimeGuardQAAndLicensingXCTests: RuntimeGuardTestCase {
         )
     }
 
-    func testReleasePreflightForwardsRuntimeSmokeToProjectQA() throws {
+    func testReleasePreflightReusesFreshCustomerUIRuntimeProofOnlyWhenCandidateMatches() throws {
         let source = try readShared("infra/SaneProcess/scripts/sanemaster/release.rb")
 
         XCTAssertTrue(
-            source.contains("'SANEPROCESS_RUN_RUNTIME_SMOKE' => '1'"),
-            "Release preflight should enable runtime smoke when invoking project QA"
+            source.contains("def release_customer_ui_runtime_smoke_reusable?") &&
+                source.contains("release_customer_ui_receipt_time_reusable?(generated_at, max_age_seconds: 12 * 60 * 60)") &&
+                source.contains("release_current_project_version") &&
+                source.contains("release_candidate_value_matches?(evidence['app_version'], expected[:version])") &&
+                source.contains("release_candidate_value_matches?(evidence['app_build'], expected[:build])"),
+            "Release preflight should reuse customer UI runtime proof only when it is fresh, not future-dated, and matches the current version/build"
         )
         XCTAssertTrue(
-            source.contains("\"#{app_prefix}_RUN_RUNTIME_SMOKE\" => '1'"),
-            "Release preflight should forward the app-specific runtime smoke flag to project QA"
+            source.contains("fullscreen_maximize_transition") &&
+                source.contains("wake_visible_zone_persistence") &&
+                source.contains("dynamic_helper_wake_drift") &&
+                source.contains("shared_bundle_exact_id_moves") &&
+                source.contains("hover_auto_rehide") &&
+                source.contains("license_clipboard_paste") &&
+                source.contains("resource_soak_growth") &&
+                source.contains("release_runtime_candidate_app_path_matches?(candidate['app_path'], app_name)") &&
+                source.contains("release_customer_ui_runtime_row_has_durable_evidence?(id, row)") &&
+                source.contains("release_candidate_value_matches?(candidate['app_version'], expected[:version])") &&
+                source.contains("release_candidate_value_matches?(candidate['app_build'], expected[:build])"),
+            "Release preflight should require every release-critical runtime lane to have same-app candidate metadata and durable retained evidence before skipping duplicate runtime smoke"
+        )
+        XCTAssertTrue(
+            source.contains("skip_runtime_smoke = release_customer_ui_runtime_smoke_reusable?") &&
+                source.contains("reusing fresh customer UI runtime proof; full QA will skip duplicate runtime smoke") &&
+                source.contains("skip_runtime_smoke: skip_runtime_smoke"),
+            "Release preflight should skip duplicate runtime smoke only through the reusable-proof decision"
+        )
+        XCTAssertTrue(
+            source.contains("env['SANEPROCESS_RUN_RUNTIME_SMOKE'] = '1' unless skip_runtime_smoke") &&
+                source.contains("env[\"#{app_prefix}_RUN_RUNTIME_SMOKE\"] = '1' unless skip_runtime_smoke") &&
+                source.contains("env['SANEPROCESS_REUSE_CUSTOMER_UI_RUNTIME_PROOF'] = '1'") &&
+                source.contains("env[\"#{app_prefix}_REUSE_CUSTOMER_UI_RUNTIME_PROOF\"] = '1'"),
+            "Release preflight should still force runtime smoke when no same-candidate customer UI proof is reusable"
         )
     }
 
@@ -453,12 +480,14 @@ final class RuntimeGuardQAAndLicensingXCTests: RuntimeGuardTestCase {
             "Release preflight should explicitly detect GitHub auth/keychain failures so it can skip cleanly"
         )
         XCTAssertTrue(
-            source.contains("Open3.capture2e({ 'PATH' => tool_path }, gh_bin, 'issue', 'list'"),
-            "GitHub issue checks should capture stderr so keychain/auth noise does not leak into the release summary"
+            source.contains("issue_json, issue_status = capture_github_command_with_timeout(") &&
+                source.contains("gh_bin, 'issue', 'list', '--repo', repo, '--state', 'open', '--json', 'number'"),
+            "GitHub issue checks should use the bounded stderr-capturing helper so keychain/auth noise does not leak into the release summary"
         )
         XCTAssertTrue(
-            source.contains("Open3.capture2e({ 'PATH' => tool_path }, gh_bin, 'pr', 'list'"),
-            "GitHub PR checks should capture stderr so auth failures are reported as structured skips"
+            source.contains("pr_json, pr_status = capture_github_command_with_timeout(") &&
+                source.contains("gh_bin, 'pr', 'list', '--repo', repo, '--state', 'open', '--json', 'number'"),
+            "GitHub PR checks should use the bounded stderr-capturing helper so auth failures are reported as structured skips"
         )
         XCTAssertTrue(
             source.contains("skipped (gh auth unavailable)"),

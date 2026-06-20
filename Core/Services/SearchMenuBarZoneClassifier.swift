@@ -150,21 +150,43 @@ enum SearchMenuBarZoneClassifier {
         separatorX: CGFloat,
         alwaysHiddenSeparatorX: CGFloat?
     ) -> SearchService.VisibilityZone {
-        let width = max(1, itemWidth ?? 22)
-        let midX = itemX + (width / 2)
         let margin: CGFloat = 6
 
         if let alwaysHiddenSeparatorX {
-            if midX < (alwaysHiddenSeparatorX - margin) {
+            if isAlwaysHiddenZone(
+                itemX: itemX,
+                itemWidth: itemWidth,
+                alwaysHiddenSeparatorX: alwaysHiddenSeparatorX
+            ) {
                 return .alwaysHidden
             }
+            let midX = itemMidX(itemX: itemX, itemWidth: itemWidth)
             if midX < (separatorX - margin) {
                 return .hidden
             }
             return .visible
         }
 
+        let midX = itemMidX(itemX: itemX, itemWidth: itemWidth)
         return midX < (separatorX - margin) ? .hidden : .visible
+    }
+
+    static func isAlwaysHiddenZone(
+        itemX: CGFloat,
+        itemWidth: CGFloat?,
+        alwaysHiddenSeparatorX: CGFloat?
+    ) -> Bool {
+        guard let alwaysHiddenSeparatorX,
+              alwaysHiddenSeparatorX.isFinite else {
+            return false
+        }
+        let margin: CGFloat = 6
+        return itemMidX(itemX: itemX, itemWidth: itemWidth) < (alwaysHiddenSeparatorX - margin)
+    }
+
+    private static func itemMidX(itemX: CGFloat, itemWidth: CGFloat?) -> CGFloat {
+        let width = max(1, itemWidth ?? 22)
+        return itemX + (width / 2)
     }
 
     static func isOffscreen(x: CGFloat, in screenFrame: CGRect) -> Bool {

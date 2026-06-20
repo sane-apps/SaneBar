@@ -193,7 +193,7 @@ struct IconMovingScenarioTests {
         #expect(targetX == 786, "Normal-width extras should insert just left of the always-hidden separator")
     }
 
-    @Test("Always-hidden move stays separator-adjacent even for wide icons")
+    @Test("Always-hidden move gives wide icons extra depth without generic overshoot")
     func alwaysHiddenMoveWideIconUsesBoundedTarget() {
         let targetX = AccessibilityService.moveTargetX(
             targetLane: .alwaysHidden,
@@ -202,7 +202,8 @@ struct IconMovingScenarioTests {
             visibleBoundaryX: nil
         )
 
-        #expect(targetX == 737.5, "Wide icons should still target the insertion edge instead of overshooting deep into the lane")
+        #expect(targetX == 717.5, "Wide icons need extra insertion depth so they do not settle on the separator")
+        #expect(targetX > 697.5, "Wide icons should still avoid the deeper generic hidden-lane target")
         #expect(targetX < 828, "Always-hidden target must stay left of the separator")
     }
 

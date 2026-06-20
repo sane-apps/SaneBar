@@ -33,6 +33,102 @@ class CustomerUIActionSweepTest < Minitest::Test
     end
   end
 
+  def startup_probe_log_path
+    path = File.join(CustomerUIActionSweep.const_get(:PROJECT_ROOT), 'outputs', 'runtime-preflight', 'sanebar_runtime_startup_probe.log')
+    FileUtils.mkdir_p(File.dirname(path))
+    path
+  end
+
+  def startup_probe_artifact_path
+    path = File.join(CustomerUIActionSweep.const_get(:PROJECT_ROOT), 'outputs', 'runtime-preflight', 'sanebar_runtime_startup_probe.json')
+    FileUtils.mkdir_p(File.dirname(path))
+    path
+  end
+
+  def write_startup_probe_artifact(path = startup_probe_artifact_path, mtime: Time.now)
+    candidate = project_runtime_candidate_fixture
+    File.write(
+      path,
+      JSON.pretty_generate(
+        status: 'pass',
+        app_path: '/Applications/SaneBar.app',
+        candidate: candidate,
+        runtime_provenance: {
+          mini_runtime: true,
+          host: 'mini',
+          generated_at: mtime.utc.iso8601,
+          app_path: '/Applications/SaneBar.app'
+        },
+        cases: [{ name: 'current-width backup restore' }]
+      )
+    )
+    File.utime(mtime, mtime, path)
+  end
+
+  def wake_probe_log_path
+    path = File.join(CustomerUIActionSweep.const_get(:PROJECT_ROOT), 'outputs', 'runtime-preflight', 'sanebar_runtime_wake_probe.log')
+    FileUtils.mkdir_p(File.dirname(path))
+    path
+  end
+
+  def wake_probe_artifact_path
+    path = File.join(CustomerUIActionSweep.const_get(:PROJECT_ROOT), 'outputs', 'runtime-preflight', 'sanebar_runtime_wake_probe.json')
+    FileUtils.mkdir_p(File.dirname(path))
+    path
+  end
+
+  def write_wake_probe_artifact(path = wake_probe_artifact_path, mtime: Time.now)
+    File.write(
+      path,
+      JSON.pretty_generate(
+        status: 'pass',
+        app_path: '/Applications/SaneBar.app',
+        candidate: project_runtime_candidate_fixture,
+        runtime_provenance: {
+          mini_runtime: true,
+          host: 'mini',
+          generated_at: mtime.utc.iso8601,
+          app_path: '/Applications/SaneBar.app'
+        },
+        cases: [{ name: 'wake visible/hidden persistence' }]
+      )
+    )
+    File.utime(mtime, mtime, path)
+  end
+
+  def project_runtime_candidate_fixture
+    {
+      app_path: '/Applications/SaneBar.app',
+      app_version: @sweep.send(:project_version, 'MARKETING_VERSION'),
+      app_build: @sweep.send(:project_version, 'CURRENT_PROJECT_VERSION'),
+      process_path: '/Applications/SaneBar.app/Contents/MacOS/SaneBar'
+    }
+  end
+
+  def runtime_log_lines(*lines, candidate: project_runtime_candidate_fixture)
+    [
+      "candidate_app_path=#{candidate[:app_path]}",
+      "candidate_app_version=#{candidate[:app_version]}",
+      "candidate_app_build=#{candidate[:app_build]}",
+      "candidate_process_path=#{candidate[:process_path]}",
+      *lines
+    ].join("\n")
+  end
+
+  def seed_running_bundle_from_project!
+    @sweep.instance_variable_set(:@running_bundle_version, @sweep.send(:project_version, 'MARKETING_VERSION'))
+    @sweep.instance_variable_set(:@running_bundle_build, @sweep.send(:project_version, 'CURRENT_PROJECT_VERSION'))
+  end
+
+  def runtime_candidate_fixture(version: '2.1.62', build: '2162')
+    {
+      app_path: '/Applications/SaneBar.app',
+      app_version: version,
+      app_build: build,
+      process_path: '/Applications/SaneBar.app/Contents/MacOS/SaneBar'
+    }
+  end
+
   def with_manifest(content)
     old_path = CustomerUIActionSweep.const_get(:MANIFEST_PATH)
     Dir.mktmpdir('sanebar-customer-ui-manifest-') do |dir|
@@ -114,6 +210,67 @@ class CustomerUIActionSweepTest < Minitest::Test
     @sweep.send(:assert_required_evidence!, 'icon-zone-move-reorder-always-hidden', action, [
       { type: 'mini_click', detail: '/tmp/sanebar_runtime_native_apple_smoke.log: ✅ Hidden/Always Hidden round-trip ok' }
     ])
+  end
+
+  def test_durable_startup_probe_marker_counts_as_real_mini_runtime_evidence
+    action = {
+      'required_proof_level' => 'full_runtime_completion',
+      'required_evidence_types' => ['mini_runtime']
+    }
+    startup_artifact = File.join(
+      CustomerUIActionSweep.const_get(:RUNTIME_PREFLIGHT_DIR),
+      'sanebar_runtime_startup_probe.json'
+    )
+
+    @sweep.send(:assert_required_evidence!, 'startup-wake-appearance-recovery', action, [
+      { type: 'mini_runtime', detail: "#{startup_artifact}: Startup layout probe passed" }
+    ])
+  end
+
+  def test_mini_runtime_rejects_arbitrary_project_output_runtime_detail
+    action = {
+      'required_proof_level' => 'full_runtime_completion',
+      'required_evidence_types' => ['mini_runtime']
+    }
+    non_runtime_preflight_artifact = File.join(
+      CustomerUIActionSweep.const_get(:OUTPUT_DIR),
+      'sanebar_runtime_startup_probe.json'
+    )
+
+    error = assert_raises(RuntimeError) do
+      @sweep.send(:assert_required_evidence!, 'startup-wake-appearance-recovery', action, [
+        { type: 'mini_runtime', detail: "#{non_runtime_preflight_artifact}: Startup layout probe passed" }
+      ])
+    end
+
+    assert_includes error.message, 'lacks Mini runtime provenance'
+  end
+
+  def test_startup_probe_runtime_provenance_payload_is_required
+    path = File.join(
+      CustomerUIActionSweep.const_get(:RUNTIME_PREFLIGHT_DIR),
+      'sanebar_runtime_startup_probe.json'
+    )
+    valid_payload = {
+      'app_path' => '/Applications/SaneBar.app',
+      'candidate' => {
+        'app_path' => '/Applications/SaneBar.app',
+        'app_version' => @sweep.send(:project_version, 'MARKETING_VERSION'),
+        'app_build' => @sweep.send(:project_version, 'CURRENT_PROJECT_VERSION')
+      },
+      'runtime_provenance' => {
+        'mini_runtime' => true,
+        'host' => 'mini',
+        'generated_at' => Time.now.utc.iso8601,
+        'app_path' => '/Applications/SaneBar.app'
+      }
+    }
+
+    assert_nil @sweep.send(:startup_probe_runtime_provenance_error, valid_payload, path)
+    assert_includes(
+      @sweep.send(:startup_probe_runtime_provenance_error, valid_payload.merge('runtime_provenance' => {}), path),
+      'does not mark mini_runtime=true'
+    )
   end
 
   def test_appearance_actions_cannot_fall_back_to_settings_screenshot
@@ -209,27 +366,32 @@ class CustomerUIActionSweepTest < Minitest::Test
 
   def test_runtime_smoke_accepts_move_only_exact_id_lanes_with_default_visual_proof
     smoke_log = '/tmp/sanebar_runtime_smoke.log'
-    startup_log = '/tmp/sanebar_runtime_startup_probe.log'
-    wake_log = '/tmp/sanebar_runtime_wake_probe.log'
+    startup_log = startup_probe_log_path
+    startup_artifact = startup_probe_artifact_path
+    wake_log = wake_probe_log_path
+    wake_artifact = wake_probe_artifact_path
     shared_log = '/tmp/sanebar_runtime_shared_bundle_smoke.log'
-    preserve_files(smoke_log, startup_log, wake_log, shared_log) do
+    preserve_files(smoke_log, startup_log, startup_artifact, wake_log, wake_artifact, shared_log) do
       Dir.mktmpdir do |evidence_dir|
+        seed_running_bundle_from_project!
         @sweep.instance_variable_set(:@evidence_dir, evidence_dir)
-        File.write(smoke_log, [
+        File.write(smoke_log, runtime_log_lines(
           'Settings window visual check ok',
           'Browse mode secondMenuBar open/close ok',
           'Browse mode findIcon open/close ok',
           'Live zone smoke passed'
-        ].join("\n"))
+        ))
         File.write(startup_log, 'Startup layout probe passed')
+        write_startup_probe_artifact(startup_artifact)
         File.write(wake_log, 'Wake layout probe passed')
-        File.write(shared_log, [
+        write_wake_probe_artifact(wake_artifact)
+        File.write(shared_log, runtime_log_lines(
           'Hidden/Visible move actions ok',
           'Always Hidden move actions ok',
           'Representative zone candidates ok',
           '✅ Candidate set passed: com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-A, com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-B',
           '✅ Live zone smoke passed'
-        ].join("\n"))
+        ))
 
         @sweep.send(:verify_recent_runtime_smoke)
 
@@ -245,28 +407,33 @@ class CustomerUIActionSweepTest < Minitest::Test
 
   def test_runtime_smoke_accepts_same_release_session_evidence_beyond_thirty_minutes
     smoke_log = '/tmp/sanebar_runtime_smoke.log'
-    startup_log = '/tmp/sanebar_runtime_startup_probe.log'
-    wake_log = '/tmp/sanebar_runtime_wake_probe.log'
+    startup_log = startup_probe_log_path
+    startup_artifact = startup_probe_artifact_path
+    wake_log = wake_probe_log_path
+    wake_artifact = wake_probe_artifact_path
     shared_log = '/tmp/sanebar_runtime_shared_bundle_smoke.log'
-    preserve_files(smoke_log, startup_log, wake_log, shared_log) do
+    preserve_files(smoke_log, startup_log, startup_artifact, wake_log, wake_artifact, shared_log) do
       now = Time.now
+      seed_running_bundle_from_project!
       @sweep.instance_variable_set(:@started_at, now)
-      File.write(smoke_log, [
+      File.write(smoke_log, runtime_log_lines(
         'Settings window visual check ok',
         'Browse mode secondMenuBar open/close ok',
         'Browse mode findIcon open/close ok',
         'Live zone smoke passed'
-      ].join("\n"))
+      ))
       File.write(startup_log, 'Startup layout probe passed')
+      write_startup_probe_artifact(startup_artifact, mtime: now - 45 * 60)
       File.write(wake_log, 'Wake layout probe passed')
-      File.write(shared_log, [
+      write_wake_probe_artifact(wake_artifact, mtime: now - 45 * 60)
+      File.write(shared_log, runtime_log_lines(
         'Hidden/Visible move actions ok',
         'Always Hidden move actions ok',
         'Representative zone candidates ok',
         '✅ Candidate set passed: com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-A, com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-B',
         '✅ Live zone smoke passed'
-      ].join("\n"))
-      [smoke_log, startup_log, wake_log, shared_log].each do |path|
+      ))
+      [smoke_log, startup_log, wake_log, wake_artifact, shared_log].each do |path|
         File.utime(now - 45 * 60, now - 45 * 60, path)
       end
 
@@ -282,13 +449,22 @@ class CustomerUIActionSweepTest < Minitest::Test
 
   def test_runtime_smoke_rejects_release_evidence_older_than_bounded_session_window
     smoke_log = '/tmp/sanebar_runtime_smoke.log'
-    startup_log = '/tmp/sanebar_runtime_startup_probe.log'
-    wake_log = '/tmp/sanebar_runtime_wake_probe.log'
+    startup_log = startup_probe_log_path
+    startup_artifact = startup_probe_artifact_path
+    wake_log = wake_probe_log_path
+    wake_artifact = wake_probe_artifact_path
     shared_log = '/tmp/sanebar_runtime_shared_bundle_smoke.log'
-    preserve_files(smoke_log, startup_log, wake_log, shared_log) do
+    preserve_files(smoke_log, startup_log, startup_artifact, wake_log, wake_artifact, shared_log) do
       now = Time.now
+      seed_running_bundle_from_project!
       @sweep.instance_variable_set(:@started_at, now)
-      [smoke_log, startup_log, wake_log, shared_log].each do |path|
+      write_startup_probe_artifact(startup_artifact, mtime: now - 3 * 60 * 60)
+      write_wake_probe_artifact(wake_artifact, mtime: now - 3 * 60 * 60)
+      [smoke_log, shared_log].each do |path|
+        File.write(path, runtime_log_lines('Live zone smoke passed'))
+        File.utime(now - 3 * 60 * 60, now - 3 * 60 * 60, path)
+      end
+      [startup_log, wake_log].each do |path|
         File.write(path, 'Live zone smoke passed')
         File.utime(now - 3 * 60 * 60, now - 3 * 60 * 60, path)
       end
@@ -298,6 +474,43 @@ class CustomerUIActionSweepTest < Minitest::Test
       end
 
       assert_includes error.message, "Missing runtime evidence #{smoke_log}"
+    end
+  end
+
+  def test_runtime_smoke_rejects_fresh_log_from_wrong_candidate
+    smoke_log = '/tmp/sanebar_runtime_smoke.log'
+    startup_log = startup_probe_log_path
+    startup_artifact = startup_probe_artifact_path
+    wake_log = wake_probe_log_path
+    wake_artifact = wake_probe_artifact_path
+    shared_log = '/tmp/sanebar_runtime_shared_bundle_smoke.log'
+    preserve_files(smoke_log, startup_log, startup_artifact, wake_log, wake_artifact, shared_log) do
+      seed_running_bundle_from_project!
+      stale_candidate = project_runtime_candidate_fixture.merge(app_version: '0.0.1', app_build: '1')
+      File.write(smoke_log, runtime_log_lines(
+        'Settings window visual check ok',
+        'Browse mode secondMenuBar open/close ok',
+        'Browse mode findIcon open/close ok',
+        'Live zone smoke passed',
+        candidate: stale_candidate
+      ))
+      File.write(startup_log, 'Startup layout probe passed')
+      write_startup_probe_artifact(startup_artifact)
+      File.write(wake_log, 'Wake layout probe passed')
+      write_wake_probe_artifact(wake_artifact)
+      File.write(shared_log, runtime_log_lines(
+        'Hidden/Visible move actions ok',
+        'Always Hidden move actions ok',
+        'Representative zone candidates ok',
+        '✅ Candidate set passed: com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-A',
+        '✅ Live zone smoke passed'
+      ))
+
+      error = assert_raises(RuntimeError) do
+        @sweep.send(:verify_recent_runtime_smoke)
+      end
+
+      assert_includes error.message, 'candidate metadata does not match running SaneBar'
     end
   end
 
@@ -328,6 +541,7 @@ class CustomerUIActionSweepTest < Minitest::Test
 
   def test_runtime_state_results_read_artifact_backed_evidence_paths
     fullscreen_artifact = '/tmp/sanebar_runtime_fullscreen_matrix.json'
+    startup_log = startup_probe_log_path
     preserve_files(fullscreen_artifact) do
     File.write(
       fullscreen_artifact,
@@ -335,8 +549,10 @@ class CustomerUIActionSweepTest < Minitest::Test
         status: 'pass',
         evidence_types: %w[mini_runtime screenshot log],
         evidence_paths: ['/tmp/sanebar-top-strip.png'],
+        candidate: runtime_candidate_fixture,
         completed_scenarios: [
           'native fullscreen enter and exit',
+          'hidden and visible icon zones persist across fullscreen Space transition',
           'maximized desktop window below the menu bar',
           'Dark appearance with Translucent Background enabled',
           'Reduce Transparency enabled',
@@ -347,7 +563,7 @@ class CustomerUIActionSweepTest < Minitest::Test
     @sweep.instance_variable_set(:@action_results, {
       'startup-wake-appearance-recovery' => {
         evidence: [
-          { type: 'mini_runtime', detail: '/tmp/sanebar_runtime_startup_probe.log: Startup layout probe passed', artifacts: ['/tmp/sanebar_runtime_startup_probe.log'] },
+          { type: 'mini_runtime', detail: "#{startup_log}: Startup layout probe passed", artifacts: [startup_log] },
           { type: 'mini_runtime', detail: '/tmp/sanebar_runtime_wake_probe.log: Wake layout probe passed', artifacts: ['/tmp/sanebar_runtime_wake_probe.log'] },
           { type: 'screenshot', detail: 'appearance screenshot', artifacts: ['outputs/customer-ui/appearance.png'] },
           { type: 'state_receipt', detail: '/tmp/sanebar_runtime.log: Appearance tint pixels ok', artifacts: ['outputs/customer-ui/state.json'] },
@@ -373,15 +589,149 @@ class CustomerUIActionSweepTest < Minitest::Test
     end
   end
 
+  def test_runtime_state_results_read_durable_hover_and_license_probe_artifacts
+    runtime_dir = CustomerUIActionSweep.const_get(:RUNTIME_PREFLIGHT_DIR)
+    hover_json = File.join(runtime_dir, 'sanebar_runtime_hover_rehide.json')
+    hover_log = File.join(runtime_dir, 'sanebar_runtime_hover_rehide.log')
+    license_json = File.join(runtime_dir, 'sanebar_runtime_license_paste.json')
+    license_log = File.join(runtime_dir, 'sanebar_runtime_license_paste.log')
+    legacy_hover_json = '/tmp/sanebar_runtime_hover_rehide.json'
+    legacy_license_json = '/tmp/sanebar_runtime_license_paste.json'
+
+    preserve_files(hover_json, hover_log, license_json, license_log, legacy_hover_json, legacy_license_json) do
+      FileUtils.mkdir_p(runtime_dir)
+      FileUtils.rm_f(legacy_hover_json)
+      FileUtils.rm_f(legacy_license_json)
+      File.write(hover_log, "hover pass\n")
+      File.write(license_log, "license pass\n")
+      File.write(
+        hover_json,
+        JSON.pretty_generate(
+          status: 'pass',
+          evidence_types: %w[mini_click mini_runtime log state_receipt],
+          evidence_paths: [hover_log],
+          completed_scenarios: [
+            'hover reveal opens hidden items',
+            'leaving the reveal zone auto-rehides after the configured delay',
+            'repeated hover cycles do not leave stale visible items'
+          ],
+          candidate: project_runtime_candidate_fixture
+        )
+      )
+      File.write(
+        license_json,
+        JSON.pretty_generate(
+          status: 'pass',
+          evidence_types: %w[mini_click screenshot log state_receipt],
+          evidence_paths: [license_log],
+          completed_scenarios: [
+            'license sheet accepts clipboard paste into the key field',
+            'Activate uses the pasted value instead of an empty or stale field',
+            'invalid test key shows a visible validation result without dismissing the sheet'
+          ],
+          candidate: project_runtime_candidate_fixture
+        )
+      )
+
+      seed_running_bundle_from_project!
+      with_manifest(<<~YAML) do
+        runtime_state_matrix:
+          hover_auto_rehide:
+            action_ids: [control-settings-actions]
+            required_evidence_types: [mini_click, mini_runtime, log, state_receipt]
+            required_scenarios:
+              - hover reveal opens hidden items
+              - leaving the reveal zone auto-rehides after the configured delay
+              - repeated hover cycles do not leave stale visible items
+          license_clipboard_paste:
+            action_ids: [license-about-support-actions]
+            required_evidence_types: [mini_click, screenshot, log, state_receipt]
+            required_scenarios:
+              - license sheet accepts clipboard paste into the key field
+              - Activate uses the pasted value instead of an empty or stale field
+              - invalid test key shows a visible validation result without dismissing the sheet
+      YAML
+        rows = @sweep.send(:runtime_state_results, { 'manifest_sha256' => 'abc' })
+        hover = rows.find { |row| row[:id] == 'hover_auto_rehide' }
+        license = rows.find { |row| row[:id] == 'license_clipboard_paste' }
+
+        assert_equal 'passed', hover[:status]
+        assert_includes hover[:evidence_paths], hover_json
+        assert_includes hover[:evidence_paths], hover_log
+        assert_equal 'passed', license[:status]
+        assert_includes license[:evidence_paths], license_json
+        assert_includes license[:evidence_paths], license_log
+      end
+    end
+  end
+
+  def test_runtime_state_results_reject_legacy_tmp_hover_and_license_probe_artifacts
+    runtime_dir = CustomerUIActionSweep.const_get(:RUNTIME_PREFLIGHT_DIR)
+    hover_json = File.join(runtime_dir, 'sanebar_runtime_hover_rehide.json')
+    license_json = File.join(runtime_dir, 'sanebar_runtime_license_paste.json')
+    legacy_hover_json = '/tmp/sanebar_runtime_hover_rehide.json'
+    legacy_license_json = '/tmp/sanebar_runtime_license_paste.json'
+
+    preserve_files(hover_json, license_json, legacy_hover_json, legacy_license_json) do
+      FileUtils.rm_f(hover_json)
+      FileUtils.rm_f(license_json)
+      File.write(
+        legacy_hover_json,
+        JSON.pretty_generate(
+          status: 'pass',
+          evidence_types: %w[mini_click mini_runtime log state_receipt],
+          evidence_paths: [legacy_hover_json],
+          completed_scenarios: ['hover reveal opens hidden items'],
+          candidate: project_runtime_candidate_fixture
+        )
+      )
+      File.write(
+        legacy_license_json,
+        JSON.pretty_generate(
+          status: 'pass',
+          evidence_types: %w[mini_click screenshot log state_receipt],
+          evidence_paths: [legacy_license_json],
+          completed_scenarios: ['license sheet accepts clipboard paste into the key field'],
+          candidate: project_runtime_candidate_fixture
+        )
+      )
+
+      seed_running_bundle_from_project!
+      with_manifest(<<~YAML) do
+        runtime_state_matrix:
+          hover_auto_rehide:
+            action_ids: [control-settings-actions]
+            required_evidence_types: [mini_click, mini_runtime, log, state_receipt]
+            required_scenarios:
+              - hover reveal opens hidden items
+          license_clipboard_paste:
+            action_ids: [license-about-support-actions]
+            required_evidence_types: [mini_click, screenshot, log, state_receipt]
+            required_scenarios:
+              - license sheet accepts clipboard paste into the key field
+      YAML
+        rows = @sweep.send(:runtime_state_results, { 'manifest_sha256' => 'abc' })
+        hover = rows.find { |row| row[:id] == 'hover_auto_rehide' }
+        license = rows.find { |row| row[:id] == 'license_clipboard_paste' }
+
+        assert_equal 'failed', hover[:status]
+        assert_equal 'failed', license[:status]
+        assert_includes hover[:failure_reasons], 'missing evidence paths'
+        assert_includes license[:failure_reasons], 'missing evidence paths'
+      end
+    end
+  end
+
   def test_runtime_state_results_fail_without_named_fullscreen_scenarios
     fullscreen_artifact = '/tmp/sanebar_runtime_fullscreen_matrix.json'
+    startup_log = startup_probe_log_path
     preserve_files(fullscreen_artifact) do
       FileUtils.rm_f(fullscreen_artifact)
 
     @sweep.instance_variable_set(:@action_results, {
       'startup-wake-appearance-recovery' => {
         evidence: [
-          { type: 'mini_runtime', detail: '/tmp/sanebar_runtime_startup_probe.log: Startup layout probe passed', artifacts: ['/tmp/sanebar_runtime_startup_probe.log'] },
+          { type: 'mini_runtime', detail: "#{startup_log}: Startup layout probe passed", artifacts: [startup_log] },
           { type: 'screenshot', detail: 'appearance screenshot', artifacts: ['outputs/customer-ui/appearance.png'] },
           { type: 'log', detail: 'runtime log', artifacts: ['/tmp/sanebar_runtime.log'] }
         ]
@@ -419,6 +769,7 @@ class CustomerUIActionSweepTest < Minitest::Test
           evidence_paths: ['/tmp/sanebar-top-strip.png'],
           completed_scenarios: [
             'native fullscreen enter and exit',
+            'hidden and visible icon zones persist across fullscreen Space transition',
             'maximized desktop window below the menu bar',
             'Dark appearance with Translucent Background enabled',
             'Reduce Transparency enabled',
@@ -454,14 +805,15 @@ class CustomerUIActionSweepTest < Minitest::Test
   end
 
   def test_runtime_state_results_include_wake_visible_zone_artifact
-    wake_artifact = '/tmp/sanebar_runtime_wake_probe.json'
-    wake_log = '/tmp/sanebar_runtime_wake_probe.log'
+    wake_artifact = wake_probe_artifact_path
+    wake_log = wake_probe_log_path
     preserve_files(wake_artifact, wake_log) do
     File.write(wake_log, 'Wake layout probe passed')
     File.write(
       wake_artifact,
       JSON.pretty_generate(
         status: 'pass',
+        candidate: runtime_candidate_fixture,
         visible_zone_persistence: {
           status: 'pass',
           completed_scenarios: [
@@ -510,14 +862,15 @@ class CustomerUIActionSweepTest < Minitest::Test
   end
 
   def test_runtime_state_results_include_dynamic_helper_wake_artifact
-    wake_artifact = '/tmp/sanebar_runtime_wake_probe.json'
-    wake_log = '/tmp/sanebar_runtime_wake_probe.log'
+    wake_artifact = wake_probe_artifact_path
+    wake_log = wake_probe_log_path
     preserve_files(wake_artifact, wake_log) do
     File.write(wake_log, 'Wake layout probe passed')
     File.write(
       wake_artifact,
       JSON.pretty_generate(
         status: 'pass',
+        candidate: runtime_candidate_fixture,
         dynamic_helper_wake_drift: {
           status: 'pass',
           required_ids: ['com.sindresorhus.Lungo-setapp'],
@@ -557,8 +910,8 @@ class CustomerUIActionSweepTest < Minitest::Test
   end
 
   def test_runtime_state_results_do_not_claim_dynamic_helper_screenshot_from_json_only
-    wake_artifact = '/tmp/sanebar_runtime_wake_probe.json'
-    wake_log = '/tmp/sanebar_runtime_wake_probe.log'
+    wake_artifact = wake_probe_artifact_path
+    wake_log = wake_probe_log_path
     preserve_files(wake_artifact, wake_log) do
       File.write(wake_log, 'Wake layout probe passed')
       File.write(
@@ -601,8 +954,8 @@ class CustomerUIActionSweepTest < Minitest::Test
   end
 
   def test_runtime_state_results_rejects_inferred_dynamic_helper_from_generic_hidden_wake_proof
-    wake_artifact = '/tmp/sanebar_runtime_wake_probe.json'
-    wake_log = '/tmp/sanebar_runtime_wake_probe.log'
+    wake_artifact = wake_probe_artifact_path
+    wake_log = wake_probe_log_path
     preserve_files(wake_artifact, wake_log) do
     File.write(wake_log, 'Wake layout probe passed')
     File.write(
@@ -1381,15 +1734,24 @@ class CustomerUIActionSweepTest < Minitest::Test
     assert_includes source, 'repeat 24 times'
     assert_includes source, 'text field 1 of groupDialog'
     assert_includes source, 'exercise_hover_auto_rehide_runtime_probe'
-    assert_includes source, '/tmp/sanebar_runtime_hover_rehide.json'
+    assert_includes source, "runtime_probe_artifact_path('hover_rehide', 'json')"
+    refute_includes source, '/tmp/sanebar_runtime_hover_rehide.json'
     assert_includes source, 'settle_runtime_ui_for_rehide_probe'
     assert_includes source, 'park_pointer_away_from_menu_bar'
+    assert_includes source, 'move_pointer_to_menu_bar_for_hover_probe'
+    assert_includes source, 'ensure_hover_reveal_enabled_for_probe'
     assert_includes source, 'Pointer parking left the cursor in the menu-bar interaction region'
     assert_includes source, 'autoRehideBlockReason'
     assert_includes source, 'snapshot_summary(last)'
     assert_includes source, 'verify_recent_appearance_overlay_screenshots'
     assert_includes source, 'exercise_license_clipboard_paste_runtime_probe'
-    assert_includes source, '/tmp/sanebar_runtime_license_paste.json'
+    assert_includes source, "runtime_probe_artifact_path('license_paste', 'json')"
+    refute_includes source, '/tmp/sanebar_runtime_license_paste.json'
+    assert_includes source, 'drive_license_clipboard_paste_ui'
+    assert_includes source, 'saneui-license-paste'
+    assert_includes source, 'saneui-license-key-field'
+    assert_includes source, 'saneui-license-activate'
+    assert_includes source, 'safe_write_runtime_probe_file'
     assert_includes source, 'SANE_APPROVE_LOCAL_UI_ON_AIR'
     assert_includes runtime_source, 'host: Socket.gethostname.to_s.downcase'
     assert_includes runtime_source, 'local_air_fallback:'

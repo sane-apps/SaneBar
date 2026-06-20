@@ -137,6 +137,7 @@ class WakeLayoutProbe
 
   def write_artifact!(payload)
     payload[:candidate] = runtime_candidate_metadata
+    payload[:runtime_provenance] = runtime_provenance
     if @visible_zone_proofs.any?
       completed = visible_zone_completed_scenarios
       required = visible_zone_required_scenarios
@@ -187,6 +188,22 @@ class WakeLayoutProbe
       app_version: plist_value(info_plist, 'CFBundleShortVersionString'),
       app_build: plist_value(info_plist, 'CFBundleVersion')
     }
+  end
+
+  def runtime_provenance
+    {
+      mini_runtime: mini_runtime_host?,
+      host: Socket.gethostname,
+      generated_at: Time.now.utc.iso8601,
+      app_path: @app_path,
+      bundle_id: @bundle_id
+    }
+  end
+
+  def mini_runtime_host?
+    Socket.gethostname.to_s.downcase.include?('mini')
+  rescue StandardError
+    false
   end
 
   def plist_value(info_plist, key)
