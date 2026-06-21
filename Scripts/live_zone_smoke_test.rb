@@ -209,7 +209,7 @@ class LiveZoneSmokeTest < Minitest::Test
     assert_equal ['com.example.right::statusItem:0'], candidates.map { |candidate| candidate[:unique_id] }
   end
 
-  def test_candidate_pool_keeps_offscreen_hidden_state_always_hidden_sources
+  def test_candidate_pool_rejects_offscreen_always_hidden_sources_by_default
     smoke = build_smoke
     zones = [
       {
@@ -225,7 +225,67 @@ class LiveZoneSmokeTest < Minitest::Test
 
     candidates = smoke.send(:candidate_pool, zones)
 
-    assert_equal ['com.example.hiddenstate::statusItem:0'], candidates.map { |candidate| candidate[:unique_id] }
+    assert_empty candidates
+  end
+
+  def test_representative_matrix_pool_keeps_offscreen_always_hidden_sources_for_staged_fallback
+    smoke = build_smoke
+    smoke.instance_variable_set(:@require_all_zones, true)
+    zones = [
+      {
+        zone: 'visible',
+        movable: true,
+        bundle: 'com.example.visible',
+        unique_id: 'com.example.visible::statusItem:0',
+        name: 'Visible',
+        drag_source_safety: 'safe'
+      },
+      {
+        zone: 'hidden',
+        movable: true,
+        bundle: 'com.example.hidden',
+        unique_id: 'com.example.hidden::statusItem:0',
+        name: 'Hidden',
+        drag_source_safety: 'safe'
+      },
+      {
+        zone: 'alwaysHidden',
+        movable: true,
+        bundle: 'com.example.hiddenstate',
+        unique_id: 'com.example.hiddenstate::statusItem:0',
+        name: 'Hidden State Widget',
+        drag_source_safety: 'offscreen',
+        center_x: -3928.0
+      }
+    ]
+
+    candidates = smoke.send(:candidate_pool, zones)
+
+    assert_equal(
+      %w[com.example.hidden::statusItem:0 com.example.visible::statusItem:0 com.example.hiddenstate::statusItem:0],
+      candidates.map { |candidate| candidate[:unique_id] }
+    )
+  end
+
+  def test_required_candidate_pool_keeps_offscreen_always_hidden_when_notch_skip_enabled
+    required_id = 'com.example.hiddenstate::statusItem:0'
+    smoke = build_smoke(required_ids: [required_id])
+    smoke.instance_variable_set(:@allow_notch_unsafe_required_skips, true)
+    zones = [
+      {
+        zone: 'alwaysHidden',
+        movable: true,
+        bundle: 'com.example.hiddenstate',
+        unique_id: required_id,
+        name: 'Hidden State Widget',
+        drag_source_safety: 'offscreen',
+        center_x: -3928.0
+      }
+    ]
+
+    candidates = smoke.send(:selected_candidates, zones)
+
+    assert_equal [required_id], candidates.map { |candidate| candidate[:unique_id] }
   end
 
   def test_required_candidate_notch_skip_uses_live_geometry
@@ -1375,6 +1435,40 @@ class LiveZoneSmokeTest < Minitest::Test
     ], calls
   end
 
+  def test_representative_action_matrix_stages_when_all_ah_sources_are_offscreen
+    smoke = build_smoke
+    calls = []
+    candidates = [
+      { zone: 'visible', movable: true, bundle: 'com.example.visible', unique_id: 'visible-id', name: 'Visible', drag_source_safety: 'safe' },
+      { zone: 'hidden', movable: true, bundle: 'com.example.hidden', unique_id: 'hidden-id', name: 'Hidden', drag_source_safety: 'safe' },
+      { zone: 'alwaysHidden', movable: true, bundle: 'com.example.ah1', unique_id: 'ah1-id', name: 'AH 1', drag_source_safety: 'offscreen', center_x: -3900.0 },
+      { zone: 'alwaysHidden', movable: true, bundle: 'com.example.ah2', unique_id: 'ah2-id', name: 'AH 2', drag_source_safety: 'offscreen', center_x: -3860.0 },
+      { zone: 'alwaysHidden', movable: true, bundle: 'com.example.ah3', unique_id: 'ah3-id', name: 'AH 3', drag_source_safety: 'offscreen', center_x: -3820.0 }
+    ]
+    smoke.define_singleton_method(:list_icon_zones) { candidates }
+    smoke.define_singleton_method(:move_and_verify) do |command, candidate, expected_zone|
+      calls << [command, candidate[:unique_id], expected_zone]
+      live = candidates.find { |item| item[:unique_id] == candidate[:unique_id] }
+      live[:zone] = expected_zone if live
+      live[:drag_source_safety] = 'safe' if live && expected_zone != 'alwaysHidden'
+    end
+    smoke.define_singleton_method(:exercise_hidden_visible_moves) do |candidate|
+      calls << ['hidden-visible-sequence', candidate[:unique_id], 'visible']
+    end
+
+    passed = smoke.send(:exercise_representative_move_action_matrix, candidates)
+
+    assert_equal %w[visible-id hidden-id hidden-id], passed.map { |candidate| candidate[:unique_id] }
+    assert_equal [
+      ['move icon to always hidden', 'visible-id', 'alwaysHidden'],
+      ['move icon to visible', 'visible-id', 'visible'],
+      ['move icon to always hidden', 'hidden-id', 'alwaysHidden'],
+      ['move icon to hidden', 'hidden-id', 'hidden'],
+      ['hidden-visible-sequence', 'visible-id', 'visible'],
+      ['move icon to always hidden', 'hidden-id', 'alwaysHidden']
+    ], calls
+  end
+
   def test_representative_action_matrix_collapses_repeated_shared_fixture_failures
     smoke = build_smoke
     candidates = [
@@ -2162,6 +2256,39 @@ class LiveZoneSmokeTest < Minitest::Test
     assert_match(/Refusing outbound move from unsafe drag source/, error.message)
   end
 
+  def test_staged_always_hidden_outbound_allows_product_reveal_repair_attempt
+    smoke = build_smoke
+    candidate = {
+      zone: 'alwaysHidden',
+      movable: true,
+      bundle: 'com.example.widget',
+      unique_id: 'com.example.widget::statusItem:0',
+      name: 'Widget',
+      staged_always_hidden_outbound: true
+    }
+    sleeps = []
+    ready_calls = 0
+    smoke.define_singleton_method(:list_icon_zones) do
+      [
+        {
+          zone: 'alwaysHidden',
+          movable: true,
+          bundle: 'com.example.widget',
+          unique_id: 'com.example.widget::statusItem:0',
+          name: 'Widget',
+          drag_source_safety: 'offscreen',
+          center_x: -4000.0
+        }
+      ]
+    end
+    smoke.define_singleton_method(:wait_for_move_ready_state) { ready_calls += 1 }
+    smoke.define_singleton_method(:sleep_with_watchdog) { |seconds| sleeps << seconds }
+
+    assert smoke.send(:settle_before_outbound_move, candidate[:unique_id], candidate, 'visible')
+    assert_includes sleeps, LiveZoneSmoke::ALWAYS_HIDDEN_OUTBOUND_SETTLE_SECONDS
+    assert_equal 1, ready_calls
+  end
+
   def test_hidden_outbound_move_refuses_notch_unsafe_source
     smoke = build_smoke
     candidate = {
@@ -2187,6 +2314,30 @@ class LiveZoneSmokeTest < Minitest::Test
     end
 
     assert_match(/Refusing outbound move from unsafe drag source/, error.message)
+  end
+
+  def test_matrix_hidden_visible_outbound_allows_collapsed_hidden_source
+    smoke = build_smoke
+    candidate = {
+      zone: 'hidden',
+      movable: true,
+      bundle: 'com.example.widget',
+      unique_id: 'com.example.widget::statusItem:0',
+      name: 'Widget',
+      matrix_hidden_visible_outbound: true
+    }
+    smoke.define_singleton_method(:list_icon_zones) do
+      [
+        candidate.merge(
+          drag_source_safety: 'offscreen',
+          center_x: -3643.5
+        )
+      ]
+    end
+    smoke.define_singleton_method(:wait_for_move_ready_state) { raise 'should not settle hidden source in harness' }
+    smoke.define_singleton_method(:sleep_with_watchdog) { |_seconds| raise 'should not sleep for hidden source in harness' }
+
+    assert smoke.send(:settle_before_outbound_move, candidate[:unique_id], candidate, 'visible')
   end
 
   def test_matrix_move_skips_notch_unsafe_candidates

@@ -67,7 +67,7 @@ final class RuntimeGuardQAAndLicensingXCTests: RuntimeGuardTestCase {
         XCTAssertTrue(
             source.contains("screenshot_capture_available = runtime_screenshot_capture_available?(screenshot_dir)") &&
                 source.contains("resume_phase = runtime_smoke_resume_phase") &&
-                source.contains("resume_phase == 'move_matrix' ? false : ENV.fetch('SANEBAR_RELEASE_SMOKE_SCREENSHOTS', '1') != '0'") &&
+                source.contains("%w[move_matrix shared_bundle].include?(resume_phase) ? false : ENV.fetch('SANEBAR_RELEASE_SMOKE_SCREENSHOTS', '1') != '0'") &&
                 source.contains("capture_runtime_smoke_screenshots = release_smoke_screenshots_required && screenshot_capture_available") &&
                 source.contains("appearance_settings_backup = prepare_runtime_smoke_appearance_settings! if capture_runtime_smoke_screenshots") &&
                 source.contains("'SANEBAR_SMOKE_REQUIRE_APPEARANCE_TRANSITIONS' => capture_runtime_smoke_screenshots ? '1' : '0'") &&
