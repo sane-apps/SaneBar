@@ -67,7 +67,7 @@ final class RuntimeGuardQAAndLicensingXCTests: RuntimeGuardTestCase {
         XCTAssertTrue(
             source.contains("screenshot_capture_available = runtime_screenshot_capture_available?(screenshot_dir)") &&
                 source.contains("resume_phase = runtime_smoke_resume_phase") &&
-                source.contains("%w[move_matrix shared_bundle].include?(resume_phase) ? false : ENV.fetch('SANEBAR_RELEASE_SMOKE_SCREENSHOTS', '1') != '0'") &&
+                source.contains("%w[move_matrix shared_bundle native_apple].include?(resume_phase) ? false : ENV.fetch('SANEBAR_RELEASE_SMOKE_SCREENSHOTS', '1') != '0'") &&
                 source.contains("capture_runtime_smoke_screenshots = release_smoke_screenshots_required && screenshot_capture_available") &&
                 source.contains("appearance_settings_backup = prepare_runtime_smoke_appearance_settings! if capture_runtime_smoke_screenshots") &&
                 source.contains("'SANEBAR_SMOKE_REQUIRE_APPEARANCE_TRANSITIONS' => capture_runtime_smoke_screenshots ? '1' : '0'") &&
@@ -210,7 +210,7 @@ final class RuntimeGuardQAAndLicensingXCTests: RuntimeGuardTestCase {
                 source.contains("run_focused_runtime_smoke_exact_ids(") &&
                 source.contains("'SANEBAR_SMOKE_REQUIRED_IDS' => exact_ids.join(',')") &&
                 source.contains("'SANEBAR_SMOKE_REQUIRE_ALL_CANDIDATES' => '1'") &&
-                source.contains("focused_env['SANEBAR_SMOKE_ALLOW_NOTCH_UNSAFE_REQUIRED_SKIPS'] = '1' if lane_name == 'shared-bundle'") &&
+                source.contains("focused_env['SANEBAR_SMOKE_ALLOW_NOTCH_UNSAFE_REQUIRED_SKIPS'] = '1'") &&
                 source.contains("lane_name: 'shared-bundle'") &&
                 source.contains("retryable_failure_method: :retryable_shared_bundle_runtime_smoke_failure?"),
             "Project QA runtime smoke should always prove shared-bundle exact-ID movement with the deterministic fixture"

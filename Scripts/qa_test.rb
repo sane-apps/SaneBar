@@ -2915,11 +2915,14 @@ end
     assert_includes source, 'def runtime_smoke_resume_phase'
     assert_includes source, "ENV['SANEPROCESS_RUNTIME_SMOKE_RESUME_PHASE']"
     assert_includes source, "ENV['SANEBAR_RUNTIME_SMOKE_RESUME_PHASE']"
-    assert_includes source, "%w[move_matrix shared_bundle].include?(resume_phase)"
+    assert_includes source, "%w[move_matrix shared_bundle native_apple].include?(resume_phase)"
     assert_includes source, 'resuming runtime smoke at move matrix'
     assert_includes source, 'resuming runtime smoke at shared-bundle exact-ID lane'
-    assert_includes source, "runtime_passes = resume_phase == 'shared_bundle' ? 0 : RUNTIME_SMOKE_PASSES"
+    assert_includes source, 'resuming runtime smoke at native Apple exact-ID lane'
+    assert_includes source, "runtime_passes = %w[shared_bundle native_apple].include?(resume_phase) ? 0 : RUNTIME_SMOKE_PASSES"
+    assert_includes source, "unless resume_phase == 'native_apple'"
     assert_includes source, "return if resume_phase == 'shared_bundle'"
+    assert_includes source, "return if resume_phase == 'native_apple'"
     assert_includes source, "'SANEBAR_SMOKE_EXACT_ID_MOVE_ONLY' => '1'"
     assert_includes source, "'SANEBAR_SMOKE_SKIP_LAUNCH_IDLE_BUDGET' => '1'"
     assert_includes source, 'ensure_runtime_smoke_representative_zones_ready!'
@@ -3027,7 +3030,7 @@ def test_focused_exact_id_runtime_smoke_uses_move_only_no_keychain_guard
     assert_includes source, "focused_env['SANEBAR_SMOKE_EXACT_ID_MOVE_ONLY'] = '1'"
     refute_includes source, "else\n      focused_env['SANEBAR_SMOKE_EXACT_ID_MOVE_ONLY'] = '1'"
     assert_includes source, "focused_env['SANEBAR_SMOKE_PIN_REQUIRED_BROWSE_ALWAYS_HIDDEN'] = '1'"
-    assert_includes source, "focused_env['SANEBAR_SMOKE_ALLOW_NOTCH_UNSAFE_REQUIRED_SKIPS'] = '1' if lane_name == 'shared-bundle'"
+    assert_includes source, "focused_env['SANEBAR_SMOKE_ALLOW_NOTCH_UNSAFE_REQUIRED_SKIPS'] = '1'"
     refute_includes source, "SANEBAR_SMOKE_MIN_PASSING_CANDIDATES"
     assert_includes source, 'com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-C'
   end

@@ -274,7 +274,7 @@ class LiveZoneSmoke
           rescue StandardError => e
             if notch_unsafe_required_skip?(candidate, e)
               skipped_candidates << [candidate, e]
-              puts "ℹ️ Candidate skipped because its live drag source is under the notch: #{candidate[:unique_id]} (#{e.message})"
+              puts "ℹ️ Candidate skipped because its live drag source is offscreen/notch-unsafe: #{candidate[:unique_id]} (#{e.message})"
             else
               failures << [candidate, e]
               puts "⚠️ Candidate failed: #{candidate[:bundle]} (#{e.message})"
@@ -294,7 +294,7 @@ class LiveZoneSmoke
         if passed_candidates.length < min_required
           summary = candidate_failure_summary(failures)
           skip_summary = candidate_failure_summary(skipped_candidates)
-          summary = [summary, ("Notch-unsafe skips: #{skip_summary}" unless skip_summary.empty?)].compact.reject(&:empty?).join(' ')
+          summary = [summary, ("Offscreen/notch-unsafe skips: #{skip_summary}" unless skip_summary.empty?)].compact.reject(&:empty?).join(' ')
           detail = summary.empty? ? '' : " Candidate failures: #{summary}"
           raise "#{passed_candidates.length}/#{min_required} candidates passed move action checks.#{detail}"
         end
@@ -304,11 +304,11 @@ class LiveZoneSmoke
           puts "⚠️ Candidate failures tolerated after #{passed_candidates.length}/#{min_required} candidates passed: #{candidate_failure_summary(failures)}"
         end
         unless skipped_candidates.empty?
-          puts "ℹ️ Notch-unsafe required candidate skips: #{candidate_failure_summary(skipped_candidates)}"
+          puts "ℹ️ Offscreen/notch-unsafe required candidate skips: #{candidate_failure_summary(skipped_candidates)}"
         end
         if passed_candidates.empty?
           if all_required_candidates_skipped_as_notch_unsafe?(candidates, skipped_candidates, failures)
-            puts 'ℹ️ All focused required candidates were skipped because their live drag sources are notch-unsafe.'
+            puts 'ℹ️ All focused required candidates were skipped because their live drag sources are offscreen/notch-unsafe.'
           else
             raise 'No candidates passed move action checks.'
           end

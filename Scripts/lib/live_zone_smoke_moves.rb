@@ -197,7 +197,7 @@ class LiveZoneSmoke
     end
     unless unsafe.empty?
       skipped = unsafe.map { |candidate| "#{candidate[:unique_id]}@#{candidate[:center_x] || 'unknown'}" }.join(', ')
-      puts "ℹ️ Matrix #{label} skipped notch-unsafe drag source(s): #{skipped}"
+      puts "ℹ️ Matrix #{label} skipped offscreen/notch-unsafe drag source(s): #{skipped}"
     end
     safe
   end
