@@ -609,6 +609,16 @@ class ProjectQATest < Minitest::Test
     refute @qa.send(:retryable_runtime_smoke_failure?, '❌ Live zone smoke failed: Required icon(s) missing from list icon zones')
   end
 
+  def test_shared_bundle_runtime_smoke_retries_missing_fixture_id
+    output = <<~LOG
+      required_ids=com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-A,com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-B,com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-C
+      ❌ Live zone smoke failed: Required icon(s) missing from list icon zones: com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-C
+    LOG
+
+    refute @qa.send(:retryable_runtime_smoke_failure?, output)
+    assert @qa.send(:retryable_shared_bundle_runtime_smoke_failure?, output)
+  end
+
   def test_runtime_smoke_no_candidate_fixture_policy_matches_empty_default_pool
     assert @qa.send(
       :runtime_smoke_no_candidate_fixture_policy?,
@@ -2905,8 +2915,11 @@ end
     assert_includes source, 'def runtime_smoke_resume_phase'
     assert_includes source, "ENV['SANEPROCESS_RUNTIME_SMOKE_RESUME_PHASE']"
     assert_includes source, "ENV['SANEBAR_RUNTIME_SMOKE_RESUME_PHASE']"
-    assert_includes source, "resume_phase == 'move_matrix' ? false"
+    assert_includes source, "%w[move_matrix shared_bundle].include?(resume_phase)"
     assert_includes source, 'resuming runtime smoke at move matrix'
+    assert_includes source, 'resuming runtime smoke at shared-bundle exact-ID lane'
+    assert_includes source, "runtime_passes = resume_phase == 'shared_bundle' ? 0 : RUNTIME_SMOKE_PASSES"
+    assert_includes source, "return if resume_phase == 'shared_bundle'"
     assert_includes source, "'SANEBAR_SMOKE_EXACT_ID_MOVE_ONLY' => '1'"
     assert_includes source, "'SANEBAR_SMOKE_SKIP_LAUNCH_IDLE_BUDGET' => '1'"
     assert_includes source, 'ensure_runtime_smoke_representative_zones_ready!'

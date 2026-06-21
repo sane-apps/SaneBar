@@ -89,7 +89,7 @@ class ProjectQA
       screenshot_capture_available = runtime_screenshot_capture_available?(screenshot_dir)
       resume_phase = runtime_smoke_resume_phase
       release_smoke_screenshots_required =
-        resume_phase == 'move_matrix' ? false : ENV.fetch('SANEBAR_RELEASE_SMOKE_SCREENSHOTS', '1') != '0'
+        %w[move_matrix shared_bundle].include?(resume_phase) ? false : ENV.fetch('SANEBAR_RELEASE_SMOKE_SCREENSHOTS', '1') != '0'
       capture_runtime_smoke_screenshots = release_smoke_screenshots_required && screenshot_capture_available
       appearance_settings_backup = prepare_runtime_smoke_appearance_settings! if capture_runtime_smoke_screenshots
       seed_runtime_smoke_no_keychain_pro_defaults!
@@ -222,6 +222,8 @@ class ProjectQA
         puts '   ↳ smoke screenshots enabled by SANEBAR_RELEASE_SMOKE_SCREENSHOTS=1'
       elsif resume_phase == 'move_matrix'
         puts '   ↳ resuming runtime smoke at move matrix; skipping browse/settings/fullscreen visual phases already covered by the prior receipt'
+      elsif resume_phase == 'shared_bundle'
+        puts '   ↳ resuming runtime smoke at shared-bundle exact-ID lane; skipping default move matrix already covered by the prior receipt'
       elsif screenshot_capture_available
         puts '   ↳ smoke screenshots disabled for release gating (set SANEBAR_RELEASE_SMOKE_SCREENSHOTS=1 to opt in)'
       else
@@ -229,7 +231,8 @@ class ProjectQA
       end
       smoke_outputs = []
       default_move_coverage_deferred = false
-      RUNTIME_SMOKE_PASSES.times do |index|
+      runtime_passes = resume_phase == 'shared_bundle' ? 0 : RUNTIME_SMOKE_PASSES
+      runtime_passes.times do |index|
         pass_number = index + 1
         puts "   ↳ smoke pass #{pass_number}/#{RUNTIME_SMOKE_PASSES}"
 
@@ -323,6 +326,7 @@ class ProjectQA
           retryable_failure_method: :retryable_shared_bundle_runtime_smoke_failure?
         )
       end
+      return if resume_phase == 'shared_bundle'
 
       native_apple_ids = runtime_smoke_available_required_candidate_ids(
         target,
@@ -1157,6 +1161,8 @@ class ProjectQA
   def retryable_shared_bundle_runtime_smoke_failure?(smoke_output)
     return true if retryable_runtime_smoke_failure?(smoke_output)
 
+    return true if smoke_output.include?('Required icon(s) missing from list icon zones:') &&
+                   smoke_output.include?('com.sanebar.sharedfixture::')
     return true if smoke_output.include?('Candidate failures:') &&
                    smoke_output.include?('to reach zone alwaysHidden')
     return true if smoke_output.include?('Candidate failures:') &&

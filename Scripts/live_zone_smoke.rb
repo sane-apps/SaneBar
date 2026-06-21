@@ -665,7 +665,9 @@ class LiveZoneSmoke
       coarse_bundle_fallback?(item) && precise_bundles.include?(item[:bundle])
     end
     candidates.reject! { |item| move_candidate_denied?(item) } unless allow_denylisted
-    candidates.reject! { |item| unsafe_always_hidden_drag_source?(item) }
+    unless representative_action_matrix_mode? || (focused_required_id_mode? && @allow_notch_unsafe_required_skips)
+      candidates.reject! { |item| unsafe_always_hidden_drag_source?(item) }
+    end
 
     # Prefer non-Apple extras first (typically more consistently movable),
     # then Apple fallbacks while avoiding known noisy bundles.

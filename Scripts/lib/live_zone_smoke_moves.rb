@@ -27,7 +27,11 @@ class LiveZoneSmoke
       puts "ℹ️ Matrix AH->Visible existing candidates failed; staging visible candidate through Always Hidden: #{e.message}"
       staged_candidate = visible_candidate.merge(zone: 'visible')
       move_and_verify('move icon to always hidden', staged_candidate, 'alwaysHidden')
-      move_and_verify('move icon to visible', staged_candidate.merge(zone: 'alwaysHidden'), 'visible')
+      move_and_verify(
+        'move icon to visible',
+        staged_candidate.merge(zone: 'alwaysHidden', staged_always_hidden_outbound: true),
+        'visible'
+      )
       staged_candidate.merge(zone: 'visible')
     end
     passed << ah_to_visible
@@ -46,7 +50,11 @@ class LiveZoneSmoke
       puts "ℹ️ Matrix AH->Hidden existing candidates failed; staging hidden candidate through Always Hidden: #{e.message}"
       staged_candidate = hidden_candidate.merge(zone: 'hidden')
       move_and_verify('move icon to always hidden', staged_candidate, 'alwaysHidden')
-      move_and_verify('move icon to hidden', staged_candidate.merge(zone: 'alwaysHidden'), 'hidden')
+      move_and_verify(
+        'move icon to hidden',
+        staged_candidate.merge(zone: 'alwaysHidden', staged_always_hidden_outbound: true),
+        'hidden'
+      )
       staged_candidate.merge(zone: 'hidden')
     end
     passed << ah_to_hidden
@@ -108,7 +116,7 @@ class LiveZoneSmoke
       next unless live_candidate
 
       puts "🎯 Matrix Hidden/Visible candidate: #{live_candidate[:name]} (#{live_candidate[:bundle]})"
-      exercise_hidden_visible_moves(live_candidate)
+      exercise_hidden_visible_moves(live_candidate.merge(matrix_hidden_visible_outbound: true))
       return live_candidate
     rescue StandardError => e
       failures << "#{candidate[:unique_id]} => #{e.message}"
@@ -284,7 +292,13 @@ class LiveZoneSmoke
     return true unless matched
 
     if matched.key?(:drag_source_safety) && matched[:drag_source_safety].to_s != 'safe'
-      raise "Refusing outbound move from unsafe drag source #{icon_unique_id} (safety=#{matched[:drag_source_safety]}, centerX=#{matched[:center_x] || 'unknown'})"
+      if staged_always_hidden_outbound_candidate?(candidate, matched)
+        puts "ℹ️ Allowing staged Always Hidden outbound attempt for #{icon_unique_id}; product workflow will reveal/repair before dragging"
+      elsif matrix_hidden_visible_outbound_candidate?(candidate, matched, expected_zone)
+        puts "ℹ️ Allowing matrix Hidden outbound attempt for #{icon_unique_id}; product workflow will reveal hidden icons before dragging"
+      else
+        raise "Refusing outbound move from unsafe drag source #{icon_unique_id} (safety=#{matched[:drag_source_safety]}, centerX=#{matched[:center_x] || 'unknown'})"
+      end
     end
     return true unless matched[:zone] == 'alwaysHidden'
 
@@ -292,6 +306,16 @@ class LiveZoneSmoke
     sleep_with_watchdog(ALWAYS_HIDDEN_OUTBOUND_SETTLE_SECONDS)
     wait_for_move_ready_state
     true
+  end
+
+  def staged_always_hidden_outbound_candidate?(candidate, matched)
+    candidate[:staged_always_hidden_outbound] == true && matched[:zone].to_s == 'alwaysHidden'
+  end
+
+  def matrix_hidden_visible_outbound_candidate?(candidate, matched, expected_zone)
+    candidate[:matrix_hidden_visible_outbound] == true &&
+      matched[:zone].to_s == 'hidden' &&
+      expected_zone.to_s == 'visible'
   end
 
   def wait_for_move_ready_state
