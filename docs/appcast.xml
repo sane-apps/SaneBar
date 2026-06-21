@@ -6,7 +6,27 @@
                                 
         
                                                                                                                                                                                                                                                                                                                                         
-                                <item>
+                                        <item>
+            <title>2.1.75</title>
+            <link>https://sanebar.com/download</link>
+            <pubDate>Sun, 21 Jun 2026 00:27:05 -0400</pubDate>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description>
+                <![CDATA[
+                <h2>What's New</h2>
+                <ul>
+                <li>Fixes notch-safe menu bar icon moves on MacBook displays, improves hover reveal recovery, and strengthens Basic and Pro runtime move reliability.</li>
+                </ul>
+                ]]>
+            </description>
+            <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.75.zip"
+                       sparkle:version="2175"
+                       sparkle:shortVersionString="2.1.75"
+                       length="9181363"
+                       type="application/octet-stream"
+                       sparkle:edSignature="5c4cgp5h07G6OE56cLFWduxYLJ+cGdD0EwmjDjrl2x9M3gnpEOi2gnt0uawFAzys784p7XMHHoLEKqXNKcguCw=="/>
+        </item>
+<item>
             <title>2.1.73</title>
             <link>https://sanebar.com/download</link>
             <pubDate>Fri, 19 Jun 2026 03:54:06 -0400</pubDate>
