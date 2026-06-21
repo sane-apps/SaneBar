@@ -488,6 +488,22 @@ struct StatusBarControllerStartupRecoveryTests {
         ))
     }
 
+    @Test("No-keychain automation installs raw signal guard")
+    func noKeychainAutomationInstallsRawSignalGuard() {
+        #expect(SaneBarAppDelegate.shouldInstallNoKeychainAutomationSignalGuard(
+            environment: ["SANEAPPS_DISABLE_KEYCHAIN": "1"],
+            arguments: []
+        ))
+        #expect(SaneBarAppDelegate.shouldInstallNoKeychainAutomationSignalGuard(
+            environment: [:],
+            arguments: ["SaneBar", "--sane-no-keychain"]
+        ))
+        #expect(!SaneBarAppDelegate.shouldInstallNoKeychainAutomationSignalGuard(
+            environment: [:],
+            arguments: ["SaneBar"]
+        ))
+    }
+
     @Test("No-keychain automation cancels only unexpected termination")
     func noKeychainAutomationCancelsOnlyUnexpectedTermination() {
         #expect(SaneBarAppDelegate.shouldCancelUnexpectedTerminationForAutomation(

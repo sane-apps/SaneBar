@@ -140,6 +140,18 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
                 source.contains("automationLifecycleBreadcrumbPath"),
             "No-keychain automation should record and cancel unexpected AppKit termination instead of disappearing without diagnostics"
         )
+        XCTAssertTrue(
+            source.contains("signal(SIGTERM, SIG_IGN)") &&
+                source.contains("shouldInstallNoKeychainAutomationSignalGuard"),
+            "No-keychain automation should ignore raw SIGTERM so long release soaks cannot lose the app without AppKit diagnostics"
+        )
+        let mainSource = try String(contentsOf: projectRootURL().appendingPathComponent("main.swift"), encoding: .utf8)
+        let signalGuardCall = mainSource.range(of: "installNoKeychainAutomationSignalGuardIfNeeded()")
+        let runLoopCall = mainSource.range(of: "\napp.run()")
+        XCTAssertTrue(
+            signalGuardCall != nil && runLoopCall != nil && signalGuardCall!.lowerBound < runLoopCall!.lowerBound,
+            "No-keychain automation signal guard should install before the app run loop starts"
+        )
 
         let actionSource = try String(contentsOf: projectRootURL().appendingPathComponent("Core/Services/MenuBarActionWorkflow.swift"), encoding: .utf8)
         let explicitQuitMarker = actionSource.range(of: ".saneBarExplicitTerminationRequested")?.lowerBound
