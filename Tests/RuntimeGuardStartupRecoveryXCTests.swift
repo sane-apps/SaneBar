@@ -369,17 +369,17 @@ final class RuntimeGuardStartupRecoveryXCTests: RuntimeGuardTestCase {
                 observerSource.contains("manager.schedulePostRecoveryAutoRehideIfNeeded(reason: \"activeSpaceChanged\")") &&
                 observerSource.contains("manager.cancelVisibilityIntentReplayTask(reason: \"activeSpaceChanged\")") &&
                 !observerSource.contains("manager.cancelWakeVisibleAllowListReplay(reason: \"activeSpaceChanged\")") &&
+                observerSource.contains("manager.markWakeVisibleAllowListReplayPending(reason: \"wakeResume\")") &&
                 observerSource.contains("manager.schedulePostRecoveryAutoRehideIfNeeded(reason: \"wakeResume\")") &&
                 observerSource.contains("Replay pinned visibility intent only after validation reports healthy anchors.") &&
-                observerSource.contains("Wake can briefly report stale menu-bar coordinates; validation owns\n        // any physical replay only after attachment loss is confirmed.") &&
+                observerSource.contains("Wake can briefly report stale menu-bar coordinates. Arm the visible\n        // allow-list replay immediately, but let the guarded replay path wait\n        // for healthy anchors before any physical moves.") &&
                 observerSource.contains("Space switches can briefly report stale menu-bar coordinates on macOS 27;") &&
-                !observerSource.contains("manager.markWakeVisibleAllowListReplayPending(reason: \"wake-resume\")") &&
                 !observerSource.contains("manager.schedulePostRecoveryVisibilityIntentReplay(reason: \"activeSpaceChanged\")") &&
                 !observerSource.contains("manager.schedulePostRecoveryVisibilityIntentReplay(reason: \"wakeResume\")") &&
                 !observerSource.contains("manager.schedulePostRecoveryVisibilityIntentReplay(reason: \"screenParametersChanged\")") &&
                 recoverySource.contains("restoreHiddenStateAfterHealthyValidationIfNeeded(reason: \"healthy-validation-\\(context.rawValue)\")") &&
                 recoverySource.contains("schedulePostRecoveryVisibilityIntentReplay(reason: \"healthy-validation-\\(context.rawValue)\")") &&
-                source.contains("self.schedulePostRecoveryAutoRehideIfNeeded(reason: \"\\(reason)-replay-gave-up\")") &&
+                source.contains("self.schedulePostRecoveryAutoRehideIfNeeded(reason: \"\\(replayReasonBase)-replay-gave-up\")") &&
                 !source.contains("settings.layoutMode == .live") &&
                 recoverySource.contains("positionValidationGeneration += 1") &&
                 recoverySource.contains("guard self.manager.positionValidationGeneration == validationGeneration else"),

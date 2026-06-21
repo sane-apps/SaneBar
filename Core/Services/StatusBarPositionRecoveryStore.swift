@@ -74,16 +74,17 @@ enum StatusBarPositionRecoveryStore {
         return !hasCompletedOnboarding
     }
 
-    static func seedAlwaysHiddenSeparatorPositionIfNeeded() {
-        // AH separator must be FAR to the left of all menu bar items.
+    static func seedAlwaysHiddenSeparatorPositionIfNeeded(referenceScreen: NSScreen? = nil) {
+        // AH separator must be left of the regular Hidden separator, but on a
+        // notched built-in display it still has to stay inside the usable
+        // right-side status item region.
         // UserDefaults positions are pixel offsets from the right screen edge.
-        // Small values (0, 1, 50) all land near the right edge — useless for AH.
-        //
-        // 10000 is safe: macOS clamps it to the actual screen width and places
-        // the item at the far left. Main/Separator use ordinals (0, 1) which
-        // macOS handles independently — the large AH value doesn't affect them.
-        logger.info("Seeding AH separator position (10000 = far left)")
-        StatusBarPositionDefaultsStore.setPreferredPosition(10000, forAutosaveName: StatusBarPositionStore.alwaysHiddenSeparatorAutosaveName)
+        // Plain external displays can use the far-left sentinel. Notched
+        // displays need a bounded value so Always Hidden drag targets do not
+        // land under the notch.
+        let preferredPosition = StatusBarPositionStore.alwaysHiddenPreferredPosition(referenceScreen: referenceScreen)
+        logger.info("Seeding AH separator position (\(preferredPosition, privacy: .public))")
+        StatusBarPositionDefaultsStore.setPreferredPosition(preferredPosition, forAutosaveName: StatusBarPositionStore.alwaysHiddenSeparatorAutosaveName)
     }
 
     /// Reset all status item positions to ordinal seeds. Call when positions are
@@ -130,7 +131,7 @@ enum StatusBarPositionRecoveryStore {
         }
 
         if alwaysHiddenEnabled {
-            seedAlwaysHiddenSeparatorPositionIfNeeded()
+            seedAlwaysHiddenSeparatorPositionIfNeeded(referenceScreen: referenceScreen)
         }
 
         if freshAutosaveNamespace {
@@ -148,7 +149,7 @@ enum StatusBarPositionRecoveryStore {
     static func recoverStartupPositions(alwaysHiddenEnabled: Bool, referenceScreen: NSScreen? = nil) {
         if StatusBarPositionStore.restoreCurrentDisplayPositionBackupIfAvailable(referenceScreen: referenceScreen) {
             if alwaysHiddenEnabled {
-                seedAlwaysHiddenSeparatorPositionIfNeeded()
+                seedAlwaysHiddenSeparatorPositionIfNeeded(referenceScreen: referenceScreen)
             }
             logger.info("Recovered startup positions from current-width display backup")
             return
@@ -156,7 +157,7 @@ enum StatusBarPositionRecoveryStore {
         if let currentWidth = StatusBarPositionStore.resolvedReferenceScreen(referenceScreen)?.frame.width,
            StatusBarPositionStore.reanchorCurrentDisplayPositionsIfNeeded(for: currentWidth, referenceScreen: referenceScreen) {
             if alwaysHiddenEnabled {
-                seedAlwaysHiddenSeparatorPositionIfNeeded()
+                seedAlwaysHiddenSeparatorPositionIfNeeded(referenceScreen: referenceScreen)
             }
             logger.info("Recovered startup positions by reanchoring persisted positions toward Control Center")
             return
@@ -169,7 +170,7 @@ enum StatusBarPositionRecoveryStore {
             logger.info("Applied launch-safe startup recovery positions")
         }
         if alwaysHiddenEnabled {
-            seedAlwaysHiddenSeparatorPositionIfNeeded()
+            seedAlwaysHiddenSeparatorPositionIfNeeded(referenceScreen: referenceScreen)
         }
     }
 }

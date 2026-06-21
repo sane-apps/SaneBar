@@ -403,6 +403,35 @@ struct MenuBarAutomaticMoveGateTests {
         #expect(plainRecreate.physicalMoveOrigin == nil)
     }
 
+    @Test("Pending wake visible allow-list replay preserves wake repair through screen-parameter validation")
+    func pendingWakeVisibleAllowListReplayPreservesWakeReasonThroughScreenValidation() {
+        let rewritten = MenuBarVisibilityPolicy.visibilityIntentReplayReason(
+            reason: "healthy-validation-screen-parameters-changed",
+            hasPendingWakeVisibleAllowListReplay: true
+        )
+        #expect(rewritten == "healthy-validation-wake-resume-healthy-validation-screen-parameters-changed")
+        #expect(MenuBarVisibilityPolicy.isPostWakeVisibleAllowListReplayReason(rewritten))
+
+        let attempted = MenuBarVisibilityPolicy.visibilityIntentReplayReason(
+            reason: "healthy-validation-screen-parameters-changed-attempt-1",
+            hasPendingWakeVisibleAllowListReplay: true
+        )
+        #expect(attempted == "healthy-validation-wake-resume-healthy-validation-screen-parameters-changed-attempt-1")
+        #expect(MenuBarVisibilityPolicy.isPostWakeVisibleAllowListReplayReason(attempted))
+
+        let plainScreenChange = MenuBarVisibilityPolicy.visibilityIntentReplayReason(
+            reason: "healthy-validation-screen-parameters-changed",
+            hasPendingWakeVisibleAllowListReplay: false
+        )
+        #expect(plainScreenChange == "healthy-validation-screen-parameters-changed")
+
+        let activeSpace = MenuBarVisibilityPolicy.visibilityIntentReplayReason(
+            reason: "healthy-validation-active-space-changed",
+            hasPendingWakeVisibleAllowListReplay: true
+        )
+        #expect(activeSpace == "healthy-validation-active-space-changed")
+    }
+
     @Test("Non-wake lifecycle healthy validation stays audit-only on live geometry")
     func nonWakeLifecycleHealthyValidationStaysAuditOnlyOnLiveGeometry() {
         let nonWakeReasons = [

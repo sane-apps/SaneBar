@@ -918,6 +918,24 @@ struct MenuBarManagerRecoveryPolicyTests {
             ),
             "Repair should still trigger for misordered live geometry in negative global coordinates"
         )
+        #expect(
+            MenuBarAlwaysHiddenPinWorkflow.separatorNeedsRepair(
+                hasAlwaysHiddenSeparator: true,
+                separatorX: 1065,
+                alwaysHiddenSeparatorRightEdgeX: 469,
+                notchRightSafeMinX: 825
+            ),
+            "A live Always Hidden boundary under a MacBook notch is unusable and must be repaired before dragging"
+        )
+        #expect(
+            !MenuBarAlwaysHiddenPinWorkflow.separatorNeedsRepair(
+                hasAlwaysHiddenSeparator: true,
+                separatorX: 1065,
+                alwaysHiddenSeparatorRightEdgeX: 1005,
+                notchRightSafeMinX: 825
+            ),
+            "A live Always Hidden boundary inside the right-side notch-safe menu bar region is usable"
+        )
     }
 
     @Test("Always-hidden recovery requires live separators, not live main anchor")
@@ -998,6 +1016,26 @@ struct MenuBarManagerRecoveryPolicyTests {
                 liveAlwaysHiddenSeparatorRightEdgeX: 890
             ),
             "Always-hidden separator repair must not run while show/hide animation is transitioning"
+        )
+        let notchUnsafeWakeSnapshot = MenuBarRuntimeSnapshot(
+            structuralState: .ready,
+            separatorAnchorSource: .live,
+            mainAnchorSource: .live,
+            visibilityPhase: .hidden,
+            startupItemsValid: true,
+            hasAlwaysHiddenSeparator: true,
+            separatorX: 1065,
+            alwaysHiddenSeparatorX: 469,
+            mainX: 1249,
+            notchRightSafeMinX: 825
+        )
+        #expect(
+            MenuBarStatusItemRecoveryWorkflow.alwaysHiddenMisorderNeedsRecovery(
+                snapshot: notchUnsafeWakeSnapshot,
+                liveSeparatorX: 1065,
+                liveAlwaysHiddenSeparatorRightEdgeX: 469
+            ),
+            "Recovery must reject Always Hidden geometry that would drag under the notch"
         )
         #expect(
             !MenuBarStatusItemRecoveryWorkflow.alwaysHiddenMisorderNeedsRecovery(

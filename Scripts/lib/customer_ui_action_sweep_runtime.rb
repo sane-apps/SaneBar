@@ -221,6 +221,7 @@ class CustomerUIActionSweep
           evidence_paths |= Array(runtime_artifact[:evidence_paths])
         end
       end
+      evidence_paths = runtime_evidence_with_retained_paths(evidence_paths, label: "runtime-state-#{id}") if runtime_artifact
       completed_scenarios = runtime_state_completed_scenarios(action_ids, runtime_artifact)
       required_scenarios = Array(row['required_scenarios']).map(&:to_s)
       missing_types = required_types - evidence_types
@@ -710,7 +711,7 @@ class CustomerUIActionSweep
 
   def runtime_evidence_with_retained_paths(paths, label:)
     raw_paths = Array(paths).map(&:to_s).map(&:strip).reject(&:empty?).select { |path| safe_regular_artifact_file?(path) }
-    (raw_paths + retain_runtime_evidence_paths(raw_paths, label: label)).uniq
+    retain_runtime_evidence_paths(raw_paths, label: label).uniq
   end
 
   def retain_runtime_evidence_paths(paths, label:)
@@ -720,6 +721,12 @@ class CustomerUIActionSweep
       next unless path && safe_regular_artifact_file?(path)
 
       expanded_path = File.expand_path(path)
+      evidence_root = File.expand_path(evidence_dir) + File::SEPARATOR
+      if expanded_path.start_with?(evidence_root)
+        retained_paths << expanded_path
+        next
+      end
+
       project_root = File.expand_path(PROJECT_ROOT) + File::SEPARATOR
       if expanded_path.start_with?(project_root)
         retained_paths << expanded_path

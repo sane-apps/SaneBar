@@ -538,7 +538,8 @@ enum AccessibilityMenuExtraService {
             }
             guard Self.shouldContinueStatusItemResolutionAfterIdentifierMiss(
                 statusItemIndex: statusItemIndex,
-                preferredCenterX: preferredCenterX
+                preferredCenterX: preferredCenterX,
+                screenFrames: NSScreen.screens.map(\.frame)
             ) else {
                 return nil
             }
@@ -546,7 +547,12 @@ enum AccessibilityMenuExtraService {
         }
 
         guard items.count > 1 else { return items.first }
-        guard let preferredCenterX else {
+        let screenFrames = NSScreen.screens.map(\.frame)
+        let usablePreferredCenterX = AccessibilityMenuExtraFrameResolver.screenValidPreferredCenterX(
+            preferredCenterX,
+            screenFrames: screenFrames
+        )
+        guard let usablePreferredCenterX else {
             if let statusItemIndex, items.indices.contains(statusItemIndex) {
                 return items[statusItemIndex]
             }
@@ -568,7 +574,8 @@ enum AccessibilityMenuExtraService {
         guard let bestCandidateIndex = AccessibilityMenuExtraFrameResolver.resolvedStatusItemIndex(
             midXs: candidateMidXs,
             statusItemIndex: statusItemIndex,
-            preferredCenterX: preferredCenterX
+            preferredCenterX: usablePreferredCenterX,
+            screenFrames: screenFrames
         ) else {
             return items[0]
         }
@@ -586,7 +593,7 @@ enum AccessibilityMenuExtraService {
                 return "\(index):\(resolvedIdentifier)@\(metadata.xPos + (metadata.width / 2))"
             }.joined(separator: ",")
             menuExtrasLogger.error(
-                "🔧 Identifier miss fallback: bundleID=\(bundleID, privacy: .private), requestedId=\(menuExtraId ?? "nil", privacy: .private), preferredCenterX=\(preferredCenterX, privacy: .public), statusItemIndex=\(statusItemIndex ?? -1, privacy: .public), resolvedIndex=\(resolvedIndex, privacy: .public), candidates=\(candidateSummary, privacy: .private)"
+                "🔧 Identifier miss fallback: bundleID=\(bundleID, privacy: .private), requestedId=\(menuExtraId ?? "nil", privacy: .private), preferredCenterX=\(usablePreferredCenterX, privacy: .public), statusItemIndex=\(statusItemIndex ?? -1, privacy: .public), resolvedIndex=\(resolvedIndex, privacy: .public), candidates=\(candidateSummary, privacy: .private)"
             )
         }
         menuExtrasLogger.info("🔧 Resolved nearest status item for \(bundleID, privacy: .private) at index \(resolvedIndex, privacy: .public)")
@@ -694,6 +701,14 @@ enum AccessibilityMenuExtraService {
             menuExtrasLogger.warning("🔧 actionableMoveResolutionSafety: refusing ambiguous move for multi-item bundle \(bundleID, privacy: .private) without both statusItemIndex and preferredCenterX")
             return (false, false)
         }
+        let screenFrames = NSScreen.screens.map(\.frame)
+        guard let usablePreferredCenterX = AccessibilityMenuExtraFrameResolver.screenValidPreferredCenterX(
+            preferredCenterX,
+            screenFrames: screenFrames
+        ) else {
+            menuExtrasLogger.warning("🔧 actionableMoveResolutionSafety: refusing ambiguous move for \(bundleID, privacy: .private) because preferredCenterX is off-screen")
+            return (false, false)
+        }
 
         let candidates = items.enumerated().compactMap { index, item -> (index: Int, midX: CGFloat)? in
             guard let frame = frameForStatusItem(item) else { return nil }
@@ -709,7 +724,8 @@ enum AccessibilityMenuExtraService {
         guard let bestCandidateIndex = AccessibilityMenuExtraFrameResolver.resolvedStatusItemIndex(
             midXs: candidateMidXs,
             statusItemIndex: statusItemIndex,
-            preferredCenterX: preferredCenterX
+            preferredCenterX: usablePreferredCenterX,
+            screenFrames: screenFrames
         ) else {
             menuExtrasLogger.warning("🔧 actionableMoveResolutionSafety: refusing ambiguous move for \(bundleID, privacy: .private) because positional resolution failed")
             return (false, false)
@@ -783,12 +799,16 @@ enum AccessibilityMenuExtraService {
 
     internal nonisolated static func shouldContinueStatusItemResolutionAfterIdentifierMiss(
         statusItemIndex: Int?,
-        preferredCenterX: CGFloat?
+        preferredCenterX: CGFloat?,
+        screenFrames: [CGRect]? = nil
     ) -> Bool {
         // Actionable flows should not keep resolving by stale ordinal alone after an
         // explicit AX identifier miss. Require a live spatial hint so nearest-item
         // fallback cannot silently jump to a sibling in a same-bundle host family.
-        preferredCenterX != nil
+        AccessibilityMenuExtraFrameResolver.screenValidPreferredCenterX(
+            preferredCenterX,
+            screenFrames: screenFrames
+        ) != nil
     }
 
 }

@@ -4,6 +4,33 @@ import os.log
 
 private let accessibilityDragLogger = Logger(subsystem: "com.sanebar.app", category: "AccessibilityMenuBarDragService")
 
+final class AccessibilityMenuBarMoveFailureStore: @unchecked Sendable {
+    static let shared = AccessibilityMenuBarMoveFailureStore()
+
+    private let lock = NSLock()
+    private var storedReason: String?
+
+    func reset() {
+        lock.lock()
+        storedReason = nil
+        lock.unlock()
+    }
+
+    func record(_ reason: String) {
+        lock.lock()
+        storedReason = reason
+        lock.unlock()
+    }
+
+    func consume() -> String? {
+        lock.lock()
+        let reason = storedReason
+        storedReason = nil
+        lock.unlock()
+        return reason
+    }
+}
+
 final class AccessibilityMenuBarDragService {
     private unowned let accessibilityService: AccessibilityService
 
@@ -25,6 +52,7 @@ final class AccessibilityMenuBarDragService {
         physicalMoveOrigin: MenuBarPhysicalMoveOrigin,
         referenceScreenFrame: CGRect? = nil
     ) -> Bool {
+        AccessibilityMenuBarMoveFailureStore.shared.reset()
         guard accessibilityService.automaticMoveGate.allowsMove(origin: physicalMoveOrigin) else {
             accessibilityDragLogger.warning("🔧 Automatic move blocked by consent gate (origin=systemWakeRecovery)")
             return false
@@ -72,6 +100,7 @@ final class AccessibilityMenuBarDragService {
         physicalMoveOrigin: MenuBarPhysicalMoveOrigin,
         referenceScreenFrame: CGRect? = nil
     ) -> Bool {
+        AccessibilityMenuBarMoveFailureStore.shared.reset()
         guard accessibilityService.automaticMoveGate.allowsMove(origin: physicalMoveOrigin) else {
             accessibilityDragLogger.warning("🔧 Automatic reorder blocked by consent gate (origin=systemWakeRecovery)")
             return false
@@ -142,6 +171,16 @@ final class AccessibilityMenuBarDragService {
         }
         let tapName = eventTap == .cgSessionEventTap ? "session" : "hid"
         let resolvedTargetLane = targetLane ?? (toHidden ? .hidden : .visible)
+        let screenFrames = NSScreen.screens.map(\.frame)
+        let usablePreferredCenterX = AccessibilityMenuExtraFrameResolver.screenValidPreferredCenterX(
+            preferredCenterX,
+            screenFrames: screenFrames
+        )
+        if preferredCenterX != nil, usablePreferredCenterX == nil {
+            accessibilityDragLogger.warning(
+                "🔧 Dropping off-screen preferredCenterX before drag lookup: \(preferredCenterX ?? -1, privacy: .public)"
+            )
+        }
         accessibilityDragLogger.debug("🔧 moveMenuBarIcon: bundleID=\(bundleID, privacy: .private), menuExtraId=\(menuExtraId ?? "nil", privacy: .private), statusItemIndex=\(statusItemIndex ?? -1, privacy: .public), toHidden=\(toHidden, privacy: .public), targetLane=\(String(describing: resolvedTargetLane), privacy: .public), separatorX=\(separatorX, privacy: .public), visibleBoundaryX=\(visibleBoundaryX ?? -1, privacy: .public), tap=\(tapName, privacy: .public)")
 
         guard accessibilityService.isTrusted else {
@@ -159,7 +198,7 @@ final class AccessibilityMenuBarDragService {
                 bundleID: bundleID,
                 menuExtraId: menuExtraId,
                 statusItemIndex: statusItemIndex,
-                preferredCenterX: preferredCenterX
+                preferredCenterX: usablePreferredCenterX
             ) else {
                 break // icon not found at all
             }
@@ -181,6 +220,20 @@ final class AccessibilityMenuBarDragService {
 
         guard let iconFrame else {
             accessibilityDragLogger.error("🔧 Could not find on-screen icon frame for \(bundleID, privacy: .private) (menuExtraId: \(menuExtraId ?? "nil", privacy: .private))")
+            return false
+        }
+        if !toHidden,
+           resolvedTargetLane == .visible || resolvedTargetLane == .visibleFromAlwaysHidden,
+           AccessibilityInteractionPolicy.frameStartsInNotchUnsafeMenuBarRegion(
+               iconFrame,
+               preferredScreenFrame: referenceScreenFrame
+           ) {
+            AccessibilityMenuBarMoveFailureStore.shared.record(
+                "notch-unsafe drag source beforeMidX=\(String(format: "%.2f", Double(iconFrame.midX)))"
+            )
+            accessibilityDragLogger.error(
+                "🔧 Refusing visible move from notch-unsafe drag origin: beforeMidX=\(iconFrame.midX, privacy: .public)"
+            )
             return false
         }
 
@@ -237,7 +290,7 @@ final class AccessibilityMenuBarDragService {
                 bundleID: bundleID,
                 menuExtraId: menuExtraId,
                 statusItemIndex: statusItemIndex,
-                preferredCenterX: preferredCenterX
+                preferredCenterX: usablePreferredCenterX
             )
             if let current = currentFrame, let previous = previousFrame, current.origin.x == previous.origin.x {
                 afterFrame = current

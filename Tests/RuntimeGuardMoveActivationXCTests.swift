@@ -36,11 +36,11 @@ final class RuntimeGuardMoveActivationXCTests: RuntimeGuardTestCase {
             "Always-hidden moves should wait for live AH separator geometry before trusting cached drag targets"
         )
         XCTAssertTrue(
-            resolverSource.contains("let liveBoundaryX = manager.geometryResolver.currentLiveAlwaysHiddenSeparatorBoundaryX()") &&
+            resolverSource.contains("let liveBoundaryX = manager.geometryResolver.inboundAlwaysHiddenSeparatorBoundaryX(allowCachedMainSeparator: true)") &&
                 resolverSource.contains("targets: (liveBoundaryX, nil)") &&
                 resolverSource.contains("alwaysHiddenSeparatorIsLive: liveBoundaryX != nil") &&
                 resolverSource.contains("mainSeparatorIsLive: liveBoundaryX != nil"),
-            "To-Always-Hidden moves should require the same live AH/main separator boundary that pin audit and classification require"
+            "To-Always-Hidden moves should require live AH separator geometry and allow cached main separator geometry during shielded reveal"
         )
         XCTAssertTrue(
             resolverSource.contains("Always-hidden move target resolution failed without live separator geometry"),
@@ -115,6 +115,113 @@ final class RuntimeGuardMoveActivationXCTests: RuntimeGuardTestCase {
             source.contains("MenuBarManager.shared.activeMoveTask = nil") ||
                 source.contains("SearchWindowController.shared.setMoveInProgress(false)"),
             "AppleScript timeout handling must not mark the move lane idle before the shared move coordinator finishes rollback and cleanup"
+        )
+    }
+
+    func testAlwaysHiddenRepairAndDragLookupAreMoveSafe() throws {
+        let pinURL = projectRootURL().appendingPathComponent("Core/Services/MenuBarAlwaysHiddenPinWorkflow.swift")
+        let pinSource = try String(contentsOf: pinURL, encoding: .utf8)
+        let dragURL = projectRootURL().appendingPathComponent("Core/Services/AccessibilityMenuBarDragService.swift")
+        let dragSource = try String(contentsOf: dragURL, encoding: .utf8)
+        let interactionPolicySource = try String(
+            contentsOf: projectRootURL().appendingPathComponent("Core/Services/AccessibilityInteractionPolicy.swift"),
+            encoding: .utf8
+        )
+
+        XCTAssertTrue(
+            pinSource.contains("guard !SearchWindowController.shared.isMoveInProgress else") &&
+                pinSource.contains("Always-hidden separator repair skipped while icon move is in progress"),
+            "Always-hidden separator repair must not remove/recreate status items during an active drag"
+        )
+        XCTAssertTrue(
+            dragSource.contains("let usablePreferredCenterX = AccessibilityMenuExtraFrameResolver.screenValidPreferredCenterX(") &&
+                dragSource.contains("Dropping off-screen preferredCenterX before drag lookup") &&
+                dragSource.contains("preferredCenterX: usablePreferredCenterX"),
+            "Drag lookup should ignore stale off-screen preferred centers from prior fullscreen/notch layouts"
+        )
+        XCTAssertTrue(
+            dragSource.contains("AccessibilityInteractionPolicy.frameStartsInNotchUnsafeMenuBarRegion") &&
+                dragSource.contains("Refusing visible move from notch-unsafe drag origin") &&
+                dragSource.contains("notch-unsafe drag source beforeMidX") &&
+                dragSource.contains("AccessibilityMenuBarMoveFailureStore.shared.record") &&
+                dragSource.contains("resolvedTargetLane == .visible || resolvedTargetLane == .visibleFromAlwaysHidden") &&
+                interactionPolicySource.contains("topOriginMenuBandMaxY") &&
+                interactionPolicySource.contains("Status items live in the right auxiliary area on notched MacBooks") &&
+                interactionPolicySource.contains("frame.minX < unsafeRightX + rightAuxiliaryInset"),
+            "Visible return moves must fail closed from top-origin AX menu-bar frames under the MacBook notch"
+        )
+    }
+
+    func testAppleScriptZoneGeometryExposesNotchSafeDragSourcesForRuntimeSmoke() throws {
+        let listingSource = try String(
+            contentsOf: projectRootURL().appendingPathComponent("Core/Services/AppleScriptIconListingCommands.swift"),
+            encoding: .utf8
+        )
+        let sdefSource = try String(
+            contentsOf: projectRootURL().appendingPathComponent("Resources/SaneBar.sdef"),
+            encoding: .utf8
+        )
+        let smokeSource = try String(
+            contentsOf: projectRootURL().appendingPathComponent("Scripts/live_zone_smoke.rb"),
+            encoding: .utf8
+        )
+        let moveSource = try String(
+            contentsOf: projectRootURL().appendingPathComponent("Scripts/lib/live_zone_smoke_moves.rb"),
+            encoding: .utf8
+        )
+
+        XCTAssertTrue(
+            sdefSource.contains("command name=\"list icon zone geometry\"") &&
+                sdefSource.contains("ListIconZoneGeometryCommand"),
+            "Runtime smoke needs a scriptable geometry listing instead of inferring notch safety from zone names"
+        )
+        XCTAssertTrue(
+            listingSource.contains("@objc(ListIconZoneGeometryCommand)") &&
+                listingSource.contains("auxiliaryTopRightArea") &&
+                listingSource.contains("xPosition < rightArea.minX + rightAuxiliaryInset") &&
+                listingSource.contains("AccessibilityInteractionPolicy.frameStartsInNotchUnsafeMenuBarRegion") &&
+                listingSource.contains("dragSourceSafety") &&
+                listingSource.contains("offscreen"),
+            "The app should report whether a menu-extra drag source is safe on the current notched or non-notched screen"
+        )
+        XCTAssertTrue(
+                smokeSource.contains("list icon zone geometry") &&
+                smokeSource.contains("drag_source_safety") &&
+                smokeSource.contains("unsafe_always_hidden_drag_source?") &&
+                smokeSource.contains("drag_source_safe?") &&
+                smokeSource.contains("notch_unsafe_required_skip?"),
+            "The release harness should consume app-reported geometry and remove unsafe Always Hidden outbound sources"
+        )
+        XCTAssertTrue(
+            moveSource.contains("safe_matrix_drag_source_candidates") &&
+                moveSource.contains("Refusing outbound move from unsafe drag source"),
+            "Move-matrix resume should skip known unsafe sources and fail closed if live geometry becomes unsafe before the drag"
+        )
+    }
+
+    func testFullscreenZonePersistenceDoesNotRequireMovableBaselineIds() throws {
+        let sourceURL = projectRootURL().appendingPathComponent("Scripts/lib/live_zone_smoke_browse_visual.rb")
+        let source = try String(contentsOf: sourceURL, encoding: .utf8)
+        guard let baselineRange = source.range(of: "def capture_fullscreen_space_transition_zone_baseline!"),
+              let baselineNextRange = source[baselineRange.upperBound...].range(of: "\n  def ") else {
+            XCTFail("Expected capture_fullscreen_space_transition_zone_baseline! helper in live zone smoke visual script")
+            return
+        }
+        let baselineSource = String(source[baselineRange.lowerBound..<baselineNextRange.lowerBound])
+        guard let methodRange = source.range(of: "def fullscreen_space_transition_zone_ids"),
+              let nextMethodRange = source[methodRange.upperBound...].range(of: "\n  def ") else {
+            XCTFail("Expected fullscreen_space_transition_zone_ids helper in live zone smoke visual script")
+            return
+        }
+        let methodSource = String(source[methodRange.lowerBound..<nextMethodRange.lowerBound])
+
+        XCTAssertFalse(
+            baselineSource.contains("reseed_missing_zone_candidates"),
+            "Fullscreen baseline proof must not drag a representative donor just to create a visible ID on notched MacBooks"
+        )
+        XCTAssertFalse(
+            methodSource.contains("item[:movable]"),
+            "Fullscreen zone persistence proof should accept stable visible IDs even when they are not safe move donors on notched MacBooks"
         )
     }
 
@@ -277,6 +384,30 @@ final class RuntimeGuardMoveActivationXCTests: RuntimeGuardTestCase {
                 source.contains("Always-hidden move geometry is not live after showAll; recreating AH separator before retry") &&
                 source.contains("Outbound AH-to-Hidden targets stayed unavailable after AH separator repair"),
             "AH-to-Hidden moves must repair missing live AH/main separator targets after reveal, including the main/separator status-item graph, instead of failing just because the source icon is visible"
+        )
+    }
+
+    func testAlwaysHiddenInboundMoveAllowsCachedMainSeparatorBoundaryDuringShieldedReveal() throws {
+        let workflowURL = projectRootURL().appendingPathComponent("Core/Services/MenuBarAlwaysHiddenIconMoveWorkflow.swift")
+        let workflowSource = try String(contentsOf: workflowURL, encoding: .utf8)
+        let resolverURL = projectRootURL().appendingPathComponent("Core/Services/MenuBarGeometryResolver.swift")
+        let resolverSource = try String(contentsOf: resolverURL, encoding: .utf8)
+        let targetURL = projectRootURL().appendingPathComponent("Core/Services/MenuBarMoveTargetResolver.swift")
+        let targetSource = try String(contentsOf: targetURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            resolverSource.contains("currentLiveAlwaysHiddenSeparatorBoundaryX(allowCachedMainSeparator: Bool = false)") &&
+                resolverSource.contains("} else if allowCachedMainSeparator {") &&
+                resolverSource.contains("separatorRightEdgeX(allowEstimatedFallback: false)") &&
+                resolverSource.contains("func inboundAlwaysHiddenSeparatorBoundaryX(allowCachedMainSeparator: Bool = false)") &&
+                resolverSource.contains("StatusBarPositionDefaultsStore.resolvedPreferredPosition(") &&
+                resolverSource.contains("referenceScreen.frame.maxX - CGFloat(preferredPosition)") &&
+                resolverSource.contains("Rejecting live AH separator boundary") &&
+                resolverSource.contains("Using seeded AH separator boundary without a live/cached main separator boundary for inbound move") &&
+                resolverSource.contains("Using seeded AH separator boundary after rejecting stale main separator boundary") &&
+                workflowSource.contains("inboundAlwaysHiddenSeparatorBoundaryX(allowCachedMainSeparator: true)") &&
+                targetSource.contains("inboundAlwaysHiddenSeparatorBoundaryX(allowCachedMainSeparator: true)"),
+            "Inbound Always Hidden moves should accept a seeded notch-safe AH boundary when showAll leaves live AH and main separator frames unavailable"
         )
     }
 

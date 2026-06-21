@@ -260,7 +260,9 @@ final class RuntimeGuardMoveQueueXCTests: RuntimeGuardTestCase {
                 managerSource.contains("optimisticAlwaysHiddenMutation: optimisticMutation") &&
                 managerSource.contains("repairAlwaysHiddenSeparatorForInboundMoveIfNeeded") &&
                 managerSource.contains("requiresAlwaysHiddenBoundary: true") &&
-                managerSource.contains("Inbound always-hidden boundary stayed unavailable after AH separator repair"),
+                managerSource.contains("for repairAttempt in 1 ... 3") &&
+                managerSource.contains("Inbound always-hidden boundary stayed unavailable after AH separator repair attempt") &&
+                managerSource.contains("Always-hidden move geometry stayed unavailable after repeated AH separator repair; aborting move before drag"),
             "The move engine should own always-hidden optimistic pin and unpin mutations, and inbound Always Hidden moves must repair stale AH geometry before resolving targets"
         )
         XCTAssertTrue(
@@ -621,7 +623,8 @@ final class RuntimeGuardMoveQueueXCTests: RuntimeGuardTestCase {
         )
         XCTAssertTrue(
             setupSource.contains("installMainStatusItemHoverTrackingArea(on: button)") &&
-                managerSource.contains("@objc func mouseEntered(with event: NSEvent)") &&
+                managerSource.contains("@objc(mouseEntered:) func mouseEntered(_ event: NSEvent)") &&
+                managerSource.contains("@objc(mouseExited:) func mouseExited(_ event: NSEvent)") &&
                 lifecycleSource.contains("showHiddenItemsNow(trigger: .hover)"),
             "Hovering the SaneBar status item itself should reveal hidden icons without relying only on global mouse monitors"
         )
@@ -789,8 +792,10 @@ final class RuntimeGuardMoveQueueXCTests: RuntimeGuardTestCase {
                 source.contains("_ request: Request,") &&
                 source.contains("requiresAlwaysHiddenToHiddenTargets: Bool = false") &&
                 source.contains("requiresAlwaysHiddenBoundary: Bool = false") &&
-                source.contains("guard sourceFrameIsOnScreen(request) else") &&
-                source.contains("Outbound always-hidden source stayed off-screen after AH separator repair; aborting move before drag") &&
+                source.contains("for repairAttempt in 1 ... 3") &&
+                source.contains("sourceFrameIsOnScreen(request)") &&
+                source.contains("Outbound always-hidden source stayed off-screen after AH separator repair attempt") &&
+                source.contains("Always-hidden move geometry stayed unavailable after repeated AH separator repair; aborting move before drag") &&
                 source.contains("guard await self.repairAlwaysHiddenSeparatorForOutboundMoveIfNeeded(request) else"),
             "Moves out of Always Hidden should fail closed after separator repair if the source still is not on-screen"
         )

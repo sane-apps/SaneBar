@@ -124,17 +124,14 @@ class LiveZoneSmoke
     return nil unless matched
     return nil if matched[:zone] == 'alwaysHidden'
 
-    candidate.merge(
-      unique_id: matched[:unique_id],
-      zone: matched[:zone],
-      name: matched[:name],
-      bundle: matched[:bundle]
-    )
+    candidate.merge(matched)
   end
 
   def exercise_matrix_move_with_fallback(label, candidates, command, expected_zone)
+    candidates = compact_representative_matrix_candidates(safe_matrix_drag_source_candidates(label, candidates))
     failures = []
-    2.times do |pass|
+    max_passes = candidates.all? { |candidate| deterministic_shared_fixture_candidate?(candidate) } ? 1 : 2
+    max_passes.times do |pass|
       if pass == 1
         puts "ℹ️ Retrying matrix #{label} after extended menu bar settle"
         sleep_with_watchdog(8.0)
@@ -152,6 +149,14 @@ class LiveZoneSmoke
     end
 
     raise "Representative move matrix could not prove #{label}: #{failures.join(' | ')}"
+  end
+
+  def compact_representative_matrix_candidates(candidates)
+    candidates = Array(candidates).compact
+    return candidates unless candidates.length > 1
+    return candidates unless candidates.all? { |candidate| deterministic_shared_fixture_candidate?(candidate) }
+
+    [candidates.first]
   end
 
   def prioritize_ah_to_visible_candidates(candidates)
@@ -176,6 +181,17 @@ class LiveZoneSmoke
 
   def deterministic_shared_fixture_candidate?(candidate)
     candidate[:bundle].to_s == 'com.sanebar.sharedfixture'
+  end
+
+  def safe_matrix_drag_source_candidates(label, candidates)
+    safe, unsafe = Array(candidates).partition do |candidate|
+      !candidate.key?(:drag_source_safety) || candidate[:drag_source_safety].to_s == 'safe'
+    end
+    unless unsafe.empty?
+      skipped = unsafe.map { |candidate| "#{candidate[:unique_id]}@#{candidate[:center_x] || 'unknown'}" }.join(', ')
+      puts "ℹ️ Matrix #{label} skipped notch-unsafe drag source(s): #{skipped}"
+    end
+    safe
   end
 
   def exercise_hidden_visible_moves(candidate)
@@ -238,7 +254,7 @@ class LiveZoneSmoke
   def move_and_verify(command, candidate, expected_zone)
     wait_for_move_ready_state
     icon_unique_id = resolve_live_move_identifier(candidate)
-    settle_before_always_hidden_outbound_move(icon_unique_id, candidate, expected_zone)
+    settle_before_outbound_move(icon_unique_id, candidate, expected_zone)
     icon = escape_quotes(icon_unique_id)
     begin
       result = app_script("#{command} \"#{icon}\"").strip.downcase
@@ -260,12 +276,17 @@ class LiveZoneSmoke
     assert_zone_stays_stable_after_move(icon_unique_id, candidate, expected_zone)
   end
 
-  def settle_before_always_hidden_outbound_move(icon_unique_id, candidate, expected_zone)
+  def settle_before_outbound_move(icon_unique_id, candidate, expected_zone)
     return true if expected_zone == 'alwaysHidden'
 
     zones = list_icon_zones
     matched = matched_move_candidate(zones, icon_unique_id, candidate)
-    return true unless matched && matched[:zone] == 'alwaysHidden'
+    return true unless matched
+
+    if matched.key?(:drag_source_safety) && matched[:drag_source_safety].to_s != 'safe'
+      raise "Refusing outbound move from unsafe drag source #{icon_unique_id} (safety=#{matched[:drag_source_safety]}, centerX=#{matched[:center_x] || 'unknown'})"
+    end
+    return true unless matched[:zone] == 'alwaysHidden'
 
     puts "ℹ️ Settling before Always Hidden outbound move for #{icon_unique_id}"
     sleep_with_watchdog(ALWAYS_HIDDEN_OUTBOUND_SETTLE_SECONDS)
@@ -278,6 +299,7 @@ class LiveZoneSmoke
     close_settings_window_safely
     deadline = Time.now + 6.0
     last_snapshot = nil
+    last_error = nil
 
     while Time.now < deadline
       begin
@@ -287,14 +309,16 @@ class LiveZoneSmoke
                 !truthy?(last_snapshot['isBrowseSessionActive']) &&
                 !truthy?(last_snapshot['isMenuOpen'])
         return true if ready
-      rescue StandardError
+      rescue StandardError => e
+        last_error = e
         # Fall through to a short settle; move verification will surface hard
         # failures with the command-specific context.
       end
       sleep_with_watchdog(0.25)
     end
 
-    raise "Menu bar did not become move-ready before action (snapshot=#{last_snapshot})"
+    error_detail = last_error ? ", last_error=#{last_error.message}" : ''
+    raise "Menu bar did not become move-ready before action (snapshot=#{last_snapshot}#{error_detail})"
   end
 
   def assert_zone_stays_stable_after_move(icon_unique_id, candidate, expected_zone)

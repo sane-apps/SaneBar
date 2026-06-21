@@ -380,7 +380,8 @@ final class MenuBarStatusItemRecoveryWorkflow {
         return MenuBarAlwaysHiddenPinWorkflow.separatorNeedsRepair(
             hasAlwaysHiddenSeparator: snapshot.hasAlwaysHiddenSeparator,
             separatorX: liveSeparatorX,
-            alwaysHiddenSeparatorRightEdgeX: liveAlwaysHiddenSeparatorRightEdgeX
+            alwaysHiddenSeparatorRightEdgeX: liveAlwaysHiddenSeparatorRightEdgeX,
+            notchRightSafeMinX: snapshot.notchRightSafeMinX
         )
     }
 

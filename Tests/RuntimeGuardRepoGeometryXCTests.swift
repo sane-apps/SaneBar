@@ -318,7 +318,8 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
                 source.contains("Visibility intent replay waiting for hide-all-other completion") &&
                 source.contains("var completedWakeVisibleAllowListRepair = false") &&
                 source.contains("completedWakeVisibleAllowListRepair = true") &&
-                source.contains("if completedWakeVisibleAllowListRepair {\n                    self.statusItemRecoveryWorkflow.clearWakeVisibleAllowListReplayPending()") &&
+                source.contains("if completedWakeVisibleAllowListRepair {") &&
+                source.contains("self.statusItemRecoveryWorkflow.clearWakeVisibleAllowListReplayPending()") &&
                 source.contains("if hideAllOtherMode.mode == .repairWithPhysicalMoves") &&
                 replaySource.contains("func restoreHiddenStateAfterHealthyValidationIfNeeded(reason: String)") &&
                 replaySource.contains("hidingService.applyCurrentStateToLiveItems()") &&
@@ -326,8 +327,8 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
                 replaySource.contains("shouldDeferHiddenStateForWakeVisibleAllowList(") &&
                 replaySource.contains("Deferring hidden state after wake until Hide All Other visible allow-list replay completes") &&
                 source.contains("self.schedulePostRecoveryAutoRehideIfNeeded(reason: replayReason)") &&
-                source.contains("self.restorePendingHiddenStateAfterVisibilityReplayFailure(reason: \"\\(reason)-replay-gave-up\")") &&
-                source.contains("self.schedulePostRecoveryAutoRehideIfNeeded(reason: \"\\(reason)-replay-gave-up\")") &&
+                source.contains("self.restorePendingHiddenStateAfterVisibilityReplayFailure(reason: \"\\(replayReasonBase)-replay-gave-up\")") &&
+                source.contains("self.schedulePostRecoveryAutoRehideIfNeeded(reason: \"\\(replayReasonBase)-replay-gave-up\")") &&
                 replaySource.contains("func schedulePostRecoveryAutoRehideIfNeeded(reason: String)") &&
                 replaySource.contains("clearWakeVisibleAllowListReplayPending(clearDeferredReason: false)") &&
                 recoverySource.contains("func clearWakeVisibleAllowListReplayPending(clearDeferredReason: Bool = true)") &&
@@ -623,7 +624,7 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
             visibleBoundaryX: 823
         )
 
-        XCTAssertEqual(target, 998.5, accuracy: 0.001)
+        XCTAssertEqual(target, 1124, accuracy: 0.001)
     }
 
     func testRegularHiddenMoveFailsClosedWhenAlwaysHiddenBoundaryIsUnavailable() throws {
@@ -681,13 +682,17 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
                 replaySource.contains("reason.hasPrefix(\"healthy-validation-wake-resume\")") &&
                 replaySource.contains("reason.hasPrefix(\"status-item-recreate-wake-resume\")") &&
                 replaySource.contains("reason.hasPrefix(\"healthy-validation-startup-follow-up\")") &&
+                replaySource.contains("func visibilityIntentReplayReason(") &&
+                replaySource.contains("reason.hasPrefix(\"healthy-validation-screen-parameters-changed\")") &&
+                source.contains("let replayReasonBase = MenuBarVisibilityPolicy.visibilityIntentReplayReason(") &&
+                source.contains("let replayReason = \"\\(replayReasonBase)-attempt-\\(attempt)\"") &&
                 !replaySource.contains("reason.contains(\"healthy-validation\")") &&
                 replaySource.contains("hidingState: hidingService.state") &&
                 replaySource.contains("return (.repairWithPhysicalMoves, .systemWakeRecovery)") &&
                 source.contains("var completedWakeVisibleAllowListRepair = false") &&
                 source.contains("if completedWakeVisibleAllowListRepair") &&
                 source.contains("Visibility intent replay waiting for hide-all-other completion") &&
-                source.contains("self.restorePendingHiddenStateAfterVisibilityReplayFailure(reason: \"\\(reason)-replay-gave-up\")") &&
+                source.contains("self.restorePendingHiddenStateAfterVisibilityReplayFailure(reason: \"\\(replayReasonBase)-replay-gave-up\")") &&
                 source.contains("if shouldRetryVisibilityReplay") &&
                 source.contains("MenuBarVisibilityPolicy.shouldRunVisibilityIntentEnforcement(") &&
                 !source.contains("snapshot.geometryConfidence == .live || snapshot.geometryConfidence == .cached"),

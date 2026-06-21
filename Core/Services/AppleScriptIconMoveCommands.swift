@@ -214,6 +214,7 @@ class MoveIconScriptCommand: SaneBarScriptCommand {
         var succeeded: Bool
         var skipZoneWait: Bool = false
         var failure: MoveFailure?
+        var failureReason: String?
     }
 
     var targetZone: ScriptIconZone { .visible }
@@ -252,7 +253,7 @@ class MoveIconScriptCommand: SaneBarScriptCommand {
             } else if outcome.failure == .timedOut {
                 scriptErrorOperationTimedOut(self)
             } else {
-                scriptErrorMoveFailed(self, iconId: trimmedId, target: targetZone)
+                scriptErrorMoveFailed(self, iconId: trimmedId, target: targetZone, detail: outcome.failureReason)
             }
             return false
         }
@@ -293,11 +294,13 @@ class MoveIconScriptCommand: SaneBarScriptCommand {
             return MoveOutcome(succeeded: false, failure: .timedOut)
         }
 
+        let failureReason = moved ? nil : AccessibilityMenuBarMoveFailureStore.shared.consume()
+
         if !moved, moveVerifiedByFreshExactZone(trimmedId: trimmedId, targetZone: targetZone) {
             return MoveOutcome(succeeded: true)
         }
 
-        return MoveOutcome(succeeded: moved, failure: moved ? nil : .failed)
+        return MoveOutcome(succeeded: moved, failure: moved ? nil : .failed, failureReason: failureReason)
     }
 
     @MainActor

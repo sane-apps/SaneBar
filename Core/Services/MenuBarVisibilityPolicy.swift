@@ -399,6 +399,18 @@ extension MenuBarVisibilityPolicy {
         reason.hasPrefix("healthy-validation-startup-follow-up")
     }
 
+    nonisolated static func visibilityIntentReplayReason(
+        reason: String,
+        hasPendingWakeVisibleAllowListReplay: Bool
+    ) -> String {
+        guard hasPendingWakeVisibleAllowListReplay,
+              reason.hasPrefix("healthy-validation-screen-parameters-changed"),
+              !isPostWakeVisibleAllowListReplayReason(reason) else {
+            return reason
+        }
+        return "healthy-validation-wake-resume-\(reason)"
+    }
+
     nonisolated static func canRepairWakeVisibleAllowListFromHiddenSnapshot(
         _ snapshot: MenuBarRuntimeSnapshot
     ) -> Bool {

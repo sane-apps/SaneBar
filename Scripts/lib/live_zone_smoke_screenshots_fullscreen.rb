@@ -260,7 +260,16 @@ class LiveZoneSmoke
   end
 
   def open_textedit_transition_probe_window
-    open_full_width_transition_probe_window
+    script = <<~APPLESCRIPT
+      tell application "Finder" to set screenBounds to bounds of window of desktop
+      tell application "TextEdit"
+        activate
+        make new document with properties {text:"SaneBar fullscreen transition probe"}
+        set bounds of front window to screenBounds
+      end tell
+    APPLESCRIPT
+    out, code = capture2e_with_timeout('/usr/bin/osascript', '-e', script, timeout: TRANSITION_PROBE_APPLESCRIPT_TIMEOUT_SECONDS)
+    raise "Could not open TextEdit transition probe window: #{out.strip}" unless code.success?
   end
 
   def set_fullscreen_probe_window(probe, enabled)
@@ -316,6 +325,7 @@ class LiveZoneSmoke
   def assert_fullscreen_probe_window_state!(probe, expected)
     deadline = Time.now + 8.0
     last_states = []
+    enter_retry_count = 0
     exit_retry_count = 0
     while Time.now < deadline
       ensure_visible_transition_probe_window_available!(probe) unless expected
@@ -332,6 +342,10 @@ class LiveZoneSmoke
       end
       if expected
         return if last_states.any? { |state| state.casecmp('true').zero? }
+        if !last_states.empty? && last_states.none? { |state| state.casecmp('true').zero? } && enter_retry_count < 3
+          request_fullscreen_enter_fallback!(probe, attempt: enter_retry_count)
+          enter_retry_count += 1
+        end
       else
         return if !last_states.empty? && last_states.none? { |state| state.casecmp('true').zero? }
         if last_states.any? { |state| state.casecmp('true').zero? } && exit_retry_count < 3
@@ -344,6 +358,17 @@ class LiveZoneSmoke
     end
 
     raise "#{probe[:app]} fullscreen probe state mismatch: expected #{expected}, got #{last_states.inspect}"
+  end
+
+  def request_fullscreen_enter_fallback!(probe, attempt:)
+    case attempt
+    when 0
+      toggle_fullscreen_probe_window_via_keyboard(probe)
+    when 1
+      press_fullscreen_probe_window_button(probe)
+    else
+      set_fullscreen_probe_window(probe, true)
+    end
   end
 
   def request_fullscreen_exit_fallback!(probe, attempt:)
@@ -374,16 +399,52 @@ class LiveZoneSmoke
     raise "Could not toggle #{probe[:app]} fullscreen via keyboard: #{out.strip}" unless code.success?
   end
 
-  def fullscreen_probe_window_states(probe)
+  def press_fullscreen_probe_window_button(probe)
     script = <<~APPLESCRIPT
       #{transition_probe_focus_script(probe)}
       delay 0.2
       #{transition_probe_target_index_script(probe)}
       tell application "System Events"
         tell process "#{probe[:process]}"
+          set frontmost to true
+          if targetIndex < 1 or targetIndex > (count of windows) then error "No #{probe[:process]} target window available for fullscreen probe"
+          set targetWindow to window targetIndex
+          try
+            perform action "AXRaise" of targetWindow
+          end try
+          repeat with candidateButton in buttons of targetWindow
+            try
+              if subrole of candidateButton is "AXFullScreenButton" then
+                perform action "AXPress" of candidateButton
+                return
+              end if
+            end try
+          end repeat
+          error "No #{probe[:process]} fullscreen button available for fullscreen probe"
+        end tell
+      end tell
+    APPLESCRIPT
+    out, code = capture2e_with_timeout('/usr/bin/osascript', '-e', script, timeout: APPLESCRIPT_TIMEOUT_SECONDS)
+    raise "Could not press #{probe[:app]} fullscreen button: #{out.strip}" unless code.success?
+  end
+
+  def fullscreen_probe_window_states(probe)
+    script = <<~APPLESCRIPT
+      #{transition_probe_focus_script(probe)}
+      delay 0.2
+      #{transition_probe_target_index_script(probe)}
+      set menuFullscreenState to "unknown"
+      tell application "System Events"
+        tell process "#{probe[:process]}"
+          try
+            set viewMenuNames to name of menu items of menu "View" of menu bar 1
+            if viewMenuNames contains "Exit Full Screen" then set menuFullscreenState to "true"
+            if viewMenuNames contains "Enter Full Screen" then set menuFullscreenState to "false"
+          end try
           if targetIndex < 1 or targetIndex > (count of windows) then return "no-window"
           set targetWindow to window targetIndex
-          return ((value of attribute "AXFullScreen" of targetWindow) as text)
+          set axFullscreenState to ((value of attribute "AXFullScreen" of targetWindow) as text)
+          return axFullscreenState & linefeed & menuFullscreenState
         end tell
       end tell
     APPLESCRIPT
@@ -480,7 +541,7 @@ class LiveZoneSmoke
             set didFocusExistingProcess to true
           end if
         end tell
-        if didFocusExistingProcess is false then tell application "#{probe[:app]}" to activate
+        tell application "#{probe[:app]}" to activate
       APPLESCRIPT
     else
       %(tell application "#{probe[:app]}" to activate)
@@ -519,6 +580,10 @@ class LiveZoneSmoke
             end try
           end repeat
           if targetIndex = 0 then error "No Safari fullscreen probe window"
+          try
+            set index of window targetIndex to 1
+            set targetIndex to 1
+          end try
         end tell
       APPLESCRIPT
     else
@@ -572,7 +637,12 @@ class LiveZoneSmoke
       APPLESCRIPT
       capture2e_with_timeout('/usr/bin/osascript', '-e', script, timeout: APPLESCRIPT_TIMEOUT_SECONDS)
     when 'TextEdit'
-      close_transition_probe_window_safely
+      script = <<~APPLESCRIPT
+        tell application "TextEdit"
+          if (count of windows) > 0 then close front window saving no
+        end tell
+      APPLESCRIPT
+      capture2e_with_timeout('/usr/bin/osascript', '-e', script, timeout: APPLESCRIPT_TIMEOUT_SECONDS)
     end
   rescue StandardError
     nil

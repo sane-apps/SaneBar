@@ -543,13 +543,17 @@ final class MenuBarManager: NSObject, ObservableObject {
         statusItemSetupWorkflow.installMainStatusItemHoverTrackingArea(on: button)
     }
 
-    @objc func mouseEntered(with event: NSEvent) {
+    @objc(mouseEntered:) func mouseEntered(_ event: NSEvent) {
         guard (event.trackingArea?.userInfo?["role"] as? String) == "mainStatusItem" else { return }
         guard settings.showOnHover else { return }
 
         Task { @MainActor in
             _ = await self.visibilityWorkflow.showHiddenItemsNow(trigger: .hover)
         }
+    }
+
+    @objc(mouseExited:) func mouseExited(_ event: NSEvent) {
+        guard (event.trackingArea?.userInfo?["role"] as? String) == "mainStatusItem" else { return }
     }
 
     func updateAppearance() {
@@ -621,6 +625,11 @@ final class MenuBarManager: NSObject, ObservableObject {
     }
 
     func schedulePostRecoveryVisibilityIntentReplay(reason: String) {
+        let replayReasonBase = MenuBarVisibilityPolicy.visibilityIntentReplayReason(
+            reason: reason,
+            hasPendingWakeVisibleAllowListReplay: statusItemRecoveryWorkflow
+                .hasPendingWakeVisibleAllowListReplay()
+        )
         let shouldReplayAlwaysHidden = MenuBarVisibilityPolicy.shouldReplayAlwaysHiddenIntent(
             alwaysHiddenSectionEnabled: currentEffectiveAlwaysHiddenSectionEnabled(),
             pinnedItemCount: settings.alwaysHiddenPinnedItemIds.count
@@ -644,7 +653,7 @@ final class MenuBarManager: NSObject, ObservableObject {
                 try? await Task.sleep(for: .milliseconds(delayMs))
                 guard !Task.isCancelled else { return }
 
-                let replayReason = "\(reason)-attempt-\(attempt)"
+                let replayReason = "\(replayReasonBase)-attempt-\(attempt)"
                 guard self.shouldRunVisibilityIntentEnforcement(reason: replayReason) else {
                     continue
                 }
@@ -690,11 +699,11 @@ final class MenuBarManager: NSObject, ObservableObject {
             }
 
             logger.warning(
-                "Visibility intent replay gave up after \(attempt, privacy: .public) attempts (\(reason, privacy: .public))"
+                "Visibility intent replay gave up after \(attempt, privacy: .public) attempts (\(replayReasonBase, privacy: .public))"
             )
             self.statusItemRecoveryWorkflow.clearWakeVisibleAllowListReplayPending(clearDeferredReason: false)
-            self.restorePendingHiddenStateAfterVisibilityReplayFailure(reason: "\(reason)-replay-gave-up")
-            self.schedulePostRecoveryAutoRehideIfNeeded(reason: "\(reason)-replay-gave-up")
+            self.restorePendingHiddenStateAfterVisibilityReplayFailure(reason: "\(replayReasonBase)-replay-gave-up")
+            self.schedulePostRecoveryAutoRehideIfNeeded(reason: "\(replayReasonBase)-replay-gave-up")
         }
     }
 

@@ -221,6 +221,10 @@ class CustomerUIActionSweep
       ensure_manifest!
       verify_release_app_running!
       verify_recent_runtime_smoke
+      if ENV['SANEBAR_CUSTOMER_UI_RESUME_TRANSCRIPT'].to_s.strip != ''
+        run_from_resume_transcript(ENV.fetch('SANEBAR_CUSTOMER_UI_RESUME_TRANSCRIPT'))
+        return
+      end
       dismiss_transient_ui
       exercise_settings_tabs
       exercise_url_routes
@@ -243,6 +247,61 @@ class CustomerUIActionSweep
   end
 
   private
+
+  def run_from_resume_transcript(path)
+    load_resume_transcript!(path)
+    dismiss_transient_ui
+    exercise_hover_auto_rehide_runtime_probe
+    exercise_license_clipboard_paste_runtime_probe
+    verify_recent_appearance_overlay_screenshots
+    verify_source_and_unit_guards
+    build_action_results
+    verify_all_actions_have_results!
+    write_receipt
+    puts "✅ Customer UI action sweep resumed from #{relative(path)} and passed: #{relative(RECEIPT_PATH)}"
+  end
+
+  def load_resume_transcript!(path)
+    full_path = File.absolute_path(path, PROJECT_ROOT)
+    raise "Resume transcript missing: #{path}" unless File.file?(full_path)
+
+    lines = File.readlines(full_path, chomp: true)
+    usable_lines = lines.take_while { |line| !line.start_with?('RuntimeError:') && !line.start_with?('scripts/') }
+    @transcript.concat(usable_lines.reject(&:empty?))
+    usable_lines.each { |line| import_resume_transcript_artifact(line) }
+    @transcript << "resume_transcript=#{relative(full_path)} ok"
+  end
+
+  def import_resume_transcript_artifact(line)
+    case line
+    when /\Asnapshot_staged=(\S+)/
+      register_resume_screenshot(Regexp.last_match(1))
+    when /\Aruntime_visual=([a-z-]+) ok snapshot=(\S+)/
+      register_resume_screenshot(Regexp.last_match(2), key: Regexp.last_match(1))
+    when /\Asettings_tab=([a-z]+) ok snapshot=(\S+)/
+      register_resume_screenshot(Regexp.last_match(2), key: "settings-#{Regexp.last_match(1)}", settings: true)
+    when /\Aicon_hotkeys_groups_.* snapshot=(\S+)/
+      register_resume_screenshot(Regexp.last_match(1), key: 'hotkeys-groups')
+    end
+  end
+
+  def register_resume_screenshot(path, key: nil, settings: false)
+    relative_path = relative(path)
+    return unless File.file?(relative_path)
+    return unless usable_screenshot?(relative_path)
+
+    @screenshots << relative_path
+    if settings || File.basename(relative_path).start_with?('settings-')
+      @settings_snapshots << relative_path
+    end
+    if key
+      @visual_screenshots[key] = relative_path
+    elsif File.basename(relative_path).start_with?('settings-')
+      key_id = File.basename(relative_path).sub(/\A(settings-[^-]+)-.*/, '\1')
+      @visual_screenshots[key_id] = relative_path
+      @visual_screenshots['settings'] ||= relative_path
+    end
+  end
 
   def dismiss_transient_ui
     run_osascript([
@@ -561,6 +620,7 @@ class CustomerUIActionSweep
     log_lines = []
     restore_hover_setting = ensure_hover_reveal_enabled_for_probe
     2.times do |index|
+      park_pointer_away_from_menu_bar(index + 1)
       settle_runtime_ui_for_rehide_probe(index + 1)
       app_script('hide items')
       sleep 0.5
@@ -642,13 +702,17 @@ class CustomerUIActionSweep
       %(tell process "#{APP_NAME}"),
       'set frontmost to true',
       'set settingsWindow to first window whose subrole is "AXStandardWindow"',
-      'set deactivateButton to my findButtonNamed(settingsWindow, "Deactivate Pro")',
+      'set deactivateButton to my findElementByIdentifier(settingsWindow, "saneui-license-deactivate")',
+      'if deactivateButton is missing value then set deactivateButton to my findButtonNamed(settingsWindow, "Deactivate Pro")',
+      'if deactivateButton is missing value then set deactivateButton to my licenseActionButton(settingsWindow, 1)',
       'if deactivateButton is not missing value then',
       'click deactivateButton',
       'delay 0.8',
       'end if',
-      'set entryButton to my findButtonNamed(settingsWindow, "Enter License Key")',
+      'set entryButton to my findElementByIdentifier(settingsWindow, "saneui-license-enter-key")',
+      'if entryButton is missing value then set entryButton to my findButtonNamed(settingsWindow, "Enter License Key")',
       'if entryButton is missing value then set entryButton to my findButtonNamed(settingsWindow, "I Have a License Key")',
+      'if entryButton is missing value then set entryButton to my licenseActionButton(settingsWindow, 2)',
       'if entryButton is missing value then error "License entry button not found after opening License settings"',
       'click entryButton',
       'delay 0.8',
@@ -668,9 +732,12 @@ class CustomerUIActionSweep
       'repeat 24 times',
       'delay 0.5',
       'try',
-      'set validationText to (value of static texts of settingsWindow as text)',
+      'set validationText to my allStaticText(settingsWindow)',
+      'repeat with candidateWindow in windows',
+      'set validationText to validationText & my allStaticText(candidateWindow)',
+      'end repeat',
       'end try',
-      'if validationText contains "Invalid" or validationText contains "purchase server" or validationText contains "Please enter" then',
+      'if validationText contains "Invalid" or validationText contains "purchase server" or validationText contains "Please enter" or validationText contains "license_key not found" or validationText contains "not found" then',
       'return "pasted=" & pastedValue & " validation=" & validationText',
       'end if',
       'end repeat',
@@ -727,10 +794,26 @@ class CustomerUIActionSweep
       .find { |path| File.executable?(path) }
     raise 'Hover/rehide probe requires cliclick on the Mini to move the pointer into the menu bar' unless cliclick
 
-    out, status = Open3.capture2e(cliclick, 'm:400,4')
+    x = hover_probe_x(layout_snapshot)
+    out, status = Open3.capture2e(cliclick, "m:#{x},4")
     raise "Pointer hover move failed during hover/rehide probe cycle #{cycle}: #{out}" unless status.success?
 
-    @transcript << "pointer_hover=cycle#{cycle} ok"
+    @transcript << "pointer_hover=cycle#{cycle} x=#{x} ok"
+  end
+
+  def hover_probe_x(snapshot)
+    screen_width = snapshot['screenWidth'].to_f
+    screen_width = 1920.0 unless screen_width.positive?
+    candidates = [
+      snapshot['mainIconLeftEdgeX'].to_f.positive? ? snapshot['mainIconLeftEdgeX'].to_f + 12.0 : nil,
+      snapshot['separatorRightEdgeX'].to_f.positive? ? snapshot['separatorRightEdgeX'].to_f + 18.0 : nil,
+      screen_width - 160.0
+    ].compact
+    if snapshot['notchRightSafeMinX'].to_f.positive?
+      candidates.unshift(snapshot['notchRightSafeMinX'].to_f + 24.0)
+    end
+    bounded = candidates.find { |value| value >= 1 && value <= screen_width - 24 } || (screen_width - 160.0)
+    [[bounded.round, 1].max, (screen_width - 24).round].min
   end
 
   def ensure_hover_reveal_enabled_for_probe
@@ -875,7 +958,7 @@ class CustomerUIActionSweep
       'end elementName',
       'on elementIdentifier(elementRef)',
       'try',
-      'return value of attribute "AXIdentifier" of elementRef as text',
+      'tell application "System Events" to return value of attribute "AXIdentifier" of elementRef as text',
       'on error',
       'return ""',
       'end try',
@@ -883,35 +966,81 @@ class CustomerUIActionSweep
       'on findElementByIdentifier(rootElement, targetIdentifier)',
       'if my elementIdentifier(rootElement) is targetIdentifier then return rootElement',
       'try',
+      'tell application "System Events"',
       'repeat with childElement in UI elements of rootElement',
       'set foundElement to my findElementByIdentifier(childElement, targetIdentifier)',
       'if foundElement is not missing value then return foundElement',
       'end repeat',
+      'end tell',
       'end try',
       'return missing value',
       'end findElementByIdentifier',
       'on findElementNamed(rootElement, targetName)',
       'if my elementName(rootElement) is targetName then return rootElement',
       'try',
+      'tell application "System Events"',
       'repeat with childElement in UI elements of rootElement',
       'set foundElement to my findElementNamed(childElement, targetName)',
       'if foundElement is not missing value then return foundElement',
       'end repeat',
+      'end tell',
       'end try',
       'return missing value',
       'end findElementNamed',
       'on findButtonNamed(rootElement, targetName)',
       'try',
+      'tell application "System Events"',
       'if role of rootElement is "AXButton" and my elementName(rootElement) is targetName then return rootElement',
+      'end tell',
       'end try',
       'try',
+      'tell application "System Events"',
       'repeat with childElement in UI elements of rootElement',
       'set foundElement to my findButtonNamed(childElement, targetName)',
       'if foundElement is not missing value then return foundElement',
       'end repeat',
+      'end tell',
       'end try',
       'return missing value',
-      'end findButtonNamed'
+      'end findButtonNamed',
+      'on licenseActionButton(rootElement, ordinal)',
+      'set matches to {}',
+      'tell application "System Events"',
+      'my collectLicenseActionButtons(rootElement, matches)',
+      'end tell',
+      'if (count of matches) < ordinal then return missing value',
+      'return item ordinal of matches',
+      'end licenseActionButton',
+      'on allStaticText(rootElement)',
+      'set collectedText to ""',
+      'tell application "System Events"',
+      'try',
+      'if role of rootElement is "AXStaticText" then set collectedText to collectedText & (value of rootElement as text) & linefeed',
+      'end try',
+      'try',
+      'repeat with childElement in UI elements of rootElement',
+      'set collectedText to collectedText & my allStaticText(childElement)',
+      'end repeat',
+      'end try',
+      'end tell',
+      'return collectedText',
+      'end allStaticText',
+      'on collectLicenseActionButtons(rootElement, matches)',
+      'tell application "System Events"',
+      'try',
+      'if role of rootElement is "AXButton" and description of rootElement is "button" then',
+      'set buttonPosition to position of rootElement',
+      'set buttonSize to size of rootElement',
+      'if (item 1 of buttonPosition) > 850 and (item 2 of buttonPosition) > 180 and (item 2 of buttonPosition) < 360 and (item 1 of buttonSize) > 80 then set end of matches to rootElement',
+      'end if',
+      'end try',
+      'try',
+      'repeat with childElement in UI elements of rootElement',
+      'my collectLicenseActionButtons(childElement, matches)',
+      'end repeat',
+      'end try',
+      'end tell',
+      'end collectLicenseActionButtons'
     ]
   end
 

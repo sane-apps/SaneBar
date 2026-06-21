@@ -262,11 +262,16 @@ final class MenuBarMoveTargetResolver {
 
     private func alwaysHiddenTargetReadiness(toAlwaysHidden: Bool) -> AlwaysHiddenTargetReadiness {
         if toAlwaysHidden {
-            let liveBoundaryX = manager.geometryResolver.currentLiveAlwaysHiddenSeparatorBoundaryX()
+            let liveBoundaryX = manager.geometryResolver.inboundAlwaysHiddenSeparatorBoundaryX(allowCachedMainSeparator: true)
+            let notchRightSafeMinX = manager.currentRecoveryReferenceScreen()?.auxiliaryTopRightArea?.minX
+            let boundaryIsNotchSafe = !StatusBarPositionStore.alwaysHiddenSeparatorNeedsNotchSafeRepair(
+                alwaysHiddenSeparatorRightEdgeX: liveBoundaryX,
+                notchRightSafeMinX: notchRightSafeMinX
+            )
             return AlwaysHiddenTargetReadiness(
                 targets: (liveBoundaryX, nil),
-                alwaysHiddenSeparatorIsLive: liveBoundaryX != nil,
-                mainSeparatorIsLive: liveBoundaryX != nil
+                alwaysHiddenSeparatorIsLive: liveBoundaryX != nil && boundaryIsNotchSafe,
+                mainSeparatorIsLive: liveBoundaryX != nil && boundaryIsNotchSafe
             )
         }
 

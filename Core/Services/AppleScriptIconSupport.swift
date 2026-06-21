@@ -542,9 +542,10 @@ func scriptErrorOperationTimedOut(_ command: NSScriptCommand) {
     command.scriptErrorString = "Operation timed out. SaneBar may be busy — try again."
 }
 
-func scriptErrorMoveFailed(_ command: NSScriptCommand, iconId: String, target: ScriptIconZone) {
+func scriptErrorMoveFailed(_ command: NSScriptCommand, iconId: String, target: ScriptIconZone, detail: String? = nil) {
     command.scriptErrorNumber = errOSAGeneralError
-    command.scriptErrorString = "Icon '\(iconId)' failed to move to \(target.userFacingName). If this happened right after wake or a display change, wait a moment and try again. Use 'list icon zones' to confirm the identifier, then try again."
+    let detailSentence = detail.map { " Reason: \($0)." } ?? ""
+    command.scriptErrorString = "Icon '\(iconId)' failed to move to \(target.userFacingName).\(detailSentence) If this happened right after wake or a display change, wait a moment and try again. Use 'list icon zones' to confirm the identifier, then try again."
 }
 
 func scriptErrorReorderFailed(_ command: NSScriptCommand, sourceId: String, targetId: String, placeAfterTarget: Bool) {

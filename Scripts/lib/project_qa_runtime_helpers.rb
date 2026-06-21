@@ -146,36 +146,67 @@ end
 def runtime_smoke_list_icon_zones(target)
   return [] unless ensure_runtime_smoke_target_running!(target)
 
+  output, status = runtime_smoke_icon_zone_output(target, 'list icon zone geometry')
+  if status.success? && !output.strip.empty?
+    parsed = parse_runtime_smoke_icon_zones(output, geometry: true)
+    return parsed unless parsed.empty?
+  end
+
+  output, status = runtime_smoke_icon_zone_output(target, 'list authoritative icon zones')
+  return [] unless status.success?
+
+  parse_runtime_smoke_icon_zones(output, geometry: false)
+rescue StandardError
+  []
+end
+
+def runtime_smoke_icon_zone_output(target, command)
   expected_bundle_id = 'com.sanebar.app'
-  output, status = capture2e_with_runtime_timeout(
+  capture2e_with_runtime_timeout(
     'osascript',
     '-e',
     %(set appTarget to ((POSIX file "#{target[:app_path]}" as alias) as text)),
     '-e',
     %(using terms from application id "#{expected_bundle_id}"),
     '-e',
-    'tell application appTarget to list authoritative icon zones',
+    "tell application appTarget to #{command}",
     '-e',
     'end using terms from',
     timeout: 8,
     label: 'AppleScript icon-zone list'
   )
-  return [] unless status.success?
+end
 
+def parse_runtime_smoke_icon_zones(output, geometry:)
   output.lines.map do |line|
-    zone, movable, bundle, unique_id, name = line.strip.split("\t", 5)
+    fields = line.strip.split("\t", geometry ? 9 : 5)
+    zone, movable, bundle, unique_id = fields[0, 4]
     next nil if unique_id.nil? || unique_id.empty?
 
-    {
+    parsed = {
       zone: zone,
       movable: movable == 'true',
       bundle: bundle,
       unique_id: unique_id,
-      name: name
+      name: geometry ? fields[8].to_s : fields[4].to_s
     }
+    if geometry
+      parsed[:x_position] = parse_runtime_smoke_optional_float(fields[4])
+      parsed[:width] = parse_runtime_smoke_optional_float(fields[5])
+      parsed[:center_x] = parse_runtime_smoke_optional_float(fields[6])
+      parsed[:drag_source_safety] = fields[7].to_s
+      parsed[:drag_source_safe] = parsed[:drag_source_safety] == 'safe'
+    end
+    parsed
   end.compact
-rescue StandardError
-  []
+end
+
+def parse_runtime_smoke_optional_float(value)
+  return nil if value.to_s.empty? || value.to_s == 'unknown'
+
+  Float(value)
+rescue ArgumentError
+  nil
 end
 
 def ensure_runtime_smoke_representative_zones_ready!(target)

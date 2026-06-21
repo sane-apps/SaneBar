@@ -135,7 +135,7 @@ final class CustomerUIActionContractXCTests: XCTestCase {
         }
         XCTAssertTrue(contract.contains("App Intents"))
 
-        for command in ["toggle", "show hidden", "hide items", "open icon panel", "quick search", "show second menu bar", "list icon zones", "list authoritative icon zones", "activate browse icon", "move icon to always hidden"] {
+        for command in ["toggle", "show hidden", "hide items", "open icon panel", "quick search", "show second menu bar", "list icon zones", "list authoritative icon zones", "list icon zone geometry", "activate browse icon", "move icon to always hidden"] {
             XCTAssertTrue(sdefSource.contains("command name=\"\(command)\""), "Expected AppleScript command \(command)")
         }
         XCTAssertTrue(contract.contains("AppleScript"))
@@ -368,11 +368,16 @@ final class CustomerUIActionContractXCTests: XCTestCase {
         let runtimePreflightPath = projectRootURL()
             .appendingPathComponent("outputs/runtime-preflight")
             .path
+        let miniRuntimePreflightPath = "/Users/stephansmac/SaneApps/apps/SaneBar/outputs/runtime-preflight"
         let durableRuntimePreflightPrefixes = [
             "\(runtimePreflightPath)/sanebar_runtime_startup_probe.json",
             "\(runtimePreflightPath)/sanebar_runtime_startup_probe.log",
             "\(runtimePreflightPath)/sanebar_runtime_wake_probe.json",
-            "\(runtimePreflightPath)/sanebar_runtime_wake_probe.log"
+            "\(runtimePreflightPath)/sanebar_runtime_wake_probe.log",
+            "\(miniRuntimePreflightPath)/sanebar_runtime_startup_probe.json",
+            "\(miniRuntimePreflightPath)/sanebar_runtime_startup_probe.log",
+            "\(miniRuntimePreflightPath)/sanebar_runtime_wake_probe.json",
+            "\(miniRuntimePreflightPath)/sanebar_runtime_wake_probe.log"
         ]
         let allowedPrefixesByType: [String: [String]] = [
             "mini_click": ["/tmp/sanebar_runtime_", "applescript=", "settings_ax_tab_index=", "settings_tab=", "icon_hotkeys_groups_", "url_route=", "runtime_visual="],

@@ -92,7 +92,9 @@ final class StatusBarController: StatusBarControllerProtocol {
         .removalAllowed,
         .terminationOnRemoval,
     ]
-nonisolated static func seedAlwaysHiddenSeparatorPositionIfNeeded() { StatusBarPositionRecoveryStore.seedAlwaysHiddenSeparatorPositionIfNeeded() }
+nonisolated static func seedAlwaysHiddenSeparatorPositionIfNeeded(referenceScreen: NSScreen? = nil) {
+    StatusBarPositionRecoveryStore.seedAlwaysHiddenSeparatorPositionIfNeeded(referenceScreen: referenceScreen)
+}
 nonisolated static func resetPositionsToOrdinals() { StatusBarPositionRecoveryStore.resetPositionsToOrdinals() }
 nonisolated static func resetPersistentStatusItemState(alwaysHiddenEnabled: Bool, referenceScreen: NSScreen? = nil) {
     StatusBarPositionRecoveryStore.resetPersistentStatusItemState(alwaysHiddenEnabled: alwaysHiddenEnabled, referenceScreen: referenceScreen)
@@ -328,7 +330,7 @@ nonisolated static func shouldSeedPreferredPosition(appValue: Any?, byHostValue:
             }
         }
         if hadAlwaysHiddenSeparator {
-            StatusBarPositionRecoveryStore.seedAlwaysHiddenSeparatorPositionIfNeeded()
+            StatusBarPositionRecoveryStore.seedAlwaysHiddenSeparatorPositionIfNeeded(referenceScreen: resolvedReferenceScreen)
         }
 
         mainItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -435,7 +437,7 @@ nonisolated static func shouldSeedPreferredPosition(appValue: Any?, byHostValue:
         }
         guard alwaysHiddenSeparatorItem == nil else { return }
 
-        StatusBarPositionRecoveryStore.seedAlwaysHiddenSeparatorPositionIfNeeded()
+        StatusBarPositionRecoveryStore.seedAlwaysHiddenSeparatorPositionIfNeeded(referenceScreen: NSScreen.main ?? NSScreen.screens.first)
 
         let item = NSStatusBar.system.statusItem(withLength: 14)
         Self.enforceNonRemovableBehavior(for: item, role: "always-hidden-separator")

@@ -346,10 +346,13 @@ class LiveZoneSmoke
 
   def capture_fullscreen_space_transition_zone_baseline!
     zones = wait_for_zone_api_ready
-    zones = reseed_missing_zone_candidates(zones)
     candidates = candidate_pool(zones)
+    visible_ids = fullscreen_space_transition_zone_ids(candidates, expected_zone: 'visible')
+    if visible_ids.empty?
+      visible_ids = fullscreen_space_transition_zone_ids(zones, expected_zone: 'visible')
+    end
     baseline = {
-      visible_ids: fullscreen_space_transition_zone_ids(candidates, expected_zone: 'visible'),
+      visible_ids: visible_ids,
       hidden_ids: fullscreen_space_transition_zone_ids(candidates, expected_zone: 'hidden')
     }
 
@@ -361,8 +364,7 @@ class LiveZoneSmoke
 
   def fullscreen_space_transition_zone_ids(zones, expected_zone:, limit: 3)
     zones.select do |item|
-      item[:movable] &&
-        item[:zone] == expected_zone &&
+      item[:zone] == expected_zone &&
         item[:bundle].to_s != 'com.sanebar.app' &&
         !item[:unique_id].to_s.start_with?('com.sanebar.app::')
     end.reject { |item| likely_standard_app_menu_candidate?(item) }

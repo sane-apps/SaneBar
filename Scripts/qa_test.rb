@@ -215,9 +215,15 @@ class ProjectQATest < Minitest::Test
     assert_includes source, 'RUNTIME_SMOKE_PASS_TIMEOUT_SECONDS = 420'
     assert_includes source, 'RUNTIME_SMOKE_FOCUSED_PASS_TIMEOUT_SECONDS = 300'
     assert_includes source, 'timeout: RUNTIME_SMOKE_PASS_TIMEOUT_SECONDS'
-    assert_includes source, 'timeout: RUNTIME_SMOKE_FOCUSED_PASS_TIMEOUT_SECONDS'
+    assert_includes source, 'timeout: focused_runtime_smoke_timeout_seconds(exact_ids)'
     assert_includes source, 'terminate_runtime_command_child(wait_thr)'
   end
+
+  def test_focused_runtime_smoke_timeout_scales_with_required_ids
+    assert_equal 300, @qa.send(:focused_runtime_smoke_timeout_seconds, ['one'])
+    assert_equal 540, @qa.send(:focused_runtime_smoke_timeout_seconds, %w[one two three])
+  end
+
   def test_live_zone_smoke_checks_activation_tint_stability
     source = live_zone_smoke_source
     assert_includes source, 'exercise_app_activation_tint_stability_check'
@@ -641,6 +647,24 @@ class ProjectQATest < Minitest::Test
     assert @qa.send(:retryable_shared_bundle_runtime_smoke_failure?, output)
   end
 
+  def test_shared_bundle_runtime_smoke_retries_observed_full_candidate_drift
+    output = <<~LOG
+      ❌ Live zone smoke failed: 0/3 candidates passed move action checks. Candidate failures: com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-A: Post-settle move verification drifted: com.sanebar.sharedfixture (SaneBarSharedFixture) expected visible, got hidden | com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-B: Menu bar did not become move-ready before action (snapshot=) | com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-C: Menu bar did not become move-ready before action (snapshot=)
+    LOG
+
+    assert @qa.send(:retryable_shared_bundle_runtime_smoke_failure?, output)
+  end
+
+  def test_shared_bundle_runtime_smoke_retry_reseeds_fixture_before_pro_precheck
+    source = File.read(File.join(__dir__, 'lib', 'project_qa_runtime_fixtures.rb'))
+
+    assert_includes source, 'prepare_focused_runtime_smoke_retry!'
+    assert_includes source, 'cleanup_runtime_shared_bundle_fixture!'
+    assert_includes source, 'resolved_ids = ensure_runtime_shared_bundle_fixture!(target)'
+    assert_includes source, 'missing_ids = exact_ids - resolved_ids'
+    assert_operator source.index('prepare_focused_runtime_smoke_retry!'), :<, source.index('focused_runtime_smoke_pro_error(target, "#{lane_name} retry")')
+  end
+
   def test_runtime_smoke_requires_startup_and_wake_layout_probes
     source = qa_source
     preflight_source = File.read(File.join(__dir__, 'lib', 'project_qa_runtime_preflight.rb'))
@@ -976,6 +1000,19 @@ class ProjectQATest < Minitest::Test
     assert_includes source, 'terminate_runtime_command_child(wait_thr)'
     assert_includes source, 'runtime_command_failed_status'
     refute_includes source, "launch_out, launch_status = Open3.capture2e(\n        { 'SANEMASTER_ALLOW_UNSIGNED_FALLBACK' => '0' }"
+  end
+
+  def test_runtime_smoke_reapplies_appearance_fixture_after_test_mode_cleanup
+    source = qa_source
+    launch_index = source.index("heartbeat_label: 'runtime smoke test_mode launch'")
+    reapply_index = source.index("prepare_runtime_smoke_appearance_settings!\n        target = target.merge(relaunch: true)")
+    ensure_index = source.index('unless ensure_runtime_smoke_target_running!(target)', reapply_index)
+
+    refute_nil launch_index
+    refute_nil reapply_index
+    refute_nil ensure_index
+    assert_operator launch_index, :<, reapply_index
+    assert_operator reapply_index, :<, ensure_index
   end
 
   def test_runtime_smoke_target_running_requires_nonempty_process_match
@@ -2498,6 +2535,25 @@ def test_shared_bundle_runtime_smoke_uses_only_the_present_same_bundle_group
   assert_equal ['com.apple.menuextra.focusmode', 'com.apple.menuextra.display'], ids
 end
 
+def test_runtime_smoke_icon_zone_geometry_parser_keeps_drag_source_safety
+  zones = @qa.send(
+    :parse_runtime_smoke_icon_zones,
+    "alwaysHidden\ttrue\tcom.example.widget\twidget-id\t695.00\t22.00\t706.00\tunsafe\tWidget\n" \
+      "alwaysHidden\ttrue\tcom.example.unknown\tunknown-id\tunknown\tunknown\tunknown\tunknown\tUnknown\n",
+    geometry: true
+  )
+
+  assert_equal 2, zones.length
+  assert_equal 'widget-id', zones[0][:unique_id]
+  assert_equal 'unsafe', zones[0][:drag_source_safety]
+  assert_equal 706.0, zones[0][:center_x]
+  refute zones[0][:drag_source_safe]
+  assert_equal 'unknown-id', zones[1][:unique_id]
+  assert_equal 'unknown', zones[1][:drag_source_safety]
+  assert_nil zones[1][:center_x]
+  refute zones[1][:drag_source_safe]
+end
+
 def test_shared_bundle_runtime_smoke_rejects_nonmovable_control_center_clock_cluster
   target = { app_path: '/Applications/SaneBar.app' }
   @qa.define_singleton_method(:runtime_smoke_layout_snapshot) { |_target| { 'licenseIsPro' => true } }
@@ -2843,6 +2899,19 @@ end
     assert_includes source, 'runtime_smoke_only_mode? ||'
   end
 
+  def test_runtime_smoke_resume_phase_runs_move_matrix_only_after_setup
+    source = qa_source
+
+    assert_includes source, 'def runtime_smoke_resume_phase'
+    assert_includes source, "ENV['SANEPROCESS_RUNTIME_SMOKE_RESUME_PHASE']"
+    assert_includes source, "ENV['SANEBAR_RUNTIME_SMOKE_RESUME_PHASE']"
+    assert_includes source, "resume_phase == 'move_matrix' ? false"
+    assert_includes source, 'resuming runtime smoke at move matrix'
+    assert_includes source, "'SANEBAR_SMOKE_EXACT_ID_MOVE_ONLY' => '1'"
+    assert_includes source, "'SANEBAR_SMOKE_SKIP_LAUNCH_IDLE_BUDGET' => '1'"
+    assert_includes source, 'ensure_runtime_smoke_representative_zones_ready!'
+  end
+
   def test_runtime_smoke_candidate_lines_use_bundle_metadata_keys
     @qa.define_singleton_method(:app_bundle_metadata) do |_path|
       { short_version: '2.1.62', build_version: '2162' }
@@ -2945,6 +3014,7 @@ def test_focused_exact_id_runtime_smoke_uses_move_only_no_keychain_guard
     assert_includes source, "focused_env['SANEBAR_SMOKE_EXACT_ID_MOVE_ONLY'] = '1'"
     refute_includes source, "else\n      focused_env['SANEBAR_SMOKE_EXACT_ID_MOVE_ONLY'] = '1'"
     assert_includes source, "focused_env['SANEBAR_SMOKE_PIN_REQUIRED_BROWSE_ALWAYS_HIDDEN'] = '1'"
+    assert_includes source, "focused_env['SANEBAR_SMOKE_ALLOW_NOTCH_UNSAFE_REQUIRED_SKIPS'] = '1' if lane_name == 'shared-bundle'"
     refute_includes source, "SANEBAR_SMOKE_MIN_PASSING_CANDIDATES"
     assert_includes source, 'com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-C'
   end

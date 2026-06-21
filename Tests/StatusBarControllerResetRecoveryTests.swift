@@ -384,7 +384,9 @@ struct StatusBarControllerResetRecoveryTests {
         ) as? NSNumber
         #expect(reseededMain != nil)
         #expect(reseededSeparator != nil)
-        #expect(reseededAlwaysHidden?.doubleValue == 10000.0)
+        #expect(
+            reseededAlwaysHidden?.doubleValue == StatusBarPositionStore.alwaysHiddenPreferredPosition(referenceScreen: NSScreen.main ?? NSScreen.screens.first)
+        )
     }
 
     @Test("Reset persistent state can advance to a fresh autosave namespace")

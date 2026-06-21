@@ -161,6 +161,140 @@ class LiveZoneSmokeTest < Minitest::Test
     assert_nil matched
   end
 
+  def test_geometry_icon_zone_listing_parses_drag_source_safety
+    smoke = build_smoke
+    smoke.instance_variable_set(:@supported_applescript_commands, ['list icon zone geometry'])
+    calls = []
+    smoke.define_singleton_method(:app_script) do |statement|
+      calls << statement
+      "alwaysHidden\ttrue\tcom.example.widget\tcom.example.widget::statusItem:0\t1472.50\t22.00\t1483.50\tsafe\tWidget\n" \
+        "alwaysHidden\ttrue\tcom.example.left\tcom.example.left::statusItem:0\t12.00\t22.00\t23.00\tunsafe\tLeft Widget\n" \
+        "alwaysHidden\ttrue\tcom.example.hidden\tcom.example.hidden::statusItem:0\t-3948.00\t40.00\t-3928.00\toffscreen\tHidden Widget\n" \
+        "alwaysHidden\ttrue\tcom.example.unknown\tcom.example.unknown::statusItem:0\tunknown\tunknown\tunknown\tunknown\tUnknown Widget\n"
+    end
+
+    zones = smoke.send(:list_icon_zones)
+
+    assert_equal ['list icon zone geometry'], calls
+    assert_equal [true, false, false, false], zones.map { |zone| zone[:drag_source_safe] }
+    assert_equal [1483.5, 23.0, -3928.0, nil], zones.map { |zone| zone[:center_x] }
+    assert_equal %w[safe unsafe offscreen unknown], zones.map { |zone| zone[:drag_source_safety] }
+  end
+
+  def test_candidate_pool_excludes_notch_unsafe_always_hidden_drag_sources
+    smoke = build_smoke
+    zones = [
+      {
+        zone: 'alwaysHidden',
+        movable: true,
+        bundle: 'com.example.left',
+        unique_id: 'com.example.left::statusItem:0',
+        name: 'Left Widget',
+        drag_source_safety: 'unsafe',
+        center_x: 23.0
+      },
+      {
+        zone: 'alwaysHidden',
+        movable: true,
+        bundle: 'com.example.right',
+        unique_id: 'com.example.right::statusItem:0',
+        name: 'Right Widget',
+        drag_source_safety: 'safe',
+        center_x: 1483.5
+      }
+    ]
+
+    candidates = smoke.send(:candidate_pool, zones)
+
+    assert_equal ['com.example.right::statusItem:0'], candidates.map { |candidate| candidate[:unique_id] }
+  end
+
+  def test_candidate_pool_keeps_offscreen_hidden_state_always_hidden_sources
+    smoke = build_smoke
+    zones = [
+      {
+        zone: 'alwaysHidden',
+        movable: true,
+        bundle: 'com.example.hiddenstate',
+        unique_id: 'com.example.hiddenstate::statusItem:0',
+        name: 'Hidden State Widget',
+        drag_source_safety: 'offscreen',
+        center_x: -3928.0
+      }
+    ]
+
+    candidates = smoke.send(:candidate_pool, zones)
+
+    assert_equal ['com.example.hiddenstate::statusItem:0'], candidates.map { |candidate| candidate[:unique_id] }
+  end
+
+  def test_required_candidate_notch_skip_uses_live_geometry
+    required_id = 'com.example.widget::statusItem:0'
+    smoke = build_smoke(required_ids: [required_id])
+    smoke.instance_variable_set(:@allow_notch_unsafe_required_skips, true)
+    candidate = {
+      zone: 'alwaysHidden',
+      movable: true,
+      bundle: 'com.example.widget',
+      unique_id: required_id,
+      name: 'Widget'
+    }
+    smoke.define_singleton_method(:list_icon_zones) do
+      [
+        candidate.merge(
+          drag_source_safety: 'unsafe',
+          center_x: 702.0
+        )
+      ]
+    end
+
+    skip = smoke.send(
+      :notch_unsafe_required_skip?,
+      candidate,
+      RuntimeError.new("move icon to visible returned 'false'")
+    )
+
+    assert skip
+  end
+
+  def test_required_candidate_notch_skip_applies_to_hidden_sources
+    required_id = 'com.example.widget::statusItem:0'
+    smoke = build_smoke(required_ids: [required_id])
+    smoke.instance_variable_set(:@allow_notch_unsafe_required_skips, true)
+    candidate = {
+      zone: 'hidden',
+      movable: true,
+      bundle: 'com.example.widget',
+      unique_id: required_id,
+      name: 'Widget'
+    }
+    smoke.define_singleton_method(:list_icon_zones) do
+      [
+        candidate.merge(
+          drag_source_safety: 'unsafe',
+          center_x: 699.0
+        )
+      ]
+    end
+
+    skip = smoke.send(
+      :notch_unsafe_required_skip?,
+      candidate,
+      RuntimeError.new("move icon to visible returned 'false'")
+    )
+
+    assert skip
+  end
+
+  def test_focused_required_candidates_can_all_skip_when_notch_unsafe_skips_allowed
+    smoke = build_smoke(required_ids: %w[first second])
+    smoke.instance_variable_set(:@allow_notch_unsafe_required_skips, true)
+    candidates = %w[first second].map { |id| { unique_id: id } }
+    skipped = candidates.map { |candidate| [candidate, RuntimeError.new('notch-unsafe drag source')] }
+
+    assert smoke.send(:all_required_candidates_skipped_as_notch_unsafe?, candidates, skipped, [])
+  end
+
   def test_non_required_candidate_mode_keeps_single_same_bundle_fallback
     smoke = build_smoke
     candidate = {
@@ -415,6 +549,15 @@ class LiveZoneSmokeTest < Minitest::Test
     refute_includes fullscreen_source, '"file:///tmp/sanebar-fullscreen-probe.html"'
   end
 
+  def test_textedit_transition_probe_creates_document_without_desktop_picker
+    fullscreen_source = File.read(File.join(__dir__, 'lib', 'live_zone_smoke_screenshots_fullscreen.rb'))
+
+    assert_includes fullscreen_source, 'def open_textedit_transition_probe_window'
+    assert_includes fullscreen_source, 'make new document with properties {text:"SaneBar fullscreen transition probe"}'
+    assert_includes fullscreen_source, 'close front window saving no'
+    refute_includes fullscreen_source, "def open_textedit_transition_probe_window\n    open_full_width_transition_probe_window"
+  end
+
   def test_capture_timeout_helper_interrupts_chatty_output
     smoke = build_smoke
     started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
@@ -491,7 +634,7 @@ class LiveZoneSmokeTest < Minitest::Test
     assert_includes safari_script, 'set didFocusExistingProcess to false'
     assert_includes safari_script, 'if exists process "Safari" then'
     assert_includes safari_script, 'tell process "Safari" to set frontmost to true'
-    assert_includes safari_script, 'if didFocusExistingProcess is false then tell application "Safari" to activate'
+    assert_includes safari_script, 'tell application "Safari" to activate'
     assert_equal 'tell application "TextEdit" to activate', textedit_script
   end
 
@@ -549,13 +692,10 @@ class LiveZoneSmokeTest < Minitest::Test
     assert_operator safari_top_strip_exit, :<, safari_zone_exit
   end
 
-  def test_fullscreen_zone_baseline_uses_reseeded_candidate_pool
+  def test_fullscreen_zone_baseline_uses_candidate_pool_without_reseeded_donor
     smoke = build_smoke
     raw_zones = [
-      { zone: 'visible', movable: true, bundle: 'com.example.frontmost', unique_id: 'com.example.frontmost::axid:file', name: 'File' }
-    ]
-    reseeded_zones = [
-      { zone: 'visible', movable: true, bundle: 'com.sanebar.sharedfixture', unique_id: 'com.sanebar.sharedfixture::axid:visible', name: 'Fixture Visible' },
+      { zone: 'visible', movable: false, bundle: 'com.example.frontmost', unique_id: 'com.example.frontmost::axid:visible', name: 'Visible Extra' },
       { zone: 'hidden', movable: true, bundle: 'com.example.hidden', unique_id: 'com.example.hidden::axid:hidden', name: 'Hidden Extra' }
     ]
     calls = []
@@ -564,22 +704,18 @@ class LiveZoneSmokeTest < Minitest::Test
       calls << :wait
       raw_zones
     end
-    smoke.define_singleton_method(:reseed_missing_zone_candidates) do |zones|
-      calls << [:reseed, zones]
-      reseeded_zones
-    end
     smoke.define_singleton_method(:candidate_pool) do |zones, allow_denylisted: false|
       calls << [:candidate_pool, zones, allow_denylisted]
-      zones
+      zones.select { |zone| zone[:movable] }
     end
 
     baseline = smoke.send(:capture_fullscreen_space_transition_zone_baseline!)
 
-    assert_equal ['com.sanebar.sharedfixture::axid:visible'], baseline[:visible_ids]
+    assert_equal ['com.example.frontmost::axid:visible'], baseline[:visible_ids]
     assert_equal ['com.example.hidden::axid:hidden'], baseline[:hidden_ids]
     assert_includes calls, :wait
-    assert_includes calls, [:reseed, raw_zones]
-    assert_includes calls, [:candidate_pool, reseeded_zones, false]
+    assert_includes calls, [:candidate_pool, raw_zones, false]
+    refute(calls.any? { |call| call.is_a?(Array) && call.first == :reseed })
   end
 
   def test_fullscreen_zone_persistence_retries_transient_zone_api_failures
@@ -673,6 +809,38 @@ class LiveZoneSmokeTest < Minitest::Test
     assert_includes calls, [:exit_fallback, 0]
   end
 
+  def test_enter_fullscreen_state_uses_native_toggle_when_ax_enter_does_not_settle
+    smoke = build_smoke
+    probe = { app: 'Safari', process: 'Safari', bundle: 'com.apple.Safari', label: 'safari' }
+    states = [%w[false], %w[true]]
+    calls = []
+
+    smoke.define_singleton_method(:fullscreen_probe_window_states) { |_probe| states.shift || %w[true] }
+    smoke.define_singleton_method(:request_fullscreen_enter_fallback!) do |_probe, attempt:|
+      calls << [:enter_fallback, attempt]
+    end
+    smoke.define_singleton_method(:sleep_with_watchdog) { |seconds| calls << [:sleep, seconds] }
+
+    smoke.send(:assert_fullscreen_probe_window_state!, probe, true)
+
+    assert_includes calls, [:enter_fallback, 0]
+  end
+
+  def test_enter_fullscreen_state_accepts_menu_state_when_ax_state_lags
+    smoke = build_smoke
+    probe = { app: 'Safari', process: 'Safari', bundle: 'com.apple.Safari', label: 'safari' }
+    calls = []
+
+    smoke.define_singleton_method(:fullscreen_probe_window_states) { |_probe| %w[false true] }
+    smoke.define_singleton_method(:request_fullscreen_enter_fallback!) do |_probe, attempt:|
+      calls << [:enter_fallback, attempt]
+    end
+
+    smoke.send(:assert_fullscreen_probe_window_state!, probe, true)
+
+    refute_includes calls, [:enter_fallback, 0]
+  end
+
   def test_fullscreen_exit_fallback_uses_native_macos_shortcut_before_ax_retry
     smoke = build_smoke
     probe = { app: 'Safari', process: 'Safari', bundle: 'com.apple.Safari', label: 'safari' }
@@ -697,6 +865,60 @@ class LiveZoneSmokeTest < Minitest::Test
 
     assert_includes scripts.join("\n"), 'keystroke "f" using {control down, command down}'
     assert_equal [false], ax_retries
+  end
+
+  def test_fullscreen_enter_fallback_uses_native_macos_shortcut_before_ax_retry
+    smoke = build_smoke
+    probe = { app: 'Safari', process: 'Safari', bundle: 'com.apple.Safari', label: 'safari' }
+    status = Class.new do
+      def success?
+        true
+      end
+    end.new
+    scripts = []
+    ax_retries = []
+
+    smoke.define_singleton_method(:capture2e_with_timeout) do |*args, timeout:|
+      scripts << args.join("\n")
+      ['', status]
+    end
+    smoke.define_singleton_method(:set_fullscreen_probe_window) do |_probe, enabled|
+      ax_retries << enabled
+    end
+    smoke.define_singleton_method(:press_fullscreen_probe_window_button) do |_probe|
+      scripts << 'press_fullscreen_probe_window_button'
+    end
+
+    smoke.send(:request_fullscreen_enter_fallback!, probe, attempt: 0)
+    smoke.send(:request_fullscreen_enter_fallback!, probe, attempt: 1)
+    smoke.send(:request_fullscreen_enter_fallback!, probe, attempt: 2)
+
+    assert_includes scripts.join("\n"), 'keystroke "f" using {control down, command down}'
+    assert_includes scripts.join("\n"), 'press_fullscreen_probe_window_button'
+    assert_equal [true], ax_retries
+  end
+
+  def test_fullscreen_button_fallback_presses_ax_fullscreen_button
+    smoke = build_smoke
+    probe = { app: 'Safari', process: 'Safari', bundle: 'com.apple.Safari', label: 'safari' }
+    status = Class.new do
+      def success?
+        true
+      end
+    end.new
+    scripts = []
+
+    smoke.define_singleton_method(:capture2e_with_timeout) do |*args, timeout:|
+      scripts << args.join("\n")
+      ['', status]
+    end
+
+    smoke.send(:press_fullscreen_probe_window_button, probe)
+
+    script = scripts.join("\n")
+    assert_includes script, 'subrole of candidateButton is "AXFullScreenButton"'
+    assert_includes script, 'perform action "AXPress" of candidateButton'
+    assert_includes script, 'No Safari fullscreen button available for fullscreen probe'
   end
 
   def test_disabling_fullscreen_does_not_require_stale_safari_probe_window_index
@@ -738,8 +960,13 @@ class LiveZoneSmokeTest < Minitest::Test
     assert_equal ['false'], smoke.send(:fullscreen_probe_window_states, app: 'Safari', process: 'Safari')
 
     script = scripts.join("\n")
+    assert_includes script, 'tell application "Safari" to activate'
     assert_includes script, 'tell process "Safari" to set frontmost to true'
-    assert_includes script, 'return ((value of attribute "AXFullScreen" of targetWindow) as text)'
+    assert_includes script, 'set index of window targetIndex to 1'
+    assert_includes script, 'set targetIndex to 1'
+    assert_includes script, 'viewMenuNames contains "Exit Full Screen"'
+    assert_includes script, 'axFullscreenState & linefeed & menuFullscreenState'
+    assert_includes script, 'set axFullscreenState to ((value of attribute "AXFullScreen" of targetWindow) as text)'
   end
 
   def test_close_settings_window_for_visual_probe_waits_for_customer_windows_to_close
@@ -1146,6 +1373,33 @@ class LiveZoneSmokeTest < Minitest::Test
       ['hidden-visible-sequence', 'ah1-id', 'visible'],
       ['move icon to always hidden', 'hidden-id', 'alwaysHidden']
     ], calls
+  end
+
+  def test_representative_action_matrix_collapses_repeated_shared_fixture_failures
+    smoke = build_smoke
+    candidates = [
+      { zone: 'alwaysHidden', movable: true, bundle: 'com.sanebar.sharedfixture', unique_id: 'fixture-ah-a', name: 'SaneBarSharedFixture' },
+      { zone: 'alwaysHidden', movable: true, bundle: 'com.sanebar.sharedfixture', unique_id: 'fixture-ah-b', name: 'SaneBarSharedFixture' },
+      { zone: 'alwaysHidden', movable: true, bundle: 'com.sanebar.sharedfixture', unique_id: 'fixture-ah-c', name: 'SaneBarSharedFixture' }
+    ]
+    calls = []
+
+    smoke.define_singleton_method(:move_and_verify) do |command, candidate, expected_zone|
+      calls << [command, candidate[:unique_id], expected_zone]
+      raise 'shared fixture failed'
+    end
+    smoke.define_singleton_method(:sleep_with_watchdog) do |seconds|
+      calls << [:sleep, seconds]
+    end
+
+    error = assert_raises(RuntimeError) do
+      smoke.send(:exercise_matrix_move_with_fallback, 'AH->Hidden', candidates, 'move icon to hidden', 'hidden')
+    end
+
+    assert_includes error.message, 'fixture-ah-a'
+    refute_includes error.message, 'fixture-ah-b'
+    refute_includes error.message, 'fixture-ah-c'
+    assert_equal [['move icon to hidden', 'fixture-ah-a', 'hidden']], calls
   end
 
   def test_representative_action_matrix_falls_back_when_hidden_visible_candidate_fails
@@ -1871,9 +2125,100 @@ class LiveZoneSmokeTest < Minitest::Test
     smoke.define_singleton_method(:wait_for_move_ready_state) { ready_calls += 1 }
     smoke.define_singleton_method(:sleep_with_watchdog) { |seconds| sleeps << seconds }
 
-    assert smoke.send(:settle_before_always_hidden_outbound_move, candidate[:unique_id], candidate, 'hidden')
+    assert smoke.send(:settle_before_outbound_move, candidate[:unique_id], candidate, 'hidden')
     assert_includes sleeps, LiveZoneSmoke::ALWAYS_HIDDEN_OUTBOUND_SETTLE_SECONDS
     assert_equal 1, ready_calls
+  end
+
+  def test_outbound_move_refuses_notch_unsafe_source
+    smoke = build_smoke
+    candidate = {
+      zone: 'alwaysHidden',
+      movable: true,
+      bundle: 'com.example.widget',
+      unique_id: 'com.example.widget::statusItem:0',
+      name: 'Widget'
+    }
+    smoke.define_singleton_method(:list_icon_zones) do
+      [
+        {
+          zone: 'alwaysHidden',
+          movable: true,
+          bundle: 'com.example.widget',
+          unique_id: 'com.example.widget::statusItem:0',
+          name: 'Widget',
+          drag_source_safety: 'unsafe',
+          center_x: 23.0
+        }
+      ]
+    end
+    smoke.define_singleton_method(:wait_for_move_ready_state) { raise 'should not wait after unsafe source' }
+    smoke.define_singleton_method(:sleep_with_watchdog) { |_seconds| raise 'should not sleep for unsafe source' }
+
+    error = assert_raises(RuntimeError) do
+      smoke.send(:settle_before_outbound_move, candidate[:unique_id], candidate, 'hidden')
+    end
+
+    assert_match(/Refusing outbound move from unsafe drag source/, error.message)
+  end
+
+  def test_hidden_outbound_move_refuses_notch_unsafe_source
+    smoke = build_smoke
+    candidate = {
+      zone: 'hidden',
+      movable: true,
+      bundle: 'com.example.widget',
+      unique_id: 'com.example.widget::statusItem:0',
+      name: 'Widget'
+    }
+    smoke.define_singleton_method(:list_icon_zones) do
+      [
+        candidate.merge(
+          drag_source_safety: 'unsafe',
+          center_x: 785.25
+        )
+      ]
+    end
+    smoke.define_singleton_method(:wait_for_move_ready_state) { raise 'should not wait after unsafe source' }
+    smoke.define_singleton_method(:sleep_with_watchdog) { |_seconds| raise 'should not sleep for unsafe source' }
+
+    error = assert_raises(RuntimeError) do
+      smoke.send(:settle_before_outbound_move, candidate[:unique_id], candidate, 'visible')
+    end
+
+    assert_match(/Refusing outbound move from unsafe drag source/, error.message)
+  end
+
+  def test_matrix_move_skips_notch_unsafe_candidates
+    smoke = build_smoke
+    safe = { zone: 'alwaysHidden', movable: true, bundle: 'com.example.safe', unique_id: 'safe-id', name: 'Safe', drag_source_safety: 'safe' }
+    unsafe = { zone: 'alwaysHidden', movable: true, bundle: 'com.example.unsafe', unique_id: 'unsafe-id', name: 'Unsafe', drag_source_safety: 'unsafe' }
+    moved = []
+    smoke.define_singleton_method(:compact_representative_matrix_candidates) { |candidates| candidates }
+    smoke.define_singleton_method(:move_and_verify) do |_command, candidate, _expected_zone|
+      moved << candidate[:unique_id]
+    end
+
+    result = smoke.send(:exercise_matrix_move_with_fallback, 'AH->Visible', [unsafe, safe], 'move icon to visible', 'visible')
+
+    assert_equal ['safe-id'], moved
+    assert_equal 'safe-id', result[:unique_id]
+  end
+
+  def test_matrix_move_skips_unknown_drag_source_candidates
+    smoke = build_smoke
+    safe = { zone: 'alwaysHidden', movable: true, bundle: 'com.example.safe', unique_id: 'safe-id', name: 'Safe', drag_source_safety: 'safe' }
+    unknown = { zone: 'alwaysHidden', movable: true, bundle: 'com.example.unknown', unique_id: 'unknown-id', name: 'Unknown', drag_source_safety: 'unknown' }
+    moved = []
+    smoke.define_singleton_method(:compact_representative_matrix_candidates) { |candidates| candidates }
+    smoke.define_singleton_method(:move_and_verify) do |_command, candidate, _expected_zone|
+      moved << candidate[:unique_id]
+    end
+
+    result = smoke.send(:exercise_matrix_move_with_fallback, 'AH->Visible', [unknown, safe], 'move icon to visible', 'visible')
+
+    assert_equal ['safe-id'], moved
+    assert_equal 'safe-id', result[:unique_id]
   end
 
   def test_always_hidden_inbound_move_skips_extra_settle
@@ -1888,7 +2233,7 @@ class LiveZoneSmokeTest < Minitest::Test
     smoke.define_singleton_method(:list_icon_zones) { raise 'should not inspect zones for inbound AH move' }
     smoke.define_singleton_method(:sleep_with_watchdog) { |_seconds| raise 'should not sleep for inbound AH move' }
 
-    assert smoke.send(:settle_before_always_hidden_outbound_move, candidate[:unique_id], candidate, 'alwaysHidden')
+    assert smoke.send(:settle_before_outbound_move, candidate[:unique_id], candidate, 'alwaysHidden')
   end
 
   def test_prepare_zones_for_move_checks_refreshes_live_zone_state
@@ -1956,6 +2301,105 @@ class LiveZoneSmokeTest < Minitest::Test
     returned = smoke.send(:require_representative_zone_candidates!, stale_zones)
 
     assert_same reseeded_zones, returned
+  end
+
+  def test_representative_requirement_refreshes_after_failed_visible_reseed
+    smoke = build_smoke
+    smoke.instance_variable_set(:@require_all_zones, true)
+    stale_zones = [
+      { zone: 'hidden', movable: true, bundle: 'com.sanebar.sharedfixture', unique_id: 'fixture-hidden', name: 'SaneBarSharedFixture' },
+      { zone: 'hidden', movable: true, bundle: 'com.example.hidden', unique_id: 'hidden-id', name: 'Hidden' },
+      { zone: 'alwaysHidden', movable: true, bundle: 'com.sanebar.sharedfixture', unique_id: 'fixture-ah1', name: 'SaneBarSharedFixture' },
+      { zone: 'alwaysHidden', movable: true, bundle: 'com.sanebar.sharedfixture', unique_id: 'fixture-ah2', name: 'SaneBarSharedFixture' },
+      { zone: 'alwaysHidden', movable: true, bundle: 'com.sanebar.sharedfixture', unique_id: 'fixture-ah3', name: 'SaneBarSharedFixture' }
+    ]
+    refreshed_zones = stale_zones + [
+      { zone: 'visible', movable: true, bundle: 'com.pxkan.pipit2', unique_id: 'pipit-id', name: 'Pipit' }
+    ]
+    calls = []
+
+    smoke.define_singleton_method(:move_and_verify) do |_command, _candidate, _expected_zone|
+      calls << :move_and_verify
+      raise 'failed to move to Visible from notch-unsafe origin'
+    end
+    smoke.define_singleton_method(:list_icon_zones) do
+      calls << :list_icon_zones
+      refreshed_zones
+    end
+
+    returned = smoke.send(:require_representative_zone_candidates!, stale_zones)
+
+    assert_equal [:move_and_verify, :list_icon_zones], calls
+    assert_same refreshed_zones, returned
+  end
+
+  def test_visible_reseed_skips_notch_unsafe_failed_donor_and_tries_next
+    smoke = build_smoke
+    smoke.instance_variable_set(:@require_all_zones, true)
+    unsafe_donor = { zone: 'hidden', movable: true, bundle: 'com.sanebar.sharedfixture', unique_id: 'fixture-hidden-unsafe', name: 'Unsafe Fixture' }
+    safe_donor = { zone: 'hidden', movable: true, bundle: 'com.example.safe', unique_id: 'hidden-safe', name: 'Safe Hidden' }
+    zones = [
+      unsafe_donor,
+      safe_donor,
+      { zone: 'hidden', movable: true, bundle: 'com.example.hidden.keep', unique_id: 'hidden-keep', name: 'Hidden Keep' },
+      { zone: 'alwaysHidden', movable: true, bundle: 'com.sanebar.sharedfixture', unique_id: 'fixture-ah1', name: 'AH 1' },
+      { zone: 'alwaysHidden', movable: true, bundle: 'com.sanebar.sharedfixture', unique_id: 'fixture-ah2', name: 'AH 2' },
+      { zone: 'alwaysHidden', movable: true, bundle: 'com.sanebar.sharedfixture', unique_id: 'fixture-ah3', name: 'AH 3' }
+    ]
+    refreshed_after_success = [
+      unsafe_donor,
+      safe_donor.merge(zone: 'visible'),
+      zones[2],
+      *zones[3..]
+    ]
+    moved = []
+
+    smoke.define_singleton_method(:move_and_verify) do |_command, candidate, _expected_zone|
+      moved << candidate[:unique_id]
+      raise 'notch-unsafe drag source beforeMidX=642.00' if candidate[:unique_id] == unsafe_donor[:unique_id]
+    end
+    smoke.define_singleton_method(:list_icon_zones) do
+      moved.any? { |id| id != unsafe_donor[:unique_id] } ? refreshed_after_success : zones
+    end
+
+    returned = smoke.send(:require_representative_zone_candidates!, zones)
+
+    assert_equal unsafe_donor[:unique_id], moved.first
+    refute_equal unsafe_donor[:unique_id], moved[1]
+    assert_same refreshed_after_success, returned
+  end
+
+  def test_visible_reseed_preserves_always_hidden_outbound_pool
+    smoke = build_smoke
+    smoke.instance_variable_set(:@require_all_zones, true)
+    hidden_donor = { zone: 'hidden', movable: true, bundle: 'com.example.hidden.spare', unique_id: 'hidden-spare', name: 'Hidden Spare' }
+    zones = [
+      { zone: 'hidden', movable: true, bundle: 'com.example.hidden.keep', unique_id: 'hidden-keep', name: 'Hidden Keep' },
+      hidden_donor,
+      { zone: 'alwaysHidden', movable: true, bundle: 'com.sanebar.sharedfixture', unique_id: 'fixture-ah1', name: 'SaneBarSharedFixture' },
+      { zone: 'alwaysHidden', movable: true, bundle: 'com.sanebar.sharedfixture', unique_id: 'fixture-ah2', name: 'SaneBarSharedFixture' },
+      { zone: 'alwaysHidden', movable: true, bundle: 'com.sanebar.sharedfixture', unique_id: 'fixture-ah3', name: 'SaneBarSharedFixture' },
+      { zone: 'alwaysHidden', movable: true, bundle: 'com.sanebar.sharedfixture', unique_id: 'fixture-ah4', name: 'SaneBarSharedFixture' }
+    ]
+    refreshed_zones = [
+      zones[0],
+      hidden_donor.merge(zone: 'visible')
+    ] + zones[2..]
+    moved = []
+
+    smoke.define_singleton_method(:move_and_verify) do |command, candidate, expected_zone|
+      moved << [command, candidate[:unique_id], expected_zone]
+    end
+    smoke.define_singleton_method(:list_icon_zones) { refreshed_zones }
+
+    returned = smoke.send(:require_representative_zone_candidates!, zones)
+
+    assert_equal 1, moved.length
+    assert_equal 'move icon to visible', moved[0][0]
+    assert_match(/\Ahidden-/, moved[0][1])
+    refute_match(/\Afixture-ah/, moved[0][1])
+    assert_equal 'visible', moved[0][2]
+    assert_same refreshed_zones, returned
   end
 
   def test_hidden_always_hidden_round_trip_uses_exact_customer_sequence

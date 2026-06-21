@@ -29,6 +29,8 @@ enum StatusBarPositionStore {
         "SaneBar_PositionMigration_v7"
     ]
     static let minimumSafeAlwaysHiddenPosition = 200.0
+    static let notchSafeAlwaysHiddenBoundaryPadding = 132.0
+    static let preferredNotchAlwaysHiddenBoundaryPadding = 180.0
 
     nonisolated static func resolvedReferenceScreen(_ referenceScreen: NSScreen? = nil) -> NSScreen? {
         if let referenceScreen {
@@ -171,6 +173,48 @@ enum StatusBarPositionStore {
     nonisolated static func screenHasTopSafeAreaInset(_ screen: NSScreen?) -> Bool {
         guard let screen else { return false }
         return screen.safeAreaInsets.top > 0
+    }
+
+    nonisolated static func alwaysHiddenPreferredPosition(
+        screenWidth: Double,
+        notchRightSafeMinX: Double?
+    ) -> Double {
+        guard screenWidth > 0,
+              let notchRightSafeMinX,
+              notchRightSafeMinX > 0,
+              notchRightSafeMinX < screenWidth
+        else {
+            return 10000
+        }
+
+        let targetBoundaryX = notchRightSafeMinX + preferredNotchAlwaysHiddenBoundaryPadding
+        let preferredPosition = screenWidth - targetBoundaryX
+        return max(minimumSafeAlwaysHiddenPosition, preferredPosition)
+    }
+
+    nonisolated static func alwaysHiddenPreferredPosition(referenceScreen: NSScreen? = nil) -> Double {
+        guard let screen = resolvedReferenceScreen(referenceScreen) else {
+            return 10000
+        }
+        return alwaysHiddenPreferredPosition(
+            screenWidth: Double(screen.frame.width),
+            notchRightSafeMinX: screen.auxiliaryTopRightArea.map { Double($0.minX) }
+        )
+    }
+
+    nonisolated static func alwaysHiddenSeparatorNeedsNotchSafeRepair(
+        alwaysHiddenSeparatorRightEdgeX: CGFloat?,
+        notchRightSafeMinX: CGFloat?
+    ) -> Bool {
+        guard let alwaysHiddenSeparatorRightEdgeX,
+              alwaysHiddenSeparatorRightEdgeX.isFinite,
+              let notchRightSafeMinX,
+              notchRightSafeMinX.isFinite,
+              notchRightSafeMinX > 0
+        else {
+            return false
+        }
+        return Double(alwaysHiddenSeparatorRightEdgeX) <= Double(notchRightSafeMinX) + notchSafeAlwaysHiddenBoundaryPadding
     }
 
     nonisolated static func launchSafePreferredMainPositionLimit(

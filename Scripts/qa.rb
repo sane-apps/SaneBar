@@ -446,6 +446,11 @@ class ProjectQA
       ENV['SANEBAR_RUN_RUNTIME_SMOKE'] == '1'
   end
 
+  def runtime_smoke_resume_phase
+    value = ENV['SANEPROCESS_RUNTIME_SMOKE_RESUME_PHASE'] || ENV['SANEBAR_RUNTIME_SMOKE_RESUME_PHASE']
+    value.to_s.strip
+  end
+
   def running_on_mini_host?
     host = Socket.gethostname.to_s.downcase
     user = ENV.fetch('USER', '').downcase

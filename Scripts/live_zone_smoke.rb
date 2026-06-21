@@ -190,6 +190,7 @@ class LiveZoneSmoke
     @exact_id_move_only = ENV['SANEBAR_SMOKE_EXACT_ID_MOVE_ONLY'] == '1'
     @skip_move_checks = ENV['SANEBAR_SMOKE_SKIP_MOVE_CHECKS'] == '1'
     @pin_required_browse_always_hidden = ENV['SANEBAR_SMOKE_PIN_REQUIRED_BROWSE_ALWAYS_HIDDEN'] == '1'
+    @allow_notch_unsafe_required_skips = ENV['SANEBAR_SMOKE_ALLOW_NOTCH_UNSAFE_REQUIRED_SKIPS'] == '1'
     @post_move_zone_stability_seconds = float_env('SANEBAR_SMOKE_POST_MOVE_ZONE_STABILITY_SECONDS') || DEFAULT_POST_MOVE_ZONE_STABILITY_SECONDS
     @screenshot_dir = expand_env_path('SANEBAR_SMOKE_SCREENSHOT_DIR') || File.join(Dir.tmpdir, 'sanebar-smoke')
     @window_screenshot_tool = resolve_window_screenshot_tool
@@ -252,6 +253,7 @@ class LiveZoneSmoke
     end
 
     failures = []
+    skipped_candidates = []
     passed_candidates = []
     post_budget_restore_candidate = nil
 
@@ -270,8 +272,13 @@ class LiveZoneSmoke
             puts "✅ Candidate passed: #{candidate[:unique_id]}"
             break unless strict_candidate_mode?
           rescue StandardError => e
-            failures << [candidate, e]
-            puts "⚠️ Candidate failed: #{candidate[:bundle]} (#{e.message})"
+            if notch_unsafe_required_skip?(candidate, e)
+              skipped_candidates << [candidate, e]
+              puts "ℹ️ Candidate skipped because its live drag source is under the notch: #{candidate[:unique_id]} (#{e.message})"
+            else
+              failures << [candidate, e]
+              puts "⚠️ Candidate failed: #{candidate[:bundle]} (#{e.message})"
+            end
           ensure
             begin
               restore_zone(candidate) unless post_budget_restore_candidate&.[](:unique_id) == candidate[:unique_id]
@@ -283,9 +290,11 @@ class LiveZoneSmoke
       end
 
       if strict_candidate_mode?
-        min_required = strict_candidate_minimum(candidates.length)
+        min_required = strict_candidate_minimum(candidates.length - skipped_candidates.length)
         if passed_candidates.length < min_required
           summary = candidate_failure_summary(failures)
+          skip_summary = candidate_failure_summary(skipped_candidates)
+          summary = [summary, ("Notch-unsafe skips: #{skip_summary}" unless skip_summary.empty?)].compact.reject(&:empty?).join(' ')
           detail = summary.empty? ? '' : " Candidate failures: #{summary}"
           raise "#{passed_candidates.length}/#{min_required} candidates passed move action checks.#{detail}"
         end
@@ -294,7 +303,16 @@ class LiveZoneSmoke
         elsif failures.any?
           puts "⚠️ Candidate failures tolerated after #{passed_candidates.length}/#{min_required} candidates passed: #{candidate_failure_summary(failures)}"
         end
-        raise 'No candidates passed move action checks.' if passed_candidates.empty?
+        unless skipped_candidates.empty?
+          puts "ℹ️ Notch-unsafe required candidate skips: #{candidate_failure_summary(skipped_candidates)}"
+        end
+        if passed_candidates.empty?
+          if all_required_candidates_skipped_as_notch_unsafe?(candidates, skipped_candidates, failures)
+            puts 'ℹ️ All focused required candidates were skipped because their live drag sources are notch-unsafe.'
+          else
+            raise 'No candidates passed move action checks.'
+          end
+        end
 
         puts "✅ Candidate set passed: #{passed_candidates.map { |candidate| candidate[:unique_id] }.join(', ')}"
       else
@@ -558,17 +576,9 @@ class LiveZoneSmoke
 
   def list_icon_zones
     raw = list_icon_zones_raw
+    parser = icon_zone_geometry_listing_supported? ? :parse_icon_zone_geometry_line : :parse_legacy_icon_zone_line
     zones = raw.lines.map do |line|
-      zone, movable, bundle, unique_id, name = line.strip.split("\t", 5)
-      next nil if zone.nil? || unique_id.nil?
-
-      {
-        zone: zone,
-        movable: movable == 'true',
-        bundle: bundle.to_s,
-        unique_id: unique_id,
-        name: name.to_s
-      }
+      send(parser, line)
     end.compact
 
     raise 'No icons returned from list icon zones.' if zones.empty?
@@ -577,7 +587,46 @@ class LiveZoneSmoke
   end
 
   def list_icon_zones_raw
-    app_script('list icon zones')
+    command = icon_zone_geometry_listing_supported? ? 'list icon zone geometry' : 'list icon zones'
+    app_script(command)
+  end
+
+  def icon_zone_geometry_listing_supported?
+    Array(@supported_applescript_commands).include?('list icon zone geometry')
+  end
+
+  def parse_legacy_icon_zone_line(line)
+    zone, movable, bundle, unique_id, name = line.strip.split("\t", 5)
+    return nil if zone.nil? || unique_id.nil?
+
+    {
+      zone: zone,
+      movable: movable == 'true',
+      bundle: bundle.to_s,
+      unique_id: unique_id,
+      name: name.to_s
+    }
+  end
+
+  def parse_icon_zone_geometry_line(line)
+    zone, movable, bundle, unique_id, x_position, width, center_x, drag_source_safety, name = line.strip.split("\t", 9)
+    return nil if zone.nil? || unique_id.nil?
+
+    parse_legacy_icon_zone_line([zone, movable, bundle, unique_id, name].join("\t")).merge(
+      x_position: parse_optional_float(x_position),
+      width: parse_optional_float(width),
+      center_x: parse_optional_float(center_x),
+      drag_source_safety: drag_source_safety.to_s,
+      drag_source_safe: drag_source_safe?(drag_source_safety)
+    )
+  end
+
+  def parse_optional_float(value)
+    return nil if value.to_s.empty? || value.to_s == 'unknown'
+
+    Float(value)
+  rescue ArgumentError
+    nil
   end
 
   def wait_for_zone_api_ready
@@ -616,6 +665,7 @@ class LiveZoneSmoke
       coarse_bundle_fallback?(item) && precise_bundles.include?(item[:bundle])
     end
     candidates.reject! { |item| move_candidate_denied?(item) } unless allow_denylisted
+    candidates.reject! { |item| unsafe_always_hidden_drag_source?(item) }
 
     # Prefer non-Apple extras first (typically more consistently movable),
     # then Apple fallbacks while avoiding known noisy bundles.
@@ -673,6 +723,10 @@ class LiveZoneSmoke
   def move_candidate_denied?(item)
     bundle = item[:bundle].to_s.strip.downcase
     MOVE_CANDIDATE_BUNDLE_DENYLIST.any? { |value| value.downcase == bundle }
+  end
+
+  def unsafe_always_hidden_drag_source?(item)
+    item[:zone].to_s == 'alwaysHidden' && item.key?(:drag_source_safety) && !drag_source_safe?(item[:drag_source_safety])
   end
 
   def preferred_move_candidate_rank(bundle)
@@ -746,6 +800,7 @@ class LiveZoneSmoke
   # moving a surplus donor into the missing zone before concluding; the hard
   # checks below still fail the release if reseeding cannot converge.
   def reseed_missing_zone_candidates(zones)
+    skipped_reseed_donor_ids = []
     6.times do
       candidates = candidate_pool(zones)
       counts = candidates.group_by { |item| item[:zone].to_s }.transform_values(&:length)
@@ -756,12 +811,16 @@ class LiveZoneSmoke
 
       donor_moved = false
       missing.each do |zone|
-        donor = prioritize_move_candidates(
+        donor = prioritize_reseed_donors(
+          zone,
           candidates.select do |item|
             donor_zone = item[:zone].to_s
             donor_zone != zone &&
-              counts.fetch(donor_zone, 0) > REPRESENTATIVE_ZONE_MINIMUMS.fetch(donor_zone, 1)
-          end
+              counts.fetch(donor_zone, 0) > REPRESENTATIVE_ZONE_MINIMUMS.fetch(donor_zone, 1) &&
+              !skipped_reseed_donor_ids.include?(item[:unique_id]) &&
+              !notch_unsafe_reseed_donor?(zone, item)
+          end,
+          counts
         ).first
         next unless donor
 
@@ -774,6 +833,18 @@ class LiveZoneSmoke
           counts = candidates.group_by { |item| item[:zone].to_s }.transform_values(&:length)
         rescue StandardError => e
           puts "⚠️ Representative #{zone} reseed failed for #{donor[:unique_id]}: #{e.message}"
+          if e.message.include?('notch-unsafe drag source')
+            skipped_reseed_donor_ids << donor[:unique_id]
+            donor_moved = true
+          end
+          begin
+            zones = list_icon_zones
+            candidates = candidate_pool(zones)
+            counts = candidates.group_by { |item| item[:zone].to_s }.transform_values(&:length)
+          rescue StandardError
+            # Keep the original error visible; the hard representative check below
+            # will report the last usable snapshot if the refresh also fails.
+          end
         end
       end
       break unless donor_moved
@@ -781,6 +852,25 @@ class LiveZoneSmoke
     zones
   rescue StandardError
     zones
+  end
+
+  def notch_unsafe_reseed_donor?(target_zone, item)
+    target_zone.to_s == 'visible' && item.key?(:drag_source_safety) && !drag_source_safe?(item[:drag_source_safety])
+  end
+
+  def prioritize_reseed_donors(target_zone, donors, counts)
+    donors.sort_by do |item|
+      donor_zone = item[:zone].to_s
+      surplus = counts.fetch(donor_zone, 0) - REPRESENTATIVE_ZONE_MINIMUMS.fetch(donor_zone, 1)
+      [
+        donor_zone == 'alwaysHidden' && target_zone != 'alwaysHidden' ? 1 : 0,
+        surplus > 1 ? 0 : 1,
+        preferred_move_candidate_rank(item[:bundle]),
+        item[:bundle].start_with?('com.apple.') ? 1 : 0,
+        coarse_bundle_fallback?(item) ? 1 : 0,
+        item[:name].to_s.downcase
+      ]
+    end
   end
 
   def require_representative_zone_candidates!(zones)
@@ -879,6 +969,33 @@ class LiveZoneSmoke
     failures.map do |candidate, error|
       "#{candidate[:unique_id]}: #{error.message}"
     end.join(' | ')
+  end
+
+  def drag_source_safe?(value)
+    text = value.to_s
+    return true if text.empty?
+
+    text == 'safe'
+  end
+
+  def all_required_candidates_skipped_as_notch_unsafe?(candidates, skipped_candidates, failures)
+    @allow_notch_unsafe_required_skips &&
+      focused_required_id_mode? &&
+      failures.empty? &&
+      !candidates.empty? &&
+      skipped_candidates.length == candidates.length
+  end
+
+  def notch_unsafe_required_skip?(candidate, error)
+    return false unless @allow_notch_unsafe_required_skips
+    return false unless focused_required_id_mode?
+    return true if error.message.to_s.include?('notch-unsafe drag source')
+
+    zones = list_icon_zones
+    matched = matched_move_candidate(zones, candidate[:unique_id], candidate)
+    matched && matched.key?(:drag_source_safety) && !drag_source_safe?(matched[:drag_source_safety])
+  rescue StandardError
+    false
   end
 
   def move_candidates_required?
