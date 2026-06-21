@@ -535,7 +535,7 @@ final class RuntimeGuardQAAndLicensingXCTests: RuntimeGuardTestCase {
             "Pin reconciliation should require a live AH boundary (right edge) so auto-pin/unpin decisions cannot use stale geometry"
         )
         XCTAssertTrue(
-            alwaysHiddenManagerSource.contains("StatusBarController.recoverStartupPositions(") &&
+            alwaysHiddenManagerSource.contains("StatusBarPositionRecoveryStore.recoverStartupPositions(") &&
                 alwaysHiddenManagerSource.contains("referenceScreen: manager.currentRecoveryReferenceScreen()"),
             "Always-hidden hard recovery should reuse the live status-item screen so fallback repair does not reseed against the wrong display"
         )

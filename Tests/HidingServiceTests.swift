@@ -477,7 +477,7 @@ struct AlwaysHiddenRegressionTests {
         defaults.removeObject(forKey: key)
 
         // Trigger seeding
-        StatusBarController.seedAlwaysHiddenSeparatorPositionIfNeeded()
+        StatusBarPositionRecoveryStore.seedAlwaysHiddenSeparatorPositionIfNeeded()
 
         let expected = StatusBarPositionStore.alwaysHiddenPreferredPosition(referenceScreen: NSScreen.main ?? NSScreen.screens.first)
         let position = defaults.double(forKey: key)
@@ -497,7 +497,7 @@ struct AlwaysHiddenRegressionTests {
         // Existing value should be overwritten by seeding so startup self-heals
         // from stale/corrupted values left by prior cmd-drag experiments.
         defaults.set(5000.0, forKey: key)
-        StatusBarController.seedAlwaysHiddenSeparatorPositionIfNeeded()
+        StatusBarPositionRecoveryStore.seedAlwaysHiddenSeparatorPositionIfNeeded()
         let expected = StatusBarPositionStore.alwaysHiddenPreferredPosition(referenceScreen: NSScreen.main ?? NSScreen.screens.first)
         #expect(defaults.double(forKey: key) == expected,
                 "Seed must enforce the display-safe value to recover from stale positions")
@@ -514,7 +514,7 @@ struct AlwaysHiddenRegressionTests {
 
         // Clear so seed triggers
         defaults.removeObject(forKey: key)
-        StatusBarController.seedAlwaysHiddenSeparatorPositionIfNeeded()
+        StatusBarPositionRecoveryStore.seedAlwaysHiddenSeparatorPositionIfNeeded()
         let expected = StatusBarPositionStore.alwaysHiddenPreferredPosition(referenceScreen: NSScreen.main ?? NSScreen.screens.first)
         #expect(defaults.double(forKey: key) == expected,
                 "AH position must seed to the display-safe value")
@@ -538,7 +538,7 @@ struct AlwaysHiddenRegressionTests {
         defaults.removeObject(forKey: key)
 
         // Simulate toggle on: should reseed to the display-safe value.
-        StatusBarController.seedAlwaysHiddenSeparatorPositionIfNeeded()
+        StatusBarPositionRecoveryStore.seedAlwaysHiddenSeparatorPositionIfNeeded()
         let expected = StatusBarPositionStore.alwaysHiddenPreferredPosition(referenceScreen: NSScreen.main ?? NSScreen.screens.first)
         #expect(defaults.double(forKey: key) == expected,
                 "After toggle off+on, AH must reseed to the display-safe value")

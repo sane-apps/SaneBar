@@ -85,12 +85,12 @@ private func collectSaneBarSettings() -> String {
     let currentScreenWidth = statusItemScreen?.frame.width ?? NSScreen.main?.frame.width
     let currentScreenCount = NSScreen.screens.count
     let calibratedScreenWidth = (defaults.object(forKey: "SaneBar_CalibratedScreenWidth") as? NSNumber)?.doubleValue
-    let currentWidthBucket = currentScreenWidth.map { StatusBarController.displayWidthBucket(Double($0)) }
-    let storedWidthBucket = calibratedScreenWidth.map { StatusBarController.displayWidthBucket($0) }
+    let currentWidthBucket = currentScreenWidth.map { StatusBarPositionStore.displayWidthBucket(Double($0)) }
+    let storedWidthBucket = calibratedScreenWidth.map { StatusBarPositionStore.displayWidthBucket($0) }
 
     func backupValue(for width: Double?, slot: String) -> Any? {
         guard let width, width > 0 else { return nil }
-        return defaults.object(forKey: StatusBarController.displayPositionBackupKey(for: width, slot: slot))
+        return defaults.object(forKey: StatusBarPositionStore.displayPositionBackupKey(for: width, slot: slot))
     }
 
     let currentMainBackup = backupValue(for: currentScreenWidth.map(Double.init), slot: "main")

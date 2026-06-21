@@ -705,11 +705,11 @@ class CustomerUIActionSweepTest < Minitest::Test
         license = rows.find { |row| row[:id] == 'license_clipboard_paste' }
 
         assert_equal 'passed', hover[:status]
-        assert_includes hover[:evidence_paths], hover_json
-        assert_includes hover[:evidence_paths], hover_log
+        assert_includes hover[:evidence_paths], @sweep.send(:relative, hover_json)
+        assert_includes hover[:evidence_paths], @sweep.send(:relative, hover_log)
         assert_equal 'passed', license[:status]
-        assert_includes license[:evidence_paths], license_json
-        assert_includes license[:evidence_paths], license_log
+        assert_includes license[:evidence_paths], @sweep.send(:relative, license_json)
+        assert_includes license[:evidence_paths], @sweep.send(:relative, license_log)
       end
     end
   end
@@ -1365,8 +1365,8 @@ class CustomerUIActionSweepTest < Minitest::Test
         soak = rows.find { |row| row[:id] == 'resource_soak_growth' }
 
         assert_equal 'passed', soak[:status]
-        assert_includes soak[:evidence_paths], durable_artifact
-        assert_includes soak[:evidence_paths], durable_log
+        assert_includes soak[:evidence_paths], @sweep.send(:relative, durable_artifact)
+        assert_includes soak[:evidence_paths], @sweep.send(:relative, durable_log)
         assert_includes soak[:completed_scenarios], 'adaptive Mini resource check passed for this release build'
       end
     end
@@ -1778,7 +1778,11 @@ class CustomerUIActionSweepTest < Minitest::Test
     runtime_source = File.read(File.join(__dir__, 'lib', 'customer_ui_action_sweep_runtime.rb'))
 
     assert_includes source, 'subrole is "AXStandardWindow"'
-    assert_includes source, 'set settingsWindow to first window whose subrole is "AXStandardWindow"'
+    assert_includes source, 'set settingsWindow to missing value'
+    assert_includes source, 'repeat with candidateWindow in windows'
+    assert_includes source, '(subrole of candidateWindow is "AXSystemDialog") or ((name of candidateWindow as text) contains "Health")'
+    assert_includes source, 'value of attribute "AXCloseButton" of candidateWindow'
+    assert_includes source, 'set _ to splitter group 1 of group 1 of candidateWindow'
     assert_includes source, 'splitter group 1 of group 1 of settingsWindow'
     assert_includes source, 'set browseWindow to missing value'
     assert_includes source, 'name of candidateWindow is "Icon Panel"'
@@ -1809,10 +1813,99 @@ class CustomerUIActionSweepTest < Minitest::Test
     assert_includes source, 'saneui-license-activate'
     assert_includes source, 'allStaticText(settingsWindow)'
     assert_includes source, 'repeat with candidateWindow in windows'
+    assert_includes source, "ensure_pro_state_for_pro_only_action!('custom group creation')"
     assert_includes source, 'safe_write_runtime_probe_file'
     assert_includes source, 'SANE_APPROVE_LOCAL_UI_ON_AIR'
     assert_includes runtime_source, 'host: Socket.gethostname.to_s.downcase'
     assert_includes runtime_source, 'local_air_fallback:'
+  end
+
+  def test_release_sweep_relaunches_when_no_keychain_target_is_still_basic
+    snapshots = [{ 'licenseIsPro' => false }, { 'licenseIsPro' => true }]
+    seeded = false
+    onboarding_marked = false
+    terminated = nil
+    launched = nil
+    @sweep.define_singleton_method(:release_sweep_onboarding_window_open?) { false }
+    @sweep.define_singleton_method(:release_sweep_layout_snapshot) { snapshots.shift || { 'licenseIsPro' => true } }
+    @sweep.define_singleton_method(:seed_release_sweep_no_keychain_pro_defaults!) { seeded = true }
+    @sweep.define_singleton_method(:mark_release_sweep_onboarding_complete!) { onboarding_marked = true }
+    @sweep.define_singleton_method(:terminate_release_sweep_processes) { |pids| terminated = pids }
+    @sweep.define_singleton_method(:launch_release_sweep_app) { |binary_path| launched = binary_path }
+    @sweep.define_singleton_method(:sleep) { |_seconds| }
+
+    @sweep.send(:ensure_release_sweep_pro_unlocked!, ['123'], '/Applications/SaneBar.app/Contents/MacOS/SaneBar')
+
+    assert seeded
+    assert onboarding_marked
+    assert_equal ['123'], terminated
+    assert_equal '/Applications/SaneBar.app/Contents/MacOS/SaneBar', launched
+  end
+
+  def test_release_sweep_does_not_relaunch_when_no_keychain_target_is_pro
+    @sweep.define_singleton_method(:release_sweep_onboarding_window_open?) { false }
+    @sweep.define_singleton_method(:release_sweep_layout_snapshot) { { 'licenseIsPro' => true } }
+    @sweep.define_singleton_method(:seed_release_sweep_no_keychain_pro_defaults!) { flunk 'should not seed when already Pro' }
+    @sweep.define_singleton_method(:mark_release_sweep_onboarding_complete!) { flunk 'should not touch onboarding when already Pro and unobstructed' }
+    @sweep.define_singleton_method(:terminate_release_sweep_processes) { |_pids| flunk 'should not terminate when already Pro' }
+    @sweep.define_singleton_method(:launch_release_sweep_app) { |_binary_path| flunk 'should not launch when already Pro' }
+
+    @sweep.send(:ensure_release_sweep_pro_unlocked!, ['123'], '/Applications/SaneBar.app/Contents/MacOS/SaneBar')
+  end
+
+  def test_release_sweep_relaunches_when_onboarding_dialog_is_open
+    seeded = false
+    onboarding_marked = false
+    launched = false
+    @sweep.define_singleton_method(:release_sweep_onboarding_window_open?) { true }
+    @sweep.define_singleton_method(:release_sweep_layout_snapshot) { { 'licenseIsPro' => true } }
+    @sweep.define_singleton_method(:seed_release_sweep_no_keychain_pro_defaults!) { seeded = true }
+    @sweep.define_singleton_method(:mark_release_sweep_onboarding_complete!) { onboarding_marked = true }
+    @sweep.define_singleton_method(:terminate_release_sweep_processes) { |_pids| }
+    @sweep.define_singleton_method(:launch_release_sweep_app) { |_binary_path| launched = true }
+    @sweep.define_singleton_method(:sleep) { |_seconds| }
+
+    @sweep.send(:ensure_release_sweep_pro_unlocked!, ['123'], '/Applications/SaneBar.app/Contents/MacOS/SaneBar')
+
+    assert seeded
+    assert onboarding_marked
+    assert launched
+  end
+
+  def test_release_sweep_relaunches_when_duplicate_no_keychain_processes_exist
+    seeded = false
+    onboarding_marked = false
+    terminated = nil
+    launched = false
+    @sweep.define_singleton_method(:release_sweep_onboarding_window_open?) { false }
+    @sweep.define_singleton_method(:release_sweep_layout_snapshot) { { 'licenseIsPro' => true } }
+    @sweep.define_singleton_method(:seed_release_sweep_no_keychain_pro_defaults!) { seeded = true }
+    @sweep.define_singleton_method(:mark_release_sweep_onboarding_complete!) { onboarding_marked = true }
+    @sweep.define_singleton_method(:terminate_release_sweep_processes) { |pids| terminated = pids }
+    @sweep.define_singleton_method(:launch_release_sweep_app) { |_binary_path| launched = true }
+    @sweep.define_singleton_method(:sleep) { |_seconds| }
+
+    @sweep.send(:ensure_release_sweep_pro_unlocked!, %w[123 456], '/Applications/SaneBar.app/Contents/MacOS/SaneBar')
+
+    assert seeded
+    assert onboarding_marked
+    assert_equal %w[123 456], terminated
+    assert launched
+  end
+
+  def test_pro_only_action_guard_rechecks_current_release_process
+    captured = nil
+    @sweep.instance_variable_set(:@release_binary_path, '/Applications/SaneBar.app/Contents/MacOS/SaneBar')
+    @sweep.define_singleton_method(:ensure_release_sweep_pro_unlocked!) do |pids, binary_path|
+      captured = [pids, binary_path]
+    end
+    @sweep.define_singleton_method(:current_release_sweep_pids) { |_label| ['123'] }
+    @sweep.define_singleton_method(:release_sweep_layout_snapshot) { { 'licenseIsPro' => true } }
+
+    @sweep.send(:ensure_pro_state_for_pro_only_action!, 'custom group creation')
+
+    assert_equal [['123'], '/Applications/SaneBar.app/Contents/MacOS/SaneBar'], captured
+    assert_includes @sweep.instance_variable_get(:@transcript), 'pro_only_action=custom group creation pro_state=ok'
   end
 
   def test_system_events_helper_compiles_with_hover_probe_fragment

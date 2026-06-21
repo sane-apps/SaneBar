@@ -491,7 +491,7 @@ struct GeneralSettingsView: View {
         var profile = SaneBarProfile(
             name: newProfileName,
             settings: menuBarManager.settings,
-            layoutSnapshot: StatusBarController.captureLayoutSnapshot(),
+            layoutSnapshot: StatusBarLayoutSnapshotStore.captureLayoutSnapshot(),
             customIconSnapshot: PersistenceService.shared.makeCustomIconSnapshot()
         )
         profile.modifiedAt = Date()
@@ -539,7 +539,7 @@ struct GeneralSettingsView: View {
             version: 2,
             exportedAt: Date(),
             settings: menuBarManager.settings,
-            layoutSnapshot: StatusBarController.captureLayoutSnapshot(),
+            layoutSnapshot: StatusBarLayoutSnapshotStore.captureLayoutSnapshot(),
             customIconSnapshot: PersistenceService.shared.makeCustomIconSnapshot(),
             savedProfiles: savedProfiles
         )
@@ -682,7 +682,7 @@ struct GeneralSettingsView: View {
                 try PersistenceService.shared.applyCustomIconSnapshot(customIconSnapshot)
             }
             if let layoutSnapshot {
-                StatusBarController.applyLayoutSnapshot(layoutSnapshot)
+                StatusBarLayoutSnapshotStore.applyLayoutSnapshot(layoutSnapshot)
             }
 
             menuBarManager.settings = settings.preservingLocalLifecycleState(from: menuBarManager.settings)

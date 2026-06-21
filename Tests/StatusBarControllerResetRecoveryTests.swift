@@ -7,7 +7,7 @@ import Testing
 struct StatusBarControllerResetRecoveryTests {
     @Test("Position seed runs when both app and ByHost values are missing")
     func shouldSeedWhenAllValuesMissing() {
-        let shouldSeed = StatusBarController.shouldSeedPreferredPosition(
+        let shouldSeed = StatusBarPositionDefaultsStore.shouldSeedPreferredPosition(
             appValue: nil,
             byHostValue: nil
         )
@@ -16,7 +16,7 @@ struct StatusBarControllerResetRecoveryTests {
 
     @Test("Position seed skips when app value already exists")
     func shouldNotSeedWhenAppValueExists() {
-        let shouldSeed = StatusBarController.shouldSeedPreferredPosition(
+        let shouldSeed = StatusBarPositionDefaultsStore.shouldSeedPreferredPosition(
             appValue: 42,
             byHostValue: nil
         )
@@ -25,7 +25,7 @@ struct StatusBarControllerResetRecoveryTests {
 
     @Test("Position seed skips when ByHost value already exists")
     func shouldNotSeedWhenByHostValueExists() {
-        let shouldSeed = StatusBarController.shouldSeedPreferredPosition(
+        let shouldSeed = StatusBarPositionDefaultsStore.shouldSeedPreferredPosition(
             appValue: nil,
             byHostValue: NSNumber(value: 17)
         )
@@ -34,7 +34,7 @@ struct StatusBarControllerResetRecoveryTests {
 
     @Test("Position seed skips when app value is numeric string")
     func shouldNotSeedWhenAppValueStringExists() {
-        let shouldSeed = StatusBarController.shouldSeedPreferredPosition(
+        let shouldSeed = StatusBarPositionDefaultsStore.shouldSeedPreferredPosition(
             appValue: "42",
             byHostValue: nil
         )
@@ -43,7 +43,7 @@ struct StatusBarControllerResetRecoveryTests {
 
     @Test("Position seed skips when ByHost value is numeric string")
     func shouldNotSeedWhenByHostValueStringExists() {
-        let shouldSeed = StatusBarController.shouldSeedPreferredPosition(
+        let shouldSeed = StatusBarPositionDefaultsStore.shouldSeedPreferredPosition(
             appValue: nil,
             byHostValue: "17"
         )
@@ -52,7 +52,7 @@ struct StatusBarControllerResetRecoveryTests {
 
     @Test("Position seed ignores invalid non-numeric values")
     func shouldSeedWhenValuesAreInvalid() {
-        let shouldSeed = StatusBarController.shouldSeedPreferredPosition(
+        let shouldSeed = StatusBarPositionDefaultsStore.shouldSeedPreferredPosition(
             appValue: "bad",
             byHostValue: Date()
         )
@@ -61,10 +61,10 @@ struct StatusBarControllerResetRecoveryTests {
 
     @Test("Ordinal-seed pair detection only flags tiny seed values")
     func ordinalSeedPairDetection() {
-        #expect(StatusBarController.hasOrdinalSeedPair(mainPosition: 0, separatorPosition: 1))
-        #expect(StatusBarController.hasOrdinalSeedPair(mainPosition: 2, separatorPosition: 3))
-        #expect(!StatusBarController.hasOrdinalSeedPair(mainPosition: 233, separatorPosition: 314))
-        #expect(!StatusBarController.hasOrdinalSeedPair(mainPosition: 0, separatorPosition: 314))
+        #expect(StatusBarPositionStore.hasOrdinalSeedPair(mainPosition: 0, separatorPosition: 1))
+        #expect(StatusBarPositionStore.hasOrdinalSeedPair(mainPosition: 2, separatorPosition: 3))
+        #expect(!StatusBarPositionStore.hasOrdinalSeedPair(mainPosition: 233, separatorPosition: 314))
+        #expect(!StatusBarPositionStore.hasOrdinalSeedPair(mainPosition: 0, separatorPosition: 314))
     }
 
     @Test("Init forces anchor seeding when launch override is enabled")
@@ -268,8 +268,8 @@ struct StatusBarControllerResetRecoveryTests {
         let separatorKey = "NSStatusItem Preferred Position SaneBar_Separator_v10"
         let alwaysHiddenKey = "NSStatusItem Preferred Position SaneBar_AlwaysHiddenSeparator_v10"
         let spacerKey = "NSStatusItem Preferred Position SaneBar_spacer_0"
-        let backupMainKey = StatusBarController.displayPositionBackupKey(for: currentWidth, slot: "main")
-        let backupSeparatorKey = StatusBarController.displayPositionBackupKey(for: currentWidth, slot: "separator")
+        let backupMainKey = StatusBarPositionStore.displayPositionBackupKey(for: currentWidth, slot: "main")
+        let backupSeparatorKey = StatusBarPositionStore.displayPositionBackupKey(for: currentWidth, slot: "separator")
         let appVisibilityKey = "NSStatusItem Visible SaneBar_Main_v10"
         let byHostVisibilityKey = "NSStatusItem Visible SaneBar_Main_v10_v6"
         let byHostPreferredKey = "NSStatusItem Preferred Position SaneBar_Main_v10_v6"
@@ -349,7 +349,7 @@ struct StatusBarControllerResetRecoveryTests {
             kCFPreferencesCurrentHost
         )
 
-        StatusBarController.resetPersistentStatusItemState(alwaysHiddenEnabled: true)
+        StatusBarPositionRecoveryStore.resetPersistentStatusItemState(alwaysHiddenEnabled: true)
 
         #expect(defaults.object(forKey: versionKey) == nil)
         #expect(defaults.object(forKey: appVisibilityKey) == nil)
@@ -406,8 +406,8 @@ struct StatusBarControllerResetRecoveryTests {
         let oldSeparatorKey = "NSStatusItem Preferred Position SaneBar_Separator_v10"
         let freshMainKey = "NSStatusItem Preferred Position SaneBar_Main_v11"
         let freshSeparatorKey = "NSStatusItem Preferred Position SaneBar_Separator_v11"
-        let backupMainKey = StatusBarController.displayPositionBackupKey(for: currentWidth, slot: "main")
-        let backupSeparatorKey = StatusBarController.displayPositionBackupKey(for: currentWidth, slot: "separator")
+        let backupMainKey = StatusBarPositionStore.displayPositionBackupKey(for: currentWidth, slot: "main")
+        let backupSeparatorKey = StatusBarPositionStore.displayPositionBackupKey(for: currentWidth, slot: "separator")
         let keys = [
             versionKey,
             screenWidthKey,
@@ -435,7 +435,7 @@ struct StatusBarControllerResetRecoveryTests {
         defaults.set(420.0, forKey: oldMainKey)
         defaults.set(360.0, forKey: oldSeparatorKey)
 
-        StatusBarController.resetPersistentStatusItemState(
+        StatusBarPositionRecoveryStore.resetPersistentStatusItemState(
             alwaysHiddenEnabled: false,
             freshAutosaveNamespace: true
         )

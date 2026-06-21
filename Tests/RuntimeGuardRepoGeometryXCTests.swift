@@ -277,7 +277,7 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
         let source = try String(contentsOf: fileURL, encoding: .utf8)
 
         XCTAssertTrue(
-            source.contains("StatusBarController.resetPersistentStatusItemState(") &&
+            source.contains("StatusBarPositionRecoveryStore.resetPersistentStatusItemState(") &&
                 source.contains("MenuBarSpacingService.shared.resetToDefaults()") &&
                 source.contains("MenuBarSpacingService.shared.attemptGracefulRefresh()") &&
                 source.contains("freshAutosaveNamespace: true") &&

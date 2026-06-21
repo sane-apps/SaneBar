@@ -143,7 +143,7 @@ final class RuntimeGuardStartupRecoveryXCTests: RuntimeGuardTestCase {
             "Stable validation should wait briefly for a safe current-width backup instead of assuming one exists immediately"
         )
         XCTAssertTrue(
-            recoverySource.contains("StatusBarController.captureCurrentDisplayPositionBackupIfPossible(\n                referenceScreen: manager.currentRecoveryReferenceScreen()\n            )") &&
+            recoverySource.contains("StatusBarPositionStore.captureCurrentDisplayPositionBackupIfPossible(\n                referenceScreen: manager.currentRecoveryReferenceScreen()\n            )") &&
                 !recoverySource.contains("mainPosition: snapshot.mainX.map(Double.init)") &&
                 !recoverySource.contains("separatorPosition: snapshot.separatorX.map(Double.init)"),
             "Stable backup capture should use persisted NSStatusItem preferred positions, not raw runtime screen coordinates"
@@ -176,9 +176,9 @@ final class RuntimeGuardStartupRecoveryXCTests: RuntimeGuardTestCase {
                 recoverySource.contains("reason: reason,") &&
                 recoverySource.contains("isStartupRecovery: trigger.hasPrefix(\"startup-\")") &&
                 recoverySource.contains("validationContext: validationContext") &&
-                recoverySource.contains("StatusBarController.resetPersistentStatusItemState(") &&
+                recoverySource.contains("StatusBarPositionRecoveryStore.resetPersistentStatusItemState(") &&
                 recoverySource.contains("freshAutosaveNamespace: true") &&
-                recoverySource.contains("StatusBarController.recoverStartupPositions(") &&
+                recoverySource.contains("StatusBarPositionRecoveryStore.recoverStartupPositions(") &&
                 recoverySource.contains("recreateStatusItemsFromPersistedLayout(reason: trigger)"),
             "Status-item recovery should hard-reset poisoned startup geometry into a fresh autosave namespace while keeping non-startup geometry recovery on the lighter path"
         )

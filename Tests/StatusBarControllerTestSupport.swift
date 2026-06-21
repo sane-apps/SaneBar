@@ -17,9 +17,9 @@ extension NSMenu {
 
 func launchSafeRecoveryPair() -> (main: Double, separator: Double)? {
     guard let currentWidth = NSScreen.main?.frame.width else { return nil }
-    return StatusBarController.launchSafeCurrentDisplayRecoveryPair(
+    return StatusBarPositionStore.launchSafeCurrentDisplayRecoveryPair(
         screenWidth: currentWidth,
-        screenHasTopSafeAreaInset: StatusBarController.screenHasTopSafeAreaInset(NSScreen.main)
+        screenHasTopSafeAreaInset: StatusBarPositionStore.screenHasTopSafeAreaInset(NSScreen.main)
     )
 }
 

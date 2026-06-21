@@ -39,7 +39,7 @@ final class MenuBarProfileWorkflow {
         var profile = SaneBarProfile(
             name: name,
             settings: manager.settings,
-            layoutSnapshot: StatusBarController.captureLayoutSnapshot(),
+            layoutSnapshot: StatusBarLayoutSnapshotStore.captureLayoutSnapshot(),
             customIconSnapshot: PersistenceService.shared.makeCustomIconSnapshot()
         )
         profile.modifiedAt = Date()
@@ -83,7 +83,7 @@ final class MenuBarProfileWorkflow {
         }
 
         if let layoutSnapshot = profile.layoutSnapshot {
-            StatusBarController.applyLayoutSnapshot(layoutSnapshot)
+            StatusBarLayoutSnapshotStore.applyLayoutSnapshot(layoutSnapshot)
         }
 
         var nextSettings = preserveAutomation
@@ -246,7 +246,7 @@ final class MenuBarProfileWorkflow {
             return false
         }
 
-        let snapshot = StatusBarController.captureLayoutSnapshot()
+        let snapshot = StatusBarLayoutSnapshotStore.captureLayoutSnapshot()
         manager.settings.layoutRescueRestorePoint = snapshot
         manager.settings.layoutRescueRestorePointCreatedAt = Date()
         manager.saveSettings()
@@ -261,7 +261,7 @@ final class MenuBarProfileWorkflow {
             return false
         }
 
-        StatusBarController.applyLayoutSnapshot(snapshot)
+        StatusBarLayoutSnapshotStore.applyLayoutSnapshot(snapshot)
         manager.saveSettings()
         manager.restoreStatusItemLayoutIfNeeded()
         profileLogger.info("Restored layout rescue restore point reason=\(reason, privacy: .public)")

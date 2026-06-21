@@ -131,8 +131,8 @@ struct StatusBarControllerLifecycleTests {
         let cappedSeparatorKey = "NSStatusItem Preferred Position SaneBar_Separator_v99"
         let recycledMainKey = "NSStatusItem Preferred Position SaneBar_Main_v7"
         let recycledSeparatorKey = "NSStatusItem Preferred Position SaneBar_Separator_v7"
-        let backupMainKey = StatusBarController.displayPositionBackupKey(for: currentWidth, slot: "main")
-        let backupSeparatorKey = StatusBarController.displayPositionBackupKey(for: currentWidth, slot: "separator")
+        let backupMainKey = StatusBarPositionStore.displayPositionBackupKey(for: currentWidth, slot: "main")
+        let backupSeparatorKey = StatusBarPositionStore.displayPositionBackupKey(for: currentWidth, slot: "separator")
         let keys = [versionKey, cappedMainKey, cappedSeparatorKey, recycledMainKey, recycledSeparatorKey, backupMainKey, backupSeparatorKey]
         let originalValues: [(String, Any?)] = keys.map { ($0, defaults.object(forKey: $0)) }
 

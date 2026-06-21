@@ -81,10 +81,12 @@ enum MenuBarAppearanceSuppressionPolicy {
         let suppressThinTopHost = !bundleID.hasPrefix("com.apple.")
 
         func isSystemSpaceControlWindow(_ info: [String: Any]) -> Bool {
-            guard bundleID == "com.apple.dock" else { return false }
             guard let ownerPIDValue = info[kCGWindowOwnerPID as String] as? NSNumber else { return false }
             let ownerPID = pid_t(ownerPIDValue.intValue)
-            guard ownerPID == frontmostPID else { return false }
+            let ownerName = info[kCGWindowOwnerName as String] as? String
+            let dockIsFrontmost = bundleID == "com.apple.dock" && ownerPID == frontmostPID
+            let isDockWindow = dockIsFrontmost || ownerName == "Dock"
+            guard isDockWindow else { return false }
 
             guard let bounds = info[kCGWindowBounds as String] as? [String: Any],
                   let x = number(bounds["X"]),
@@ -98,7 +100,10 @@ enum MenuBarAppearanceSuppressionPolicy {
             let coveredRect = rect.intersection(targetFrame)
             let isOnscreen = bool(info[kCGWindowIsOnscreen as String]) ?? true
             let alpha = number(info[kCGWindowAlpha as String]) ?? 1
+            let layer = number(info[kCGWindowLayer as String]) ?? 0
             guard isOnscreen, alpha > 0 else { return false }
+            // Normal desktop has a Dock-owned full-screen layer-20 window; Mission Control adds layer 18.
+            guard dockIsFrontmost || layer < 20 else { return false }
             guard abs(rect.minX - targetFrame.minX) <= maximumHorizontalDrift else { return false }
             guard abs(rect.minY - targetFrame.minY) <= maximumTopDrift else { return false }
             guard coveredRect.width >= minimumCoveredWidth else { return false }

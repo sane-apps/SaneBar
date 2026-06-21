@@ -508,7 +508,7 @@ final class MenuBarAlwaysHiddenIconMoveWorkflow {
             await MainActor.run {
                 manager.clearCachedSeparatorGeometry()
                 manager.statusBarController.ensureAlwaysHiddenSeparator(enabled: false)
-                StatusBarController.seedAlwaysHiddenSeparatorPositionIfNeeded(referenceScreen: manager.currentRecoveryReferenceScreen())
+                StatusBarPositionRecoveryStore.seedAlwaysHiddenSeparatorPositionIfNeeded(referenceScreen: manager.currentRecoveryReferenceScreen())
                 manager.statusBarController.ensureAlwaysHiddenSeparator(enabled: true)
                 manager.alwaysHiddenSeparatorItem = manager.statusBarController.alwaysHiddenSeparatorItem
                 manager.hidingService.configureAlwaysHiddenDelimiter(manager.alwaysHiddenSeparatorItem)

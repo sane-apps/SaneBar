@@ -10,6 +10,15 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
+## [2.1.76] - 2026-06-21
+
+### Fixed
+
+- Keeps Custom Appearance out of Mission Control and Spaces control surfaces when macOS leaves another app frontmost.
+- Removes unused settings and status-item forwarding code while preserving existing menu bar recovery behavior.
+
+---
+
 ## [2.1.75] - 2026-06-20
 
 ### Fixed
