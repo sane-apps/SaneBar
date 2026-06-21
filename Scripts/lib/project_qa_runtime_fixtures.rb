@@ -139,6 +139,7 @@ class ProjectQA
     )
     focused_env['SANEBAR_SMOKE_EXACT_ID_MOVE_ONLY'] = '1'
     focused_env['SANEBAR_SMOKE_SKIP_LAUNCH_IDLE_BUDGET'] = '1'
+    focused_env['SANEBAR_SMOKE_ALLOW_NOTCH_UNSAFE_REQUIRED_SKIPS'] = '1' if lane_name == 'shared-bundle'
     if lane_name == 'host exact-id'
       focused_env['SANEBAR_SMOKE_PIN_REQUIRED_BROWSE_ALWAYS_HIDDEN'] = '1'
     end
@@ -152,7 +153,7 @@ class ProjectQA
         focused_env.merge('SANEBAR_SMOKE_RESOURCE_SAMPLE_PATH' => focused_sample_path),
         smoke_script,
         heartbeat_label: "runtime smoke #{lane_name} (try #{focused_attempt})",
-        timeout: RUNTIME_SMOKE_FOCUSED_PASS_TIMEOUT_SECONDS
+        timeout: focused_runtime_smoke_timeout_seconds(exact_ids)
       )
       focused_outputs << [
         "required_ids=#{exact_ids.join(',')}",
@@ -170,6 +171,17 @@ class ProjectQA
           File.write(log_path, focused_outputs.join("\n\n"))
           @errors << "Focused #{lane_name} smoke retry could not relaunch target #{target[:app_path]}. See #{log_path}."
           puts "❌ #{lane_name} retry relaunch failed (#{log_path})"
+          return false
+        end
+        unless prepare_focused_runtime_smoke_retry!(
+          target: target,
+          exact_ids: exact_ids,
+          lane_name: lane_name,
+          focused_outputs: focused_outputs
+        )
+          File.write(log_path, focused_outputs.join("\n\n"))
+          @errors << "Focused #{lane_name} smoke retry could not reseed exact-ID fixtures. See #{log_path}."
+          puts "❌ #{lane_name} retry fixture reseed failed (#{log_path})"
           return false
         end
         if (pro_error = focused_runtime_smoke_pro_error(target, "#{lane_name} retry"))
@@ -196,9 +208,37 @@ class ProjectQA
     true
   end
 
+  def prepare_focused_runtime_smoke_retry!(target:, exact_ids:, lane_name:, focused_outputs:)
+    return true unless lane_name == 'shared-bundle'
+
+    cleanup_runtime_shared_bundle_fixture!
+    resolved_ids = ensure_runtime_shared_bundle_fixture!(target)
+    missing_ids = exact_ids - resolved_ids
+    focused_outputs << "shared_bundle_retry_fixture_ids=#{resolved_ids.join(',')}"
+    return true if missing_ids.empty?
+
+    focused_outputs << "shared_bundle_retry_fixture_missing=#{missing_ids.join(',')}"
+    false
+  end
+
+  def focused_runtime_smoke_timeout_seconds(exact_ids)
+    [
+      RUNTIME_SMOKE_FOCUSED_PASS_TIMEOUT_SECONDS,
+      (Array(exact_ids).length * 150) + 90
+    ].max
+  end
+
   def focused_runtime_smoke_pro_error(target, lane_name)
-    snapshot = runtime_smoke_layout_snapshot(target)
-    return nil if snapshot && snapshot['licenseIsPro'] == true
+    deadline = Time.now + 15.0
+    snapshot = nil
+    loop do
+      snapshot = runtime_smoke_layout_snapshot(target)
+      return nil if snapshot && snapshot['licenseIsPro'] == true
+
+      break if Time.now >= deadline
+
+      sleep 0.5
+    end
 
     detail = snapshot.nil? ? 'snapshot unavailable' : "licenseIsPro=#{snapshot['licenseIsPro'].inspect}"
     "Focused #{lane_name} smoke requires a Pro no-keychain target before moving exact IDs; #{detail}. #{runtime_smoke_target_process_detail(target)} #{runtime_smoke_fallback_defaults_detail}".strip

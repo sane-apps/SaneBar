@@ -338,8 +338,10 @@ final class MenuBarObserverWorkflow {
         manager.clearCachedSeparatorGeometryForLifecycleTransition(reason: "wakeResume")
         logger.debug("\(notificationName, privacy: .public) - refreshed cached separator policy")
         manager.enforceExternalMonitorVisibilityPolicy(reason: "wakeResume")
-        // Wake can briefly report stale menu-bar coordinates; validation owns
-        // any physical replay only after attachment loss is confirmed.
+        // Wake can briefly report stale menu-bar coordinates. Arm the visible
+        // allow-list replay immediately, but let the guarded replay path wait
+        // for healthy anchors before any physical moves.
+        manager.markWakeVisibleAllowListReplayPending(reason: "wakeResume")
         manager.schedulePositionValidation(context: .wakeResume)
         manager.schedulePostRecoveryAutoRehideIfNeeded(reason: "wakeResume")
     }

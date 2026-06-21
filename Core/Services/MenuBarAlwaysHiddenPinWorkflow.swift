@@ -14,7 +14,8 @@ final class MenuBarAlwaysHiddenPinWorkflow {
     nonisolated static func separatorNeedsRepair(
         hasAlwaysHiddenSeparator: Bool,
         separatorX: CGFloat?,
-        alwaysHiddenSeparatorRightEdgeX: CGFloat?
+        alwaysHiddenSeparatorRightEdgeX: CGFloat?,
+        notchRightSafeMinX: CGFloat? = nil
     ) -> Bool {
         guard hasAlwaysHiddenSeparator else { return false }
         guard let separatorX,
@@ -22,12 +23,24 @@ final class MenuBarAlwaysHiddenPinWorkflow {
               let alwaysHiddenSeparatorRightEdgeX,
               alwaysHiddenSeparatorRightEdgeX.isFinite
         else { return false }
-        return alwaysHiddenSeparatorRightEdgeX >= separatorX
+        if alwaysHiddenSeparatorRightEdgeX >= separatorX {
+            return true
+        }
+        return StatusBarPositionStore.alwaysHiddenSeparatorNeedsNotchSafeRepair(
+            alwaysHiddenSeparatorRightEdgeX: alwaysHiddenSeparatorRightEdgeX,
+            notchRightSafeMinX: notchRightSafeMinX
+        )
     }
 
     func repairSeparatorPositionIfNeeded(reason: String) {
         guard manager.settings.alwaysHiddenSectionEnabled else { return }
         guard !manager.isRepairingAlwaysHiddenSeparator else { return }
+        guard !SearchWindowController.shared.isMoveInProgress else {
+            logger.debug(
+                "Always-hidden separator repair skipped while icon move is in progress (\(reason, privacy: .public))"
+            )
+            return
+        }
         guard let separatorFrame = manager.geometryResolver.currentLiveSeparatorFrame(),
               let alwaysHiddenFrame = manager.geometryResolver.currentLiveAlwaysHiddenSeparatorFrame()
         else {
@@ -38,10 +51,12 @@ final class MenuBarAlwaysHiddenPinWorkflow {
         }
         let separatorX = separatorFrame.origin.x
         let alwaysHiddenRightEdgeX = alwaysHiddenFrame.origin.x + alwaysHiddenFrame.width
+        let notchRightSafeMinX = manager.currentRecoveryReferenceScreen()?.auxiliaryTopRightArea?.minX
         guard Self.separatorNeedsRepair(
             hasAlwaysHiddenSeparator: manager.alwaysHiddenSeparatorItem != nil,
             separatorX: separatorX,
-            alwaysHiddenSeparatorRightEdgeX: alwaysHiddenRightEdgeX
+            alwaysHiddenSeparatorRightEdgeX: alwaysHiddenRightEdgeX,
+            notchRightSafeMinX: notchRightSafeMinX
         ) else { return }
 
         let now = Date()
@@ -59,7 +74,7 @@ final class MenuBarAlwaysHiddenPinWorkflow {
 
         manager.clearCachedSeparatorGeometry()
         manager.statusBarController.ensureAlwaysHiddenSeparator(enabled: false)
-        StatusBarController.seedAlwaysHiddenSeparatorPositionIfNeeded()
+        StatusBarController.seedAlwaysHiddenSeparatorPositionIfNeeded(referenceScreen: manager.currentRecoveryReferenceScreen())
         manager.statusBarController.ensureAlwaysHiddenSeparator(enabled: true)
         manager.alwaysHiddenSeparatorItem = manager.statusBarController.alwaysHiddenSeparatorItem
         manager.hidingService.configureAlwaysHiddenDelimiter(manager.alwaysHiddenSeparatorItem)
@@ -104,7 +119,8 @@ final class MenuBarAlwaysHiddenPinWorkflow {
             guard Self.separatorNeedsRepair(
                 hasAlwaysHiddenSeparator: manager.alwaysHiddenSeparatorItem != nil,
                 separatorX: postSepX,
-                alwaysHiddenSeparatorRightEdgeX: postAHRightX
+                alwaysHiddenSeparatorRightEdgeX: postAHRightX,
+                notchRightSafeMinX: manager.currentRecoveryReferenceScreen()?.auxiliaryTopRightArea?.minX
             ) else {
                 guard !Task.isCancelled else { return }
                 guard manager.alwaysHiddenSeparatorRepairGeneration == repairGeneration else { return }
@@ -126,7 +142,7 @@ final class MenuBarAlwaysHiddenPinWorkflow {
             )
             manager.clearCachedSeparatorGeometry()
             manager.statusBarController.ensureAlwaysHiddenSeparator(enabled: false)
-            StatusBarController.seedAlwaysHiddenSeparatorPositionIfNeeded()
+            StatusBarController.seedAlwaysHiddenSeparatorPositionIfNeeded(referenceScreen: manager.currentRecoveryReferenceScreen())
             manager.statusBarController.ensureAlwaysHiddenSeparator(enabled: true)
             manager.alwaysHiddenSeparatorItem = manager.statusBarController.alwaysHiddenSeparatorItem
             manager.hidingService.configureAlwaysHiddenDelimiter(manager.alwaysHiddenSeparatorItem)

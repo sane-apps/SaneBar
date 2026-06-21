@@ -206,6 +206,30 @@ struct StatusBarControllerDisplayBackupTests {
         )
     }
 
+    @Test("Always Hidden separator seed stays inside notch-safe status region")
+    func alwaysHiddenSeparatorSeedStaysInsideNotchSafeStatusRegion() {
+        let airPreferredPosition = StatusBarPositionStore.alwaysHiddenPreferredPosition(
+            screenWidth: 1470,
+            notchRightSafeMinX: 825
+        )
+
+        #expect(airPreferredPosition == 465)
+        #expect(1470 - airPreferredPosition == 1005)
+        #expect(
+            !StatusBarPositionStore.alwaysHiddenSeparatorNeedsNotchSafeRepair(
+                alwaysHiddenSeparatorRightEdgeX: 1005,
+                notchRightSafeMinX: 825
+            )
+        )
+        #expect(
+            StatusBarPositionStore.alwaysHiddenSeparatorNeedsNotchSafeRepair(
+                alwaysHiddenSeparatorRightEdgeX: 469,
+                notchRightSafeMinX: 825
+            )
+        )
+        #expect(StatusBarPositionStore.alwaysHiddenPreferredPosition(screenWidth: 1920, notchRightSafeMinX: nil) == 10000)
+    }
+
     @Test("Reanchored preferred positions preserve lane width while moving toward Control Center")
     func reanchoredPreferredPositionsPreserveLaneWidth() {
         let reanchored = StatusBarController.reanchoredPreferredPositionsTowardControlCenter(

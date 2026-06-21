@@ -22,7 +22,7 @@ launches:
     url: "https://www.producthunt.com/posts/sanebar"
     date: "2026-01-24"
     status: "live"
-    notes: "Received PH badge. Peak sales day was Jan 25 (42 orders). 2026-06-18 Product Hunt API recheck still showed the same weak surface: post is live but unfeatured (`featuredAt: null`) with 3 votes, 1 comment, daily rank 121, weekly rank 362, monthly rank 2756, 6 images, 1 YouTube video, and maker reply present."
+    notes: "Received PH badge. Peak sales day was Jan 25 (42 orders). 2026-06-20 Product Hunt API recheck still showed the same weak surface: post is live but unfeatured (`featuredAt: null`) with 3 votes, 1 comment, daily rank 121, weekly rank 362, monthly rank 2756, 6 images, 1 YouTube video, and maker reply present."
 
   - platform: "LaunchIgniter"
     url: "https://launchigniter.com/product/sanebar"
@@ -108,18 +108,18 @@ launch_calendar:
       gate: "No Product Hunt relaunch, no Show HN repost, and no generic standalone launch posts."
       success_metric: "0-2 high-fit replies per week or a recorded no-go."
       last_reviewed: "2026-06-20"
-      result: "On 2026-06-20, canonical Mini `launch_readiness --json` reran from the repo root and returned `ok: false`: SaneBar remains relaunch-blocked because it already used its real Product Hunt/Hacker News launch and open layout-stability/icon-movement support issues still make broad amplification weak. Today the gate also regressed because fresh Mini `release_preflight` is now failed with 1 issue and 6 warnings at 0.66 days old. The latest shared validation receipt at `/Users/sj/SaneApps/infra/SaneProcess/outputs/validation/2026-06-20.json` returned `NOT READY FOR RELEASE` with 176 customer-facing release blockers, including stale SaneBar customer-UI proof and missing durable resource-soak evidence. No opportunity monitoring action, public reply, public post, scheduling action, or directory action was executed."
+      result: "On 2026-06-20, canonical Mini `launch_readiness --json` reran cleanly from the repo root and returned `ok: true` with warnings only. SaneBar is still meaningfully launched and still should not burn another Product Hunt/Hacker News relaunch without a major new story, but those concerns are now advisory for the already-live support lane instead of a hard no-go. Broad relaunch is still not recommended, fresh Mini `release_preflight` is failed with 268 issues and 6 warnings at 0.17 days old, and no opportunity monitoring action, public reply, public post, scheduling action, or directory action was executed."
   last_launch_readiness:
     date: "2026-06-20"
-    status: "no_go"
-    launch_readiness_exit: 1
+    status: "ok_with_warnings"
+    launch_readiness_exit: 0
     blocker_summary:
-      - "Canonical Mini `launch_readiness --json` reran on 2026-06-20 and exited nonzero."
-      - "SaneBar remains launch no-go because it already had the real Product Hunt/Hacker News launch and a repost without a major new story would still be weak."
+      - "Canonical Mini `launch_readiness --json` reran on 2026-06-20 and exited zero with warnings only."
+      - "The live route returned `ok: true` because SaneBar is already meaningfully launched and relaunch-story/support-noise findings are advisory-only for the already-live support lane."
+      - "Already launched on Product Hunt/HN; a repost without a major new story would still look weak."
       - "Open support issues remain around layout stability and icon movement; do not amplify broadly until the current patch is live and stable."
-      - "Fresh Mini `release_preflight` reran through the launch gate on 2026-06-20 and is now failed with 1 issue and 6 warnings at 0.66 days old, so even the patch lane is no longer warning-green."
-      - "The latest shared validation receipt at `/Users/sj/SaneApps/infra/SaneProcess/outputs/validation/2026-06-20.json` returned `NOT READY FOR RELEASE` with 176 customer-facing release blockers, including stale customer-UI plus missing durable resource-soak proof for SaneBar."
-      - "No weekly opportunity monitoring action was executed on 2026-06-20 because the app gate remained red and the schedule only allows targeted disclosed replies, not a relaunch."
+      - "Mini `release_preflight` is not green: failed with 268 issues and 6 warnings at 0.17 days old."
+      - "No weekly opportunity monitoring action was executed on 2026-06-20 because the schedule only allows targeted disclosed replies, not a broad relaunch."
     next_date: "2026-06-27"
 
 x_search_keywords:

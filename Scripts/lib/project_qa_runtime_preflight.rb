@@ -87,7 +87,9 @@ class ProjectQA
       FileUtils.rm_f(RUNTIME_DYNAMIC_HELPER_FIXTURE_LOG_PATH)
       FileUtils.rm_f(RUNTIME_VISIBLE_DYNAMIC_HELPER_FIXTURE_LOG_PATH)
       screenshot_capture_available = runtime_screenshot_capture_available?(screenshot_dir)
-      release_smoke_screenshots_required = ENV.fetch('SANEBAR_RELEASE_SMOKE_SCREENSHOTS', '1') != '0'
+      resume_phase = runtime_smoke_resume_phase
+      release_smoke_screenshots_required =
+        resume_phase == 'move_matrix' ? false : ENV.fetch('SANEBAR_RELEASE_SMOKE_SCREENSHOTS', '1') != '0'
       capture_runtime_smoke_screenshots = release_smoke_screenshots_required && screenshot_capture_available
       appearance_settings_backup = prepare_runtime_smoke_appearance_settings! if capture_runtime_smoke_screenshots
       seed_runtime_smoke_no_keychain_pro_defaults!
@@ -128,6 +130,14 @@ class ProjectQA
         @errors << "#{target_error} See #{RUNTIME_LAUNCH_LOG_PATH}"
         puts "❌ invalid runtime smoke target (#{RUNTIME_LAUNCH_LOG_PATH})"
         return
+      end
+
+      if capture_runtime_smoke_screenshots
+        # SaneMaster test_mode owns runtime cleanup and may rewrite settings after
+        # the original backup/seed above. Reapply the visual fixture after that
+        # boundary, then relaunch so the app reads it at startup.
+        prepare_runtime_smoke_appearance_settings!
+        target = target.merge(relaunch: true)
       end
 
       unless ensure_runtime_smoke_target_running!(target)
@@ -210,6 +220,8 @@ class ProjectQA
       }
       if capture_runtime_smoke_screenshots
         puts '   ↳ smoke screenshots enabled by SANEBAR_RELEASE_SMOKE_SCREENSHOTS=1'
+      elsif resume_phase == 'move_matrix'
+        puts '   ↳ resuming runtime smoke at move matrix; skipping browse/settings/fullscreen visual phases already covered by the prior receipt'
       elsif screenshot_capture_available
         puts '   ↳ smoke screenshots disabled for release gating (set SANEBAR_RELEASE_SMOKE_SCREENSHOTS=1 to opt in)'
       else
@@ -236,6 +248,14 @@ class ProjectQA
           resource_sample_path = "/tmp/sanebar_runtime_resource_sample-pass#{pass_number}-try#{attempt}.txt"
           FileUtils.rm_f(resource_sample_path)
           pass_env = smoke_env.merge('SANEBAR_SMOKE_RESOURCE_SAMPLE_PATH' => resource_sample_path)
+          pass_env.merge!(
+            'SANEBAR_SMOKE_EXACT_ID_MOVE_ONLY' => '1',
+            'SANEBAR_SMOKE_SKIP_LAUNCH_IDLE_BUDGET' => '1',
+            'SANEBAR_SMOKE_CAPTURE_SCREENSHOTS' => '0',
+            'SANEBAR_SMOKE_REQUIRE_APPEARANCE_TRANSITIONS' => '0',
+            'SANEBAR_SMOKE_REQUIRE_APPEARANCE_TINT_PIXELS' => '0',
+            'SANEBAR_SMOKE_REQUIRE_VISIBLE_APPEARANCE_PIXELS' => '0'
+          ) if resume_phase == 'move_matrix'
           smoke_out, smoke_status = capture2e_with_progress(
             pass_env,
             smoke_script,

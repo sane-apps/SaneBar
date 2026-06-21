@@ -489,54 +489,57 @@ final class MenuBarAlwaysHiddenIconMoveWorkflow {
         requiresAlwaysHiddenToHiddenTargets: Bool = false,
         requiresAlwaysHiddenBoundary: Bool = false
     ) async -> Bool {
-        let sourceIsOnScreen = sourceFrameIsOnScreen(request)
-        let liveTargetsReady: Bool
-        if requiresAlwaysHiddenToHiddenTargets {
-            liveTargetsReady = await currentAlwaysHiddenToHiddenTargets() != nil
-        } else if requiresAlwaysHiddenBoundary {
-            liveTargetsReady = await MainActor.run {
-                manager.geometryResolver.currentLiveAlwaysHiddenSeparatorBoundaryX() != nil
+        for repairAttempt in 1 ... 3 {
+            let sourceIsOnScreen = sourceFrameIsOnScreen(request)
+            let liveTargetsReady: Bool
+            if requiresAlwaysHiddenToHiddenTargets {
+                liveTargetsReady = await currentAlwaysHiddenToHiddenTargets() != nil
+            } else if requiresAlwaysHiddenBoundary {
+                liveTargetsReady = await alwaysHiddenBoundaryIsUsableForInboundMove()
+            } else {
+                liveTargetsReady = true
             }
-        } else {
-            liveTargetsReady = true
-        }
-        if sourceIsOnScreen, liveTargetsReady { return true }
+            if sourceIsOnScreen, liveTargetsReady { return true }
 
-        logger.warning("Always-hidden move geometry is not live after showAll; recreating AH separator before retry")
-        if requiresAlwaysHiddenToHiddenTargets {
-            await repairStatusItemsForAlwaysHiddenToHiddenTargetsIfNeeded()
-        }
-        await MainActor.run {
-            manager.clearCachedSeparatorGeometry()
-            manager.statusBarController.ensureAlwaysHiddenSeparator(enabled: false)
-            StatusBarController.seedAlwaysHiddenSeparatorPositionIfNeeded()
-            manager.statusBarController.ensureAlwaysHiddenSeparator(enabled: true)
-            manager.alwaysHiddenSeparatorItem = manager.statusBarController.alwaysHiddenSeparatorItem
-            manager.hidingService.configureAlwaysHiddenDelimiter(manager.alwaysHiddenSeparatorItem)
-            manager.clearCachedSeparatorGeometry()
-            AccessibilityService.shared.invalidateMenuBarItemCache()
+            logger.warning("Always-hidden move geometry is not live after showAll; recreating AH separator before retry \(repairAttempt, privacy: .public)")
+            if requiresAlwaysHiddenToHiddenTargets {
+                await repairStatusItemsForAlwaysHiddenToHiddenTargetsIfNeeded()
+            }
+            await MainActor.run {
+                manager.clearCachedSeparatorGeometry()
+                manager.statusBarController.ensureAlwaysHiddenSeparator(enabled: false)
+                StatusBarController.seedAlwaysHiddenSeparatorPositionIfNeeded(referenceScreen: manager.currentRecoveryReferenceScreen())
+                manager.statusBarController.ensureAlwaysHiddenSeparator(enabled: true)
+                manager.alwaysHiddenSeparatorItem = manager.statusBarController.alwaysHiddenSeparatorItem
+                manager.hidingService.configureAlwaysHiddenDelimiter(manager.alwaysHiddenSeparatorItem)
+                manager.clearCachedSeparatorGeometry()
+                AccessibilityService.shared.invalidateMenuBarItemCache()
+            }
+
+            await manager.hidingService.showAll()
+            try? await Task.sleep(for: .milliseconds(400))
+            await manager.geometryResolver.warmSeparatorPositionCache(maxAttempts: 16)
+            await manager.geometryResolver.warmAlwaysHiddenSeparatorPositionCache(maxAttempts: 16)
+            await manager.moveTaskCoordinator.refreshAccessibilityCacheAfterMove()
+
+            if sourceFrameIsOnScreen(request) {
+                if requiresAlwaysHiddenToHiddenTargets, await currentAlwaysHiddenToHiddenTargets() == nil {
+                    logger.warning("Outbound AH-to-Hidden targets stayed unavailable after AH separator repair attempt \(repairAttempt, privacy: .public)")
+                    continue
+                }
+                if requiresAlwaysHiddenBoundary,
+                   !(await alwaysHiddenBoundaryIsUsableForInboundMove()) {
+                    logger.warning("Inbound always-hidden boundary stayed unavailable after AH separator repair attempt \(repairAttempt, privacy: .public)")
+                    continue
+                }
+                return true
+            }
+
+            logger.warning("Outbound always-hidden source stayed off-screen after AH separator repair attempt \(repairAttempt, privacy: .public)")
         }
 
-        await manager.hidingService.showAll()
-        try? await Task.sleep(for: .milliseconds(400))
-        await manager.geometryResolver.warmSeparatorPositionCache(maxAttempts: 16)
-        await manager.geometryResolver.warmAlwaysHiddenSeparatorPositionCache(maxAttempts: 16)
-        await manager.moveTaskCoordinator.refreshAccessibilityCacheAfterMove()
-
-        guard sourceFrameIsOnScreen(request) else {
-            logger.error("Outbound always-hidden source stayed off-screen after AH separator repair; aborting move before drag")
-            return false
-        }
-        if requiresAlwaysHiddenToHiddenTargets, await currentAlwaysHiddenToHiddenTargets() == nil {
-            logger.error("Outbound AH-to-Hidden targets stayed unavailable after AH separator repair; aborting move before drag")
-            return false
-        }
-        if requiresAlwaysHiddenBoundary,
-           await MainActor.run(body: { manager.geometryResolver.currentLiveAlwaysHiddenSeparatorBoundaryX() == nil }) {
-            logger.error("Inbound always-hidden boundary stayed unavailable after AH separator repair; aborting move before drag")
-            return false
-        }
-        return true
+        logger.error("Always-hidden move geometry stayed unavailable after repeated AH separator repair; aborting move before drag")
+        return false
     }
 
     private func repairStatusItemsForAlwaysHiddenToHiddenTargetsIfNeeded() async {
@@ -558,6 +561,19 @@ final class MenuBarAlwaysHiddenIconMoveWorkflow {
         await manager.geometryResolver.warmSeparatorPositionCache(maxAttempts: 24)
         await manager.geometryResolver.warmAlwaysHiddenSeparatorPositionCache(maxAttempts: 24)
         await manager.moveTaskCoordinator.refreshAccessibilityCacheAfterMove()
+    }
+
+    private func alwaysHiddenBoundaryIsUsableForInboundMove() async -> Bool {
+        await MainActor.run {
+            guard let boundaryX = manager.geometryResolver.inboundAlwaysHiddenSeparatorBoundaryX(allowCachedMainSeparator: true) else {
+                return false
+            }
+            let notchRightSafeMinX = manager.currentRecoveryReferenceScreen()?.auxiliaryTopRightArea?.minX
+            return !StatusBarPositionStore.alwaysHiddenSeparatorNeedsNotchSafeRepair(
+                alwaysHiddenSeparatorRightEdgeX: boundaryX,
+                notchRightSafeMinX: notchRightSafeMinX
+            )
+        }
     }
 
     private func repairAlwaysHiddenSeparatorForInboundMoveIfNeeded(_ request: Request) async -> Bool {

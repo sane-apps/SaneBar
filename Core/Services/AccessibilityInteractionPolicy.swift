@@ -137,6 +137,38 @@ enum AccessibilityInteractionPolicy {
         )
     }
 
+    nonisolated static func frameStartsInNotchUnsafeMenuBarRegion(
+        _ frame: CGRect,
+        preferredScreenFrame: CGRect? = nil,
+        screens: [NSScreen] = NSScreen.screens
+    ) -> Bool {
+        guard let screen = screens.first(where: { screen in
+            if let preferredScreenFrame, screen.frame.equalTo(preferredScreenFrame) {
+                return true
+            }
+            return screen.frame.insetBy(dx: -2, dy: -2).contains(CGPoint(x: frame.midX, y: frame.midY))
+        }) else {
+            return false
+        }
+        guard let rightSafeArea = screen.auxiliaryTopRightArea else { return false }
+        let unsafeRightX = rightSafeArea.minX
+        let menuBandHeight = max(72, screen.safeAreaInsets.top + 24)
+        let bottomOriginMenuBandMinY = screen.frame.maxY - menuBandHeight
+        let topOriginMenuBandMaxY = menuBandHeight
+        let appearsInMenuBand =
+            frame.midY <= topOriginMenuBandMaxY ||
+            frame.minY <= topOriginMenuBandMaxY ||
+            frame.midY >= bottomOriginMenuBandMinY ||
+            frame.maxY >= bottomOriginMenuBandMinY
+        guard appearsInMenuBand else { return false }
+
+        // Status items live in the right auxiliary area on notched MacBooks.
+        // The left auxiliary area is visible, but it belongs to the app menu;
+        // starting a status-item drag there collides with the notch/menu split.
+        let rightAuxiliaryInset: CGFloat = 8
+        return frame.minX < unsafeRightX + rightAuxiliaryInset || frame.midX > rightSafeArea.maxX
+    }
+
     nonisolated static func normalizedEventY(rawY: CGFloat, globalMaxY: CGFloat, anchorY: CGFloat) -> CGFloat {
         let flippedY = globalMaxY - rawY
 
@@ -435,7 +467,16 @@ enum AccessibilityInteractionPolicy {
             guard hiddenLaneWidth > 0 else {
                 return farHiddenX
             }
-            return ahBoundary + (hiddenLaneWidth * 0.5)
+            let laneMargin = min(CGFloat(6), max(CGFloat(1), hiddenLaneWidth * 0.25))
+            let minRegularHiddenX = ahBoundary + laneMargin
+            let separatorSafety = max(20, (iconWidth * 0.5) + 12)
+            let boundedSeparatorSafety = min(separatorSafety, max(laneMargin, hiddenLaneWidth * 0.45))
+            let maxRegularHiddenX = separatorX - boundedSeparatorSafety
+            guard minRegularHiddenX <= maxRegularHiddenX else {
+                return ahBoundary + (hiddenLaneWidth * 0.5)
+            }
+            let rightBiasInset = max(6, min(20, iconWidth * 0.45))
+            return min(max(maxRegularHiddenX - rightBiasInset, minRegularHiddenX), maxRegularHiddenX)
 
         case .alwaysHidden:
             // Always-hidden insertion should stay close to the AH separator instead

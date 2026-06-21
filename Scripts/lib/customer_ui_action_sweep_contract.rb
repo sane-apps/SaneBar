@@ -201,7 +201,7 @@ class CustomerUIActionSweep
       evidence('screenshot', 'Startup recovery includes Custom Appearance overlay tint pixel evidence from Mini runtime smoke', [screenshot_for_action('startup-wake-appearance-recovery')]),
       evidence('state_receipt', runtime_line(runtime_lines, 'Appearance tint pixels ok')),
       evidence('state_receipt', runtime_line(runtime_lines, 'Visible fullscreen transition contract ok')),
-      evidence('log', 'Startup, wake, and appearance recovery runtime logs captured', runtime_log_artifacts + runtime_startup_probe_log_paths + ['/tmp/sanebar_runtime_wake_probe.log']),
+      evidence('log', 'Startup, wake, and appearance recovery runtime logs captured', runtime_log_artifacts + runtime_startup_probe_log_paths + runtime_wake_probe_log_paths),
       evidence('source_guard', source_line(source_lines, 'recovery'))
     ])
   end
@@ -583,7 +583,7 @@ class CustomerUIActionSweep
     paths = [
       '/tmp/sanebar_runtime_smoke.log',
       *runtime_startup_probe_log_paths,
-      '/tmp/sanebar_runtime_wake_probe.log',
+      *runtime_wake_probe_log_paths,
       '/tmp/sanebar_runtime_strict_fixture_smoke.log',
       '/tmp/sanebar_runtime_shared_bundle_smoke.log',
       '/tmp/sanebar_runtime_native_apple_smoke.log',
@@ -611,7 +611,7 @@ class CustomerUIActionSweep
       end
     end
 
-    wake_artifact = '/tmp/sanebar_runtime_wake_probe.json'
+    wake_artifact = runtime_wake_probe_artifact_paths.find { |path| fresh_release_runtime_evidence?(path) }
     if fresh_release_runtime_evidence?(wake_artifact)
       payload = JSON.parse(safe_read_artifact(wake_artifact))
       if payload['status'] == 'pass'
@@ -646,6 +646,20 @@ class CustomerUIActionSweep
     [
       File.join(PROJECT_ROOT, 'outputs', 'runtime-preflight', 'sanebar_runtime_startup_probe.json'),
       '/tmp/sanebar_runtime_startup_probe.json'
+    ]
+  end
+
+  def runtime_wake_probe_log_paths
+    [
+      File.join(PROJECT_ROOT, 'outputs', 'runtime-preflight', 'sanebar_runtime_wake_probe.log'),
+      '/tmp/sanebar_runtime_wake_probe.log'
+    ]
+  end
+
+  def runtime_wake_probe_artifact_paths
+    [
+      File.join(PROJECT_ROOT, 'outputs', 'runtime-preflight', 'sanebar_runtime_wake_probe.json'),
+      '/tmp/sanebar_runtime_wake_probe.json'
     ]
   end
 

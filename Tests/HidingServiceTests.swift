@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 @testable import SaneBar
 import Testing
@@ -464,9 +465,9 @@ struct AlwaysHiddenRegressionTests {
 
     // MARK: - Position Seed Regression
 
-    @Test("AH separator position seed must be 10000, not 200")
+    @Test("AH separator position seed uses display-safe value, not stale 200")
     @MainActor
-    func ahPositionSeedIs10000() {
+    func ahPositionSeedIsDisplaySafe() {
         // Regression: Position 200 placed AH in the middle of real menu bar items
         // (WiFi:299, Bluetooth:405, Siri:437), causing them to be pushed off-screen
         let defaults = UserDefaults.standard
@@ -478,15 +479,16 @@ struct AlwaysHiddenRegressionTests {
         // Trigger seeding
         StatusBarController.seedAlwaysHiddenSeparatorPositionIfNeeded()
 
+        let expected = StatusBarPositionStore.alwaysHiddenPreferredPosition(referenceScreen: NSScreen.main ?? NSScreen.screens.first)
         let position = defaults.double(forKey: key)
-        #expect(position == 10000,
-                "AH position must be 10000 (far left), not 200. 200 places AH in the middle of system items.")
+        #expect(position == expected,
+                "AH position must be display-safe. 200 places AH in the middle of system items; far-left is invalid under a notch.")
 
         // Cleanup
         defaults.removeObject(forKey: key)
     }
 
-    @Test("AH seed enforces 10000 even when key already exists")
+    @Test("AH seed enforces display-safe value even when key already exists")
     @MainActor
     func ahSeedEnforcesLatestValue() {
         let defaults = UserDefaults.standard
@@ -496,14 +498,15 @@ struct AlwaysHiddenRegressionTests {
         // from stale/corrupted values left by prior cmd-drag experiments.
         defaults.set(5000.0, forKey: key)
         StatusBarController.seedAlwaysHiddenSeparatorPositionIfNeeded()
-        #expect(defaults.double(forKey: key) == 10000,
-                "Seed must enforce 10000 to recover from stale positions")
+        let expected = StatusBarPositionStore.alwaysHiddenPreferredPosition(referenceScreen: NSScreen.main ?? NSScreen.screens.first)
+        #expect(defaults.double(forKey: key) == expected,
+                "Seed must enforce the display-safe value to recover from stale positions")
 
         // Cleanup
         defaults.removeObject(forKey: key)
     }
 
-    @Test("AH seed writes 10000 when key is nil")
+    @Test("AH seed writes display-safe value when key is nil")
     @MainActor
     func ahSeedWrites10000WhenNil() {
         let defaults = UserDefaults.standard
@@ -512,8 +515,9 @@ struct AlwaysHiddenRegressionTests {
         // Clear so seed triggers
         defaults.removeObject(forKey: key)
         StatusBarController.seedAlwaysHiddenSeparatorPositionIfNeeded()
-        #expect(defaults.double(forKey: key) == 10000,
-                "AH position must seed as 10000 (far left)")
+        let expected = StatusBarPositionStore.alwaysHiddenPreferredPosition(referenceScreen: NSScreen.main ?? NSScreen.screens.first)
+        #expect(defaults.double(forKey: key) == expected,
+                "AH position must seed to the display-safe value")
 
         // Cleanup
         defaults.removeObject(forKey: key)
@@ -533,10 +537,11 @@ struct AlwaysHiddenRegressionTests {
         // Simulate toggle off: position cleared
         defaults.removeObject(forKey: key)
 
-        // Simulate toggle on: should reseed as 10000
+        // Simulate toggle on: should reseed to the display-safe value.
         StatusBarController.seedAlwaysHiddenSeparatorPositionIfNeeded()
-        #expect(defaults.double(forKey: key) == 10000,
-                "After toggle off+on, AH must reseed as 10000")
+        let expected = StatusBarPositionStore.alwaysHiddenPreferredPosition(referenceScreen: NSScreen.main ?? NSScreen.screens.first)
+        #expect(defaults.double(forKey: key) == expected,
+                "After toggle off+on, AH must reseed to the display-safe value")
 
         // Cleanup
         defaults.removeObject(forKey: key)

@@ -97,6 +97,11 @@
             <result type="text" description="Newline-separated lines: zone, movable, bundleId, uniqueId, name"/>
         </command>
 
+        <command name="list icon zone geometry" code="SBarlzig" description="List detected menu bar icons with current visibility zones, geometry, and notch-safe drag-source status">
+            <cocoa class="ListIconZoneGeometryCommand"/>
+            <result type="text" description="Newline-separated lines: zone, movable, bundleId, uniqueId, x, width, centerX, dragSourceSafety (safe, unsafe, offscreen, unknown), name"/>
+        </command>
+
         <!-- Layout Snapshot Command -->
         <command name="layout snapshot" code="SBarlyot" description="Return a JSON snapshot of menu bar launch/layout invariants">
             <cocoa class="LayoutSnapshotCommand"/>

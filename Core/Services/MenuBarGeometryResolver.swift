@@ -87,14 +87,20 @@ final class MenuBarGeometryResolver {
         return frame
     }
 
-    func currentLiveAlwaysHiddenSeparatorBoundaryX() -> CGFloat? {
-        guard let alwaysHiddenFrame = currentLiveAlwaysHiddenSeparatorFrame(),
-              let separatorFrame = currentLiveSeparatorFrame()
-        else {
+    func currentLiveAlwaysHiddenSeparatorBoundaryX(allowCachedMainSeparator: Bool = false) -> CGFloat? {
+        guard let alwaysHiddenFrame = currentLiveAlwaysHiddenSeparatorFrame() else {
             return nil
         }
 
-        let separatorBoundaryX = separatorFrame.origin.x + separatorFrame.width
+        let separatorBoundaryX: CGFloat?
+        if let separatorFrame = currentLiveSeparatorFrame() {
+            separatorBoundaryX = separatorFrame.origin.x + separatorFrame.width
+        } else if allowCachedMainSeparator {
+            separatorBoundaryX = separatorRightEdgeX(allowEstimatedFallback: false)
+        } else {
+            separatorBoundaryX = nil
+        }
+
         let normalized = MenuBarMoveGeometryPolicy.normalizedAlwaysHiddenBoundary(
             cachedRightEdge: alwaysHiddenFrame.origin.x + alwaysHiddenFrame.width,
             cachedOrigin: alwaysHiddenFrame.origin.x,
@@ -103,6 +109,76 @@ final class MenuBarGeometryResolver {
         if let normalized {
             cache.lastKnownAlwaysHiddenSeparatorX = alwaysHiddenFrame.origin.x
             cache.lastKnownAlwaysHiddenSeparatorRightEdgeX = normalized
+        }
+        return normalized
+    }
+
+    func inboundAlwaysHiddenSeparatorBoundaryX(allowCachedMainSeparator: Bool = false) -> CGFloat? {
+        if let liveBoundary = currentLiveAlwaysHiddenSeparatorBoundaryX(allowCachedMainSeparator: allowCachedMainSeparator) {
+            let notchRightSafeMinX = manager.currentRecoveryReferenceScreen()?.auxiliaryTopRightArea?.minX
+            if !StatusBarPositionStore.alwaysHiddenSeparatorNeedsNotchSafeRepair(
+                alwaysHiddenSeparatorRightEdgeX: liveBoundary,
+                notchRightSafeMinX: notchRightSafeMinX
+            ) {
+                return liveBoundary
+            }
+            logger.warning("Rejecting live AH separator boundary \(liveBoundary, privacy: .public) for inbound move because it still needs notch-safe repair")
+        }
+
+        guard let alwaysHiddenSeparatorItem = manager.alwaysHiddenSeparatorItem else {
+            logger.warning("Cannot seed inbound AH separator boundary: AH separator item is missing")
+            return nil
+        }
+        guard let referenceScreen = manager.currentRecoveryReferenceScreen() else {
+            logger.warning("Cannot seed inbound AH separator boundary: reference screen is missing")
+            return nil
+        }
+
+        let preferredPosition = StatusBarPositionDefaultsStore.resolvedPreferredPosition(
+            forAutosaveName: StatusBarPositionStore.alwaysHiddenSeparatorAutosaveName
+        ) ?? StatusBarPositionStore.alwaysHiddenPreferredPosition(referenceScreen: referenceScreen)
+        guard preferredPosition.isFinite,
+              preferredPosition < 9000
+        else {
+            logger.warning("Cannot seed inbound AH separator boundary: preferred position \(preferredPosition, privacy: .public) is not a finite screen-relative position")
+            return nil
+        }
+
+        let separatorBoundaryX: CGFloat?
+        if let separatorFrame = currentLiveSeparatorFrame() {
+            separatorBoundaryX = separatorFrame.origin.x + separatorFrame.width
+        } else if allowCachedMainSeparator {
+            separatorBoundaryX = separatorRightEdgeX(allowEstimatedFallback: false)
+        } else {
+            separatorBoundaryX = nil
+        }
+
+        let seededBoundaryX = referenceScreen.frame.maxX - CGFloat(preferredPosition)
+        let normalized: CGFloat?
+        if let separatorBoundaryX {
+            let separatorRelativeBoundary = MenuBarMoveGeometryPolicy.normalizedAlwaysHiddenBoundary(
+                cachedRightEdge: seededBoundaryX,
+                cachedOrigin: seededBoundaryX - MenuBarMoveGeometryPolicy.separatorVisualWidth,
+                separatorX: separatorBoundaryX
+            )
+            if let separatorRelativeBoundary {
+                normalized = separatorRelativeBoundary
+            } else if allowCachedMainSeparator, seededBoundaryX.isFinite {
+                normalized = seededBoundaryX
+                logger.warning("Using seeded AH separator boundary after rejecting stale main separator boundary \(separatorBoundaryX, privacy: .public) for inbound move")
+            } else {
+                normalized = nil
+            }
+        } else if allowCachedMainSeparator, seededBoundaryX.isFinite {
+            normalized = seededBoundaryX
+            logger.warning("Using seeded AH separator boundary without a live/cached main separator boundary for inbound move")
+        } else {
+            normalized = nil
+        }
+        if let normalized {
+            cache.lastKnownAlwaysHiddenSeparatorX = normalized - MenuBarMoveGeometryPolicy.separatorVisualWidth
+            cache.lastKnownAlwaysHiddenSeparatorRightEdgeX = normalized
+            logger.warning("Using seeded AH separator boundary \(normalized, privacy: .public) for inbound move while live AH frame is unavailable; item length \(alwaysHiddenSeparatorItem.length, privacy: .public)")
         }
         return normalized
     }

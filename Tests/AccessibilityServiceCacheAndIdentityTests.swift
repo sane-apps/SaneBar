@@ -223,6 +223,29 @@ struct AccessibilityServiceCacheAndIdentityTests {
         #expect(index == 0)
     }
 
+    @Test("Preferred center rejects stale far-offscreen values")
+    func testPreferredCenterRejectsFarOffscreenValues() {
+        let center = AccessibilityMenuExtraFrameResolver.screenValidPreferredCenterX(
+            -4_288,
+            screenFrames: [CGRect(x: 0, y: 0, width: 1512, height: 982)]
+        )
+
+        #expect(center == nil)
+    }
+
+    @Test("Preferred center accepts left-arranged display coordinates")
+    func testPreferredCenterAcceptsLeftArrangedDisplayCoordinates() {
+        let center = AccessibilityMenuExtraFrameResolver.screenValidPreferredCenterX(
+            -420,
+            screenFrames: [
+                CGRect(x: -1280, y: 0, width: 1280, height: 720),
+                CGRect(x: 0, y: 0, width: 1512, height: 982)
+            ]
+        )
+
+        #expect(center == -420)
+    }
+
     @Test("Resolved status item index keeps the hinted item when it still matches the requested center")
     func testResolvedStatusItemIndexKeepsMatchingHint() {
         let index = AccessibilityMenuExtraFrameResolver.resolvedStatusItemIndex(
@@ -254,6 +277,29 @@ struct AccessibilityServiceCacheAndIdentityTests {
         )
 
         #expect(index == 2)
+    }
+
+    @Test("Resolved status item index ignores offscreen preferred center and keeps valid ordinal")
+    func testResolvedStatusItemIndexIgnoresOffscreenPreferredCenter() {
+        let index = AccessibilityMenuExtraFrameResolver.resolvedStatusItemIndex(
+            midXs: [120, 260, 410],
+            statusItemIndex: 2,
+            preferredCenterX: -4_288,
+            screenFrames: [CGRect(x: 0, y: 0, width: 1512, height: 982)]
+        )
+
+        #expect(index == 2)
+    }
+
+    @Test("Identifier miss fallback rejects offscreen preferred center")
+    func testIdentifierMissFallbackRejectsOffscreenPreferredCenter() {
+        let canFallback = AccessibilityMenuExtraService.shouldContinueStatusItemResolutionAfterIdentifierMiss(
+            statusItemIndex: nil,
+            preferredCenterX: -4_288,
+            screenFrames: [CGRect(x: 0, y: 0, width: 1512, height: 982)]
+        )
+
+        #expect(canFallback == false)
     }
 
     @Test("Single status item without AX identifier still gets an ordinal identity")
@@ -370,7 +416,8 @@ struct AccessibilityServiceCacheAndIdentityTests {
         )
 
         #expect(!source.contains("if menuExtraId == nil,\n           let statusItemIndex,\n           items.indices.contains(statusItemIndex)"))
-        #expect(source.contains("guard let preferredCenterX else"))
+        #expect(source.contains("screenValidPreferredCenterX"))
+        #expect(source.contains("screenFrames: NSScreen.screens.map(\\.frame)"))
         #expect(source.contains("AccessibilityMenuExtraFrameResolver.resolvedStatusItemIndex"))
         #expect(source.contains("return (true, false)"))
     }

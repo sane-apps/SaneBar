@@ -8,9 +8,14 @@ enum AccessibilityMenuExtraFrameResolver {
         midXs: [CGFloat],
         statusItemIndex: Int?,
         preferredCenterX: CGFloat?,
-        hintTolerance: CGFloat = 18
+        hintTolerance: CGFloat = 18,
+        screenFrames: [CGRect]? = nil
     ) -> Int? {
         guard !midXs.isEmpty else { return nil }
+        let preferredCenterX = screenValidPreferredCenterX(
+            preferredCenterX,
+            screenFrames: screenFrames
+        )
 
         if let statusItemIndex, midXs.indices.contains(statusItemIndex) {
             guard let preferredCenterX else {
@@ -37,6 +42,29 @@ enum AccessibilityMenuExtraFrameResolver {
             }
             return lhsDistance < rhsDistance
         }?.offset
+    }
+
+    nonisolated static func screenValidPreferredCenterX(
+        _ preferredCenterX: CGFloat?,
+        screenFrames: [CGRect]?,
+        tolerance: CGFloat = 64
+    ) -> CGFloat? {
+        guard let preferredCenterX,
+              preferredCenterX.isFinite
+        else {
+            return nil
+        }
+        guard let screenFrames,
+              !screenFrames.isEmpty
+        else {
+            return preferredCenterX
+        }
+
+        let isWithinScreenX = screenFrames.contains { frame in
+            preferredCenterX >= frame.minX - tolerance &&
+                preferredCenterX <= frame.maxX + tolerance
+        }
+        return isWithinScreenX ? preferredCenterX : nil
     }
 
     nonisolated static func getMenuBarIconFrameOnScreen(

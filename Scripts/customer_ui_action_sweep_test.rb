@@ -77,6 +77,35 @@ class CustomerUIActionSweepTest < Minitest::Test
     path
   end
 
+  def test_hover_probe_x_uses_live_right_side_menu_bar_geometry
+    x = @sweep.send(
+      :hover_probe_x,
+      {
+        'screenWidth' => 1920,
+        'mainIconLeftEdgeX' => 1696,
+        'separatorRightEdgeX' => 1659,
+        'notchRightSafeMinX' => nil
+      }
+    )
+
+    assert_operator x, :>=, 1680
+    assert_operator x, :<, 1896
+  end
+
+  def test_hover_probe_x_respects_notch_right_safe_area
+    x = @sweep.send(
+      :hover_probe_x,
+      {
+        'screenWidth' => 1470,
+        'mainIconLeftEdgeX' => 700,
+        'separatorRightEdgeX' => 720,
+        'notchRightSafeMinX' => 825
+      }
+    )
+
+    assert_operator x, :>=, 849
+  end
+
   def write_wake_probe_artifact(path = wake_probe_artifact_path, mtime: Time.now)
     File.write(
       path,
@@ -405,6 +434,21 @@ class CustomerUIActionSweepTest < Minitest::Test
     end
   end
 
+  def test_runtime_evidence_lines_accept_durable_wake_probe_artifact
+    wake_log = wake_probe_log_path
+    wake_artifact = wake_probe_artifact_path
+    tmp_wake_artifact = '/tmp/sanebar_runtime_wake_probe.json'
+    preserve_files(wake_log, wake_artifact, tmp_wake_artifact) do
+      File.write(wake_log, 'Wake layout probe passed')
+      write_wake_probe_artifact(wake_artifact)
+      FileUtils.rm_f(tmp_wake_artifact)
+
+      lines = @sweep.send(:runtime_evidence_lines)
+
+      assert lines.any? { |line| line.include?("#{wake_artifact}: Wake layout probe passed") }
+    end
+  end
+
   def test_runtime_smoke_accepts_same_release_session_evidence_beyond_thirty_minutes
     smoke_log = '/tmp/sanebar_runtime_smoke.log'
     startup_log = startup_probe_log_path
@@ -543,6 +587,8 @@ class CustomerUIActionSweepTest < Minitest::Test
     fullscreen_artifact = '/tmp/sanebar_runtime_fullscreen_matrix.json'
     startup_log = startup_probe_log_path
     preserve_files(fullscreen_artifact) do
+    Dir.mktmpdir do |evidence_dir|
+    @sweep.instance_variable_set(:@evidence_dir, evidence_dir)
     File.write(
       fullscreen_artifact,
       JSON.pretty_generate(
@@ -581,11 +627,14 @@ class CustomerUIActionSweepTest < Minitest::Test
 
     rows = @sweep.send(:runtime_state_results, { 'manifest_sha256' => 'abc' })
     transition = rows.find { |row| row[:id] == 'fullscreen_maximize_transition' }
+    durable_fullscreen_artifact = File.join(evidence_dir, 'fullscreen-matrix-sanebar_runtime_fullscreen_matrix.json')
 
     assert_equal 'passed', transition[:status]
-    assert_includes transition[:evidence_paths], '/tmp/sanebar_runtime.log'
-    assert_includes transition[:evidence_paths], fullscreen_artifact
+    assert_includes transition[:evidence_paths], durable_fullscreen_artifact
+    refute_includes transition[:evidence_paths], fullscreen_artifact
+    assert File.file?(durable_fullscreen_artifact)
     assert_includes transition[:completed_scenarios], 'Reduce Transparency enabled'
+    end
     end
   end
 
@@ -1010,6 +1059,8 @@ class CustomerUIActionSweepTest < Minitest::Test
   def test_runtime_state_results_include_shared_bundle_exact_id_artifact
     shared_log = '/tmp/sanebar_runtime_shared_bundle_smoke.log'
     preserve_files(shared_log) do
+    Dir.mktmpdir do |evidence_dir|
+    @sweep.instance_variable_set(:@evidence_dir, evidence_dir)
     File.write(
       shared_log,
       [
@@ -1037,9 +1088,14 @@ class CustomerUIActionSweepTest < Minitest::Test
 
     rows = @sweep.send(:runtime_state_results, { 'manifest_sha256' => 'abc' })
     shared = rows.find { |row| row[:id] == 'shared_bundle_exact_id_moves' }
+    durable_shared_log = File.join(evidence_dir, 'shared-bundle-exact-id-sanebar_runtime_shared_bundle_smoke.log')
 
     assert_equal 'passed', shared[:status]
     assert_includes shared[:completed_scenarios], 'shared-bundle exact-id smoke ran with non-empty required_ids'
+    assert_includes shared[:evidence_paths], durable_shared_log
+    refute_includes shared[:evidence_paths], shared_log
+    assert File.file?(durable_shared_log)
+    end
     end
   end
 
@@ -1751,10 +1807,56 @@ class CustomerUIActionSweepTest < Minitest::Test
     assert_includes source, 'saneui-license-paste'
     assert_includes source, 'saneui-license-key-field'
     assert_includes source, 'saneui-license-activate'
+    assert_includes source, 'allStaticText(settingsWindow)'
+    assert_includes source, 'repeat with candidateWindow in windows'
     assert_includes source, 'safe_write_runtime_probe_file'
     assert_includes source, 'SANE_APPROVE_LOCAL_UI_ON_AIR'
     assert_includes runtime_source, 'host: Socket.gethostname.to_s.downcase'
     assert_includes runtime_source, 'local_air_fallback:'
+  end
+
+  def test_system_events_helper_compiles_with_hover_probe_fragment
+    script_lines = @sweep.send(:system_events_recursive_helpers) + [
+      'tell application "System Events"',
+      'tell process "SaneBar"',
+      'set frontmost to true',
+      'set settingsWindow to first window whose subrole is "AXStandardWindow"',
+      'set hoverControl to my findElementNamed(settingsWindow, "Reveal hidden icons on hover")',
+      'if hoverControl is missing value then error "Reveal hidden icons on hover control not found"',
+      'return "compiled"',
+      'end tell',
+      'end tell'
+    ]
+    output_path = File.join(Dir.tmpdir, "customer-ui-hover-compile-#{$$}.scpt")
+    command = ['/usr/bin/osacompile', '-o', output_path] + script_lines.flat_map { |line| ['-e', line] }
+
+    out, status = Open3.capture2e(*command)
+
+    assert status.success?, out
+  ensure
+    FileUtils.rm_f(output_path) if output_path
+  end
+
+  def test_system_events_helper_compiles_with_license_validation_fragment
+    script_lines = @sweep.send(:system_events_recursive_helpers) + [
+      'tell application "System Events"',
+      'tell process "SaneBar"',
+      'set validationText to ""',
+      'repeat with candidateWindow in windows',
+      'set validationText to validationText & my allStaticText(candidateWindow)',
+      'end repeat',
+      'return validationText',
+      'end tell',
+      'end tell'
+    ]
+    output_path = File.join(Dir.tmpdir, "customer-ui-license-validation-compile-#{$$}.scpt")
+    command = ['/usr/bin/osacompile', '-o', output_path] + script_lines.flat_map { |line| ['-e', line] }
+
+    out, status = Open3.capture2e(*command)
+
+    assert status.success?, out
+  ensure
+    FileUtils.rm_f(output_path) if output_path
   end
 
   def test_customer_ui_sweep_fails_early_without_fresh_appearance_overlay_screenshots

@@ -10,6 +10,15 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
+## [2.1.75] - 2026-06-20
+
+### Fixed
+
+- Avoids notch-unsafe menu bar drag origins on MacBook displays while preserving normal moves on external displays.
+- Improves release smoke testing so notched laptop runs use live geometry from the app before moving menu bar icons.
+
+---
+
 ## [2.1.74] - 2026-06-20
 
 ### Fixed
