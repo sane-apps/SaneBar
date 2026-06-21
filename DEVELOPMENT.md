@@ -228,7 +228,7 @@ Full SOP: `SaneProcess/templates/RELEASE_SOP.md`
     label and a written reason.
 - E2E checklist: `docs/E2E_TESTING_CHECKLIST.md`
 - Button mapping: `ruby Scripts/button_map.rb`
-- Flow tracing: `ruby Scripts/trace_flow.rb <function>`
+- Flow tracing: `rg "functionOrHandlerName" Core UI Tests`
 - Notarization: `docs/NOTARIZATION.md`
 
 ---

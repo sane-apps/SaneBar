@@ -417,13 +417,7 @@ The checked-in project helper directory is `Scripts/` with a capital `S`. Defaul
 | `startup_layout_probe.rb` | Mini startup recovery probe for poisoned persisted state and live-anchor restoration | `./Scripts/startup_layout_probe.rb` |
 | `wake_layout_probe.rb` | Mini wake/display recovery probe for drift and live-anchor restoration | `./Scripts/wake_layout_probe.rb` |
 | `button_map.rb` | Maps every UI button/toggle to its action handler | `ruby Scripts/button_map.rb` |
-| `trace_flow.rb` | Traces code path from a function name to its handlers | `ruby Scripts/trace_flow.rb toggleHiddenItems` |
 | `marketing_screenshots.rb` | Automates app screenshots for marketing | `ruby Scripts/marketing_screenshots.rb --list` |
-| `verify_crypto_payment.rb` | Verifies crypto transactions (BTC/SOL/ZEC), sends download links | `ruby Scripts/verify_crypto_payment.rb` |
-| `generate_download_link.rb` | Generates signed download URLs with expiration | `ruby Scripts/generate_download_link.rb` |
-| `check_outreach_opportunities.rb` | Scans GitHub for outreach/collaboration opportunities | `ruby Scripts/check_outreach_opportunities.rb` |
-| `functional_audit.swift` | Runtime functional audit of app behavior | `swift Scripts/functional_audit.swift` |
-| `verify_ui.swift` | UI verification checks | `swift Scripts/verify_ui.swift` |
 | `stress_test_menubar.swift` | Menu bar stress test | `swift Scripts/stress_test_menubar.swift` |
 | `overflow_test_menubar.swift` | Menu bar overflow edge cases | `swift Scripts/overflow_test_menubar.swift` |
 | `uninstall_sanebar.sh` | Clean uninstall script for users | `bash Scripts/uninstall_sanebar.sh` |
