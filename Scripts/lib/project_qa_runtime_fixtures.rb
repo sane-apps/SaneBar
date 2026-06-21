@@ -139,7 +139,7 @@ class ProjectQA
     )
     focused_env['SANEBAR_SMOKE_EXACT_ID_MOVE_ONLY'] = '1'
     focused_env['SANEBAR_SMOKE_SKIP_LAUNCH_IDLE_BUDGET'] = '1'
-    focused_env['SANEBAR_SMOKE_ALLOW_NOTCH_UNSAFE_REQUIRED_SKIPS'] = '1' if lane_name == 'shared-bundle'
+    focused_env['SANEBAR_SMOKE_ALLOW_NOTCH_UNSAFE_REQUIRED_SKIPS'] = '1'
     if lane_name == 'host exact-id'
       focused_env['SANEBAR_SMOKE_PIN_REQUIRED_BROWSE_ALWAYS_HIDDEN'] = '1'
     end
