@@ -1,4 +1,5 @@
 import AppKit
+import Darwin
 import KeyboardShortcuts
 import os.log
 import SaneUI
@@ -62,6 +63,22 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
             return false
         }
         return shouldSkipDuplicateTerminationForAutomation(environment: environment, arguments: arguments)
+    }
+
+    nonisolated static func shouldInstallNoKeychainAutomationSignalGuard(
+        environment: [String: String] = ProcessInfo.processInfo.environment,
+        arguments: [String] = ProcessInfo.processInfo.arguments
+    ) -> Bool {
+        shouldSkipDuplicateTerminationForAutomation(environment: environment, arguments: arguments)
+    }
+
+    static func installNoKeychainAutomationSignalGuardIfNeeded(
+        environment: [String: String] = ProcessInfo.processInfo.environment,
+        arguments: [String] = ProcessInfo.processInfo.arguments
+    ) {
+        guard shouldInstallNoKeychainAutomationSignalGuard(environment: environment, arguments: arguments) else { return }
+
+        _ = signal(SIGTERM, SIG_IGN)
     }
 
     nonisolated static func hasMatchingAutomationQuitMarker(

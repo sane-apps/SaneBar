@@ -51,6 +51,8 @@ let bundleId = Bundle.main.bundleIdentifier ?? "(unknown)"
     }
 #endif
 
+SaneBarAppDelegate.installNoKeychainAutomationSignalGuardIfNeeded()
+
 let delegate = SaneBarAppDelegate()
 app.delegate = delegate
 app.run()
