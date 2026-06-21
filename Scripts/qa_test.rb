@@ -2811,7 +2811,8 @@ end
 
     assert_includes source, 'set appTarget to ((POSIX file "#{target[:app_path]}" as alias) as text)'
     assert_includes source, 'using terms from application id "#{expected_bundle_id}"'
-    assert_includes source, "tell application appTarget to list authoritative icon zones"
+    assert_includes source, "runtime_smoke_icon_zone_output(target, 'list authoritative icon zones')"
+    assert_includes source, 'tell application appTarget to #{command}'
   end
 
   def test_runtime_smoke_tracks_native_apple_and_host_exact_id_lanes

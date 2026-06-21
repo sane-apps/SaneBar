@@ -73,7 +73,7 @@ Release rule:
 ./scripts/button_map.rb
 
 # 3. Trace specific function (if debugging)
-./scripts/trace_flow.rb <function_name>
+rg "function_name" Core UI Tests
 ```
 
 ---
@@ -269,11 +269,11 @@ Shows ALL UI controls and their bindings:
 ./scripts/button_map.rb
 ```
 
-### trace_flow.rb
+### Source Search
 Search for specific functions:
 ```bash
-./scripts/trace_flow.rb toggleHiddenItems
-./scripts/trace_flow.rb showOnHover
+rg "toggleHiddenItems" Core UI Tests
+rg "showOnHover" Core UI Tests
 ```
 
 ### Class Diagram

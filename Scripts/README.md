@@ -92,16 +92,10 @@ These are canonical scripts maintained in `~/SaneApps/infra/SaneProcess/scripts/
 | `startup_layout_probe.rb` | Mini-only relaunch probe for startup/layout recovery. Backs up live prefs, poisons persisted status-item positions/currentHost state, relaunches the signed app, verifies live-anchor recovery, then restores the original state. |
 | `wake_layout_probe.rb` | Mini-only wake/display recovery probe for hidden-state drift and live-anchor recovery |
 | `button_map.rb` | Map all UI controls and their handlers |
-| `trace_flow.rb` | Debug function call flow through the codebase |
-| `functional_audit.swift` | Runtime functional verification |
 | `marketing_screenshots.rb` | Automated screenshot capture for marketing |
-| `verify_ui.swift` | UI state verification tests |
-| `verify_crypto_payment.rb` | Validate LemonSqueezy payment integration |
-| `generate_download_link.rb` | Generate signed download links |
 | `uninstall_sanebar.sh` | Clean uninstall (remove prefs, login items) |
 | `stress_test_menubar.swift` | Stress test with many menu bar items |
 | `overflow_test_menubar.swift` | Test menu bar overflow edge cases |
-| `check_outreach_opportunities.rb` | Scan for marketing opportunities |
 
 Run the live browse smoke directly:
 
