@@ -92,69 +92,6 @@ final class StatusBarController: StatusBarControllerProtocol {
         .removalAllowed,
         .terminationOnRemoval,
     ]
-nonisolated static func seedAlwaysHiddenSeparatorPositionIfNeeded(referenceScreen: NSScreen? = nil) {
-    StatusBarPositionRecoveryStore.seedAlwaysHiddenSeparatorPositionIfNeeded(referenceScreen: referenceScreen)
-}
-nonisolated static func resetPositionsToOrdinals() { StatusBarPositionRecoveryStore.resetPositionsToOrdinals() }
-nonisolated static func resetPersistentStatusItemState(alwaysHiddenEnabled: Bool, referenceScreen: NSScreen? = nil) {
-    StatusBarPositionRecoveryStore.resetPersistentStatusItemState(alwaysHiddenEnabled: alwaysHiddenEnabled, referenceScreen: referenceScreen)
-}
-nonisolated static func resetPersistentStatusItemState(alwaysHiddenEnabled: Bool, referenceScreen: NSScreen? = nil, freshAutosaveNamespace: Bool) {
-    StatusBarPositionRecoveryStore.resetPersistentStatusItemState(alwaysHiddenEnabled: alwaysHiddenEnabled, referenceScreen: referenceScreen, freshAutosaveNamespace: freshAutosaveNamespace)
-}
-nonisolated static func recoverStartupPositions(alwaysHiddenEnabled: Bool, referenceScreen: NSScreen? = nil) {
-    StatusBarPositionRecoveryStore.recoverStartupPositions(alwaysHiddenEnabled: alwaysHiddenEnabled, referenceScreen: referenceScreen)
-}
-nonisolated static func isPixelLikePosition(_ value: Double?) -> Bool { StatusBarPositionStore.isPixelLikePosition(value) }
-nonisolated static func isOrdinalSeedLikePosition(_ value: Double?) -> Bool { StatusBarPositionStore.isOrdinalSeedLikePosition(value) }
-nonisolated static func hasOrdinalSeedPair(mainPosition: Double?, separatorPosition: Double?) -> Bool {
-    StatusBarPositionStore.hasOrdinalSeedPair(mainPosition: mainPosition, separatorPosition: separatorPosition)
-}
-nonisolated static func isSignificantWidthChange(stored: Double, current: Double) -> Bool { StatusBarPositionStore.isSignificantWidthChange(stored: stored, current: current) }
-nonisolated static func shouldResetForDisplayChange(storedWidth: Double, currentWidth: Double, hasPixelPositions: Bool, screenCount: Int) -> Bool {
-    StatusBarPositionStore.shouldResetForDisplayChange(storedWidth: storedWidth, currentWidth: currentWidth, hasPixelPositions: hasPixelPositions, screenCount: screenCount)
-}
-nonisolated static func displayWidthBucket(_ width: Double) -> Int { StatusBarPositionStore.displayWidthBucket(width) }
-nonisolated static func displayPositionBackupKey(for width: Double, slot: String) -> String { StatusBarPositionStore.displayPositionBackupKey(for: width, slot: slot) }
-nonisolated static func displayPositionBackupKey(for widthBucket: Int, screenSignature: String?, slot: String) -> String {
-    StatusBarPositionStore.displayPositionBackupKey(for: widthBucket, screenSignature: screenSignature, slot: slot)
-}
-nonisolated static func shouldAllowLegacyDisplayBackupFallback(widthBucket: Int, activeWidthBuckets: [Int]) -> Bool {
-    StatusBarPositionStore.shouldAllowLegacyDisplayBackupFallback(widthBucket: widthBucket, activeWidthBuckets: activeWidthBuckets)
-}
-nonisolated static func hasRestorableDisplayBackup(mainBackup: Double?, separatorBackup: Double?) -> Bool {
-    StatusBarPositionStore.hasRestorableDisplayBackup(mainBackup: mainBackup, separatorBackup: separatorBackup)
-}
-nonisolated static func fitsDisplayBackupWithinScreenWidth(mainBackup: Double, separatorBackup: Double, screenWidth: Double, trailingPadding: Double = 24) -> Bool {
-    StatusBarPositionStore.fitsDisplayBackupWithinScreenWidth(mainBackup: mainBackup, separatorBackup: separatorBackup, screenWidth: screenWidth, trailingPadding: trailingPadding)
-}
-nonisolated static func screenHasTopSafeAreaInset(_ screen: NSScreen?) -> Bool { StatusBarPositionStore.screenHasTopSafeAreaInset(screen) }
-nonisolated static func launchSafePreferredMainPositionLimit(for screenWidth: Double, screenHasTopSafeAreaInset: Bool) -> Double {
-    StatusBarPositionStore.launchSafePreferredMainPositionLimit(for: screenWidth, screenHasTopSafeAreaInset: screenHasTopSafeAreaInset)
-}
-nonisolated static func isLaunchSafeDisplayBackup(mainBackup: Double?, separatorBackup: Double?, screenWidth: Double, screenHasTopSafeAreaInset: Bool) -> Bool {
-    StatusBarPositionStore.isLaunchSafeDisplayBackup(mainBackup: mainBackup, separatorBackup: separatorBackup, screenWidth: screenWidth, screenHasTopSafeAreaInset: screenHasTopSafeAreaInset)
-}
-nonisolated static func reanchoredPreferredPositionsTowardControlCenter(mainPosition: Double?, separatorPosition: Double?, screenWidth: Double, screenHasTopSafeAreaInset: Bool) -> (main: Double, separator: Double)? {
-    StatusBarPositionStore.reanchoredPreferredPositionsTowardControlCenter(mainPosition: mainPosition, separatorPosition: separatorPosition, screenWidth: screenWidth, screenHasTopSafeAreaInset: screenHasTopSafeAreaInset)
-}
-nonisolated static func launchSafePreferredSeparatorGap(for screenWidth: Double) -> Double { StatusBarPositionStore.launchSafePreferredSeparatorGap(for: screenWidth) }
-nonisolated static func launchSafeCurrentDisplayRecoveryPair(screenWidth: Double, screenHasTopSafeAreaInset: Bool) -> (main: Double, separator: Double)? {
-    StatusBarPositionStore.launchSafeCurrentDisplayRecoveryPair(screenWidth: screenWidth, screenHasTopSafeAreaInset: screenHasTopSafeAreaInset)
-}
-nonisolated static func hasLaunchSafeCurrentDisplayBackupForCurrentDisplay(referenceScreen: NSScreen? = nil) -> Bool {
-    StatusBarPositionStore.hasLaunchSafeCurrentDisplayBackupForCurrentDisplay(referenceScreen: referenceScreen)
-}
-@discardableResult
-nonisolated static func captureCurrentDisplayPositionBackupIfPossible(referenceScreen: NSScreen? = nil, mainPosition overrideMainPosition: Double? = nil, separatorPosition overrideSeparatorPosition: Double? = nil) -> Bool {
-    StatusBarPositionStore.captureCurrentDisplayPositionBackupIfPossible(referenceScreen: referenceScreen, mainPosition: overrideMainPosition, separatorPosition: overrideSeparatorPosition)
-}
-nonisolated static func captureLayoutSnapshot() -> SaneBarLayoutSnapshot { StatusBarLayoutSnapshotStore.captureLayoutSnapshot() }
-nonisolated static func applyLayoutSnapshot(_ snapshot: SaneBarLayoutSnapshot) { StatusBarLayoutSnapshotStore.applyLayoutSnapshot(snapshot) }
-nonisolated static func shouldSeedPreferredPosition(appValue: Any?, byHostValue: Any?) -> Bool {
-    StatusBarPositionDefaultsStore.shouldSeedPreferredPosition(appValue: appValue, byHostValue: byHostValue)
-}
-
     // MARK: - Initialization
 
     init() {
@@ -272,7 +209,7 @@ nonisolated static func shouldSeedPreferredPosition(appValue: Any?, byHostValue:
             separatorItem.button?.window?.screen ??
             StatusBarPositionStore.resolvedReferenceScreen()
         let currentWidth = resolvedReferenceScreen.map { Double($0.frame.width) }
-        let currentScreenHasTopSafeAreaInset = Self.screenHasTopSafeAreaInset(resolvedReferenceScreen)
+        let currentScreenHasTopSafeAreaInset = StatusBarPositionStore.screenHasTopSafeAreaInset(resolvedReferenceScreen)
         let reanchoredCurrentPair = currentWidth.flatMap { width in
             StatusBarPositionStore.reanchoredPreferredPositionsTowardControlCenter(
                 mainPosition: StatusBarPositionDefaultsStore.resolvedPreferredPosition(forAutosaveName: Self.mainAutosaveName),
@@ -388,7 +325,7 @@ nonisolated static func shouldSeedPreferredPosition(appValue: Any?, byHostValue:
                mainPosition: StatusBarPositionDefaultsStore.resolvedPreferredPosition(forAutosaveName: Self.mainAutosaveName),
                separatorPosition: StatusBarPositionDefaultsStore.resolvedPreferredPosition(forAutosaveName: Self.separatorAutosaveName),
                screenWidth: screenWidth,
-               screenHasTopSafeAreaInset: Self.screenHasTopSafeAreaInset(resolvedReferenceScreen)
+               screenHasTopSafeAreaInset: StatusBarPositionStore.screenHasTopSafeAreaInset(resolvedReferenceScreen)
            ) {
             StatusBarPositionDefaultsStore.setPreferredPosition(reanchoredPair.main, forAutosaveName: Self.mainAutosaveName)
             StatusBarPositionDefaultsStore.setPreferredPosition(reanchoredPair.separator, forAutosaveName: Self.separatorAutosaveName)

@@ -18,8 +18,8 @@ struct StatusBarControllerBackupCaptureTests {
         let defaults = UserDefaults.standard
         let versionKey = "SaneBar_AutosaveVersion"
         let originalVersion = defaults.object(forKey: versionKey)
-        let backupMainKey = StatusBarController.displayPositionBackupKey(for: currentWidth, slot: "main")
-        let backupSeparatorKey = StatusBarController.displayPositionBackupKey(for: currentWidth, slot: "separator")
+        let backupMainKey = StatusBarPositionStore.displayPositionBackupKey(for: currentWidth, slot: "main")
+        let backupSeparatorKey = StatusBarPositionStore.displayPositionBackupKey(for: currentWidth, slot: "separator")
         let oldMainKey = "NSStatusItem Preferred Position SaneBar_Main_v10"
         let oldSeparatorKey = "NSStatusItem Preferred Position SaneBar_Separator_v10"
         let newMainKey = "NSStatusItem Preferred Position SaneBar_Main_v11"
@@ -71,8 +71,8 @@ struct StatusBarControllerBackupCaptureTests {
         let defaults = UserDefaults.standard
         let versionKey = "SaneBar_AutosaveVersion"
         let originalVersion = defaults.object(forKey: versionKey)
-        let backupMainKey = StatusBarController.displayPositionBackupKey(for: currentWidth, slot: "main")
-        let backupSeparatorKey = StatusBarController.displayPositionBackupKey(for: currentWidth, slot: "separator")
+        let backupMainKey = StatusBarPositionStore.displayPositionBackupKey(for: currentWidth, slot: "main")
+        let backupSeparatorKey = StatusBarPositionStore.displayPositionBackupKey(for: currentWidth, slot: "separator")
         let oldMainKey = "NSStatusItem Preferred Position SaneBar_Main_v10"
         let oldSeparatorKey = "NSStatusItem Preferred Position SaneBar_Separator_v10"
         let newMainKey = "NSStatusItem Preferred Position SaneBar_Main_v11"
@@ -125,8 +125,8 @@ struct StatusBarControllerBackupCaptureTests {
         let separatorKey = "NSStatusItem Preferred Position \(StatusBarController.separatorAutosaveName)"
         let screenWidthKey = "SaneBar_CalibratedScreenWidth"
         let migrationKey = "SaneBar_PositionRecovery_Migration_v1"
-        let backupMainKey = StatusBarController.displayPositionBackupKey(for: currentWidth, slot: "main")
-        let backupSeparatorKey = StatusBarController.displayPositionBackupKey(for: currentWidth, slot: "separator")
+        let backupMainKey = StatusBarPositionStore.displayPositionBackupKey(for: currentWidth, slot: "main")
+        let backupSeparatorKey = StatusBarPositionStore.displayPositionBackupKey(for: currentWidth, slot: "separator")
         let keys = [mainKey, separatorKey, screenWidthKey, migrationKey, backupMainKey, backupSeparatorKey]
         let originalValues: [(String, Any?)] = keys.map { ($0, defaults.object(forKey: $0)) }
 
@@ -171,8 +171,8 @@ struct StatusBarControllerBackupCaptureTests {
         let defaults = UserDefaults.standard
         let mainKey = "NSStatusItem Preferred Position \(StatusBarController.mainAutosaveName)"
         let separatorKey = "NSStatusItem Preferred Position \(StatusBarController.separatorAutosaveName)"
-        let backupMainKey = StatusBarController.displayPositionBackupKey(for: currentWidth, slot: "main")
-        let backupSeparatorKey = StatusBarController.displayPositionBackupKey(for: currentWidth, slot: "separator")
+        let backupMainKey = StatusBarPositionStore.displayPositionBackupKey(for: currentWidth, slot: "main")
+        let backupSeparatorKey = StatusBarPositionStore.displayPositionBackupKey(for: currentWidth, slot: "separator")
         let keys = [mainKey, separatorKey, backupMainKey, backupSeparatorKey]
         let originalValues: [(String, Any?)] = keys.map { ($0, defaults.object(forKey: $0)) }
 
@@ -186,14 +186,14 @@ struct StatusBarControllerBackupCaptureTests {
             }
         }
 
-        let screenHasTopSafeAreaInset = StatusBarController.screenHasTopSafeAreaInset(NSScreen.main)
+        let screenHasTopSafeAreaInset = StatusBarPositionStore.screenHasTopSafeAreaInset(NSScreen.main)
         let safeMain = screenHasTopSafeAreaInset
             ? 180.0
-            : StatusBarController.launchSafePreferredMainPositionLimit(
+            : StatusBarPositionStore.launchSafePreferredMainPositionLimit(
                 for: currentWidth,
                 screenHasTopSafeAreaInset: false
             )
-        let safeSeparator = safeMain + StatusBarController.launchSafePreferredSeparatorGap(for: currentWidth)
+        let safeSeparator = safeMain + StatusBarPositionStore.launchSafePreferredSeparatorGap(for: currentWidth)
 
         defaults.set(safeMain, forKey: mainKey)
         defaults.set(safeSeparator, forKey: separatorKey)
@@ -201,7 +201,7 @@ struct StatusBarControllerBackupCaptureTests {
         defaults.removeObject(forKey: backupSeparatorKey)
 
         #expect(
-            StatusBarController.captureCurrentDisplayPositionBackupIfPossible(),
+            StatusBarPositionStore.captureCurrentDisplayPositionBackupIfPossible(),
             "Stable live positions should either create or confirm a safe current-width backup"
         )
 
@@ -225,8 +225,8 @@ struct StatusBarControllerBackupCaptureTests {
         let defaults = UserDefaults.standard
         let mainKey = "NSStatusItem Preferred Position \(StatusBarController.mainAutosaveName)"
         let separatorKey = "NSStatusItem Preferred Position \(StatusBarController.separatorAutosaveName)"
-        let backupMainKey = StatusBarController.displayPositionBackupKey(for: currentWidth, slot: "main")
-        let backupSeparatorKey = StatusBarController.displayPositionBackupKey(for: currentWidth, slot: "separator")
+        let backupMainKey = StatusBarPositionStore.displayPositionBackupKey(for: currentWidth, slot: "main")
+        let backupSeparatorKey = StatusBarPositionStore.displayPositionBackupKey(for: currentWidth, slot: "separator")
         let keys = [mainKey, separatorKey, backupMainKey, backupSeparatorKey]
         let originalValues: [(String, Any?)] = keys.map { ($0, defaults.object(forKey: $0)) }
 
@@ -246,7 +246,7 @@ struct StatusBarControllerBackupCaptureTests {
         defaults.set(safeRecovery.separator, forKey: backupSeparatorKey)
 
         #expect(
-            StatusBarController.captureCurrentDisplayPositionBackupIfPossible(),
+            StatusBarPositionStore.captureCurrentDisplayPositionBackupIfPossible(),
             "Stable validation should repair app-domain ordinal seeds from the current-width backup"
         )
 
@@ -272,8 +272,8 @@ struct StatusBarControllerBackupCaptureTests {
         let separatorAutosaveName = StatusBarController.separatorAutosaveName
         let mainKey = "NSStatusItem Preferred Position \(mainAutosaveName)"
         let separatorKey = "NSStatusItem Preferred Position \(separatorAutosaveName)"
-        let backupMainKey = StatusBarController.displayPositionBackupKey(for: currentWidth, slot: "main")
-        let backupSeparatorKey = StatusBarController.displayPositionBackupKey(for: currentWidth, slot: "separator")
+        let backupMainKey = StatusBarPositionStore.displayPositionBackupKey(for: currentWidth, slot: "main")
+        let backupSeparatorKey = StatusBarPositionStore.displayPositionBackupKey(for: currentWidth, slot: "separator")
         let scopedBackupMainKey = StatusBarPositionStore.displayPositionBackupKey(
             for: currentWidth,
             referenceScreen: NSScreen.main,
@@ -341,7 +341,7 @@ struct StatusBarControllerBackupCaptureTests {
         StatusBarPositionDefaultsStore.setByHostPreferredPosition(safeRecovery.separator, forAutosaveName: separatorAutosaveName)
 
         #expect(
-            StatusBarController.captureCurrentDisplayPositionBackupIfPossible(),
+            StatusBarPositionStore.captureCurrentDisplayPositionBackupIfPossible(),
             "Stable validation should promote a safe ByHost position pair when app-domain values are only ordinal seeds"
         )
 
@@ -367,8 +367,8 @@ struct StatusBarControllerBackupCaptureTests {
         let defaults = UserDefaults.standard
         let mainKey = "NSStatusItem Preferred Position \(StatusBarController.mainAutosaveName)"
         let separatorKey = "NSStatusItem Preferred Position \(StatusBarController.separatorAutosaveName)"
-        let backupMainKey = StatusBarController.displayPositionBackupKey(for: currentWidth, slot: "main")
-        let backupSeparatorKey = StatusBarController.displayPositionBackupKey(for: currentWidth, slot: "separator")
+        let backupMainKey = StatusBarPositionStore.displayPositionBackupKey(for: currentWidth, slot: "main")
+        let backupSeparatorKey = StatusBarPositionStore.displayPositionBackupKey(for: currentWidth, slot: "separator")
         let keys = [mainKey, separatorKey, backupMainKey, backupSeparatorKey]
         let originalValues: [(String, Any?)] = keys.map { ($0, defaults.object(forKey: $0)) }
 
@@ -382,8 +382,8 @@ struct StatusBarControllerBackupCaptureTests {
             }
         }
 
-        let screenHasTopSafeAreaInset = StatusBarController.screenHasTopSafeAreaInset(NSScreen.main)
-        let safeMainLimit = StatusBarController.launchSafePreferredMainPositionLimit(
+        let screenHasTopSafeAreaInset = StatusBarPositionStore.screenHasTopSafeAreaInset(NSScreen.main)
+        let safeMainLimit = StatusBarPositionStore.launchSafePreferredMainPositionLimit(
             for: currentWidth,
             screenHasTopSafeAreaInset: screenHasTopSafeAreaInset
         )
@@ -396,7 +396,7 @@ struct StatusBarControllerBackupCaptureTests {
         defaults.removeObject(forKey: backupSeparatorKey)
 
         #expect(
-            StatusBarController.captureCurrentDisplayPositionBackupIfPossible(),
+            StatusBarPositionStore.captureCurrentDisplayPositionBackupIfPossible(),
             "Stable but startup-unsafe positions should still end with a safe current-width backup"
         )
 
@@ -418,8 +418,8 @@ struct StatusBarControllerBackupCaptureTests {
         let defaults = UserDefaults.standard
         let mainKey = "NSStatusItem Preferred Position \(StatusBarController.mainAutosaveName)"
         let separatorKey = "NSStatusItem Preferred Position \(StatusBarController.separatorAutosaveName)"
-        let backupMainKey = StatusBarController.displayPositionBackupKey(for: currentWidth, slot: "main")
-        let backupSeparatorKey = StatusBarController.displayPositionBackupKey(for: currentWidth, slot: "separator")
+        let backupMainKey = StatusBarPositionStore.displayPositionBackupKey(for: currentWidth, slot: "main")
+        let backupSeparatorKey = StatusBarPositionStore.displayPositionBackupKey(for: currentWidth, slot: "separator")
         let keys = [mainKey, separatorKey, backupMainKey, backupSeparatorKey]
         let originalValues: [(String, Any?)] = keys.map { ($0, defaults.object(forKey: $0)) }
 
@@ -438,17 +438,17 @@ struct StatusBarControllerBackupCaptureTests {
         defaults.removeObject(forKey: backupMainKey)
         defaults.removeObject(forKey: backupSeparatorKey)
 
-        let screenHasTopSafeAreaInset = StatusBarController.screenHasTopSafeAreaInset(NSScreen.main)
+        let screenHasTopSafeAreaInset = StatusBarPositionStore.screenHasTopSafeAreaInset(NSScreen.main)
         let liveMain = screenHasTopSafeAreaInset
             ? 180.0
-            : StatusBarController.launchSafePreferredMainPositionLimit(
+            : StatusBarPositionStore.launchSafePreferredMainPositionLimit(
                 for: currentWidth,
                 screenHasTopSafeAreaInset: false
             )
-        let liveSeparator = liveMain + StatusBarController.launchSafePreferredSeparatorGap(for: currentWidth)
+        let liveSeparator = liveMain + StatusBarPositionStore.launchSafePreferredSeparatorGap(for: currentWidth)
 
         #expect(
-            StatusBarController.captureCurrentDisplayPositionBackupIfPossible(
+            StatusBarPositionStore.captureCurrentDisplayPositionBackupIfPossible(
                 mainPosition: liveMain,
                 separatorPosition: liveSeparator
             ),
@@ -473,8 +473,8 @@ struct StatusBarControllerBackupCaptureTests {
         let defaults = UserDefaults.standard
         let mainKey = "NSStatusItem Preferred Position \(StatusBarController.mainAutosaveName)"
         let separatorKey = "NSStatusItem Preferred Position \(StatusBarController.separatorAutosaveName)"
-        let backupMainKey = StatusBarController.displayPositionBackupKey(for: currentWidth, slot: "main")
-        let backupSeparatorKey = StatusBarController.displayPositionBackupKey(for: currentWidth, slot: "separator")
+        let backupMainKey = StatusBarPositionStore.displayPositionBackupKey(for: currentWidth, slot: "main")
+        let backupSeparatorKey = StatusBarPositionStore.displayPositionBackupKey(for: currentWidth, slot: "separator")
         let keys = [mainKey, separatorKey, backupMainKey, backupSeparatorKey]
         let originalValues: [(String, Any?)] = keys.map { ($0, defaults.object(forKey: $0)) }
 
@@ -488,8 +488,8 @@ struct StatusBarControllerBackupCaptureTests {
             }
         }
 
-        let screenHasTopSafeAreaInset = StatusBarController.screenHasTopSafeAreaInset(NSScreen.main)
-        let persistedMain = StatusBarController.launchSafePreferredMainPositionLimit(
+        let screenHasTopSafeAreaInset = StatusBarPositionStore.screenHasTopSafeAreaInset(NSScreen.main)
+        let persistedMain = StatusBarPositionStore.launchSafePreferredMainPositionLimit(
             for: currentWidth,
             screenHasTopSafeAreaInset: screenHasTopSafeAreaInset
         )
@@ -500,7 +500,7 @@ struct StatusBarControllerBackupCaptureTests {
         defaults.removeObject(forKey: backupSeparatorKey)
 
         #expect(
-            StatusBarController.captureCurrentDisplayPositionBackupIfPossible(
+            StatusBarPositionStore.captureCurrentDisplayPositionBackupIfPossible(
                 mainPosition: currentWidth - 222.0,
                 separatorPosition: currentWidth - 359.0
             ),

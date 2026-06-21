@@ -343,7 +343,7 @@ struct SearchWindowDiscoveryTests {
         #expect(source.contains("SearchWindowController.shared.diagnosticsSnapshot()"))
         #expect(source.contains("prefsForensics:"))
         #expect(source.contains("StatusBarController.autosaveVersion"))
-        #expect(source.contains("StatusBarController.displayPositionBackupKey"))
+        #expect(source.contains("StatusBarPositionStore.displayPositionBackupKey"))
         #expect(source.contains("SaneBar_CalibratedScreenWidth"))
         #expect(source.contains("statusItemScreenWidth"))
         #expect(source.contains("pointerScreenWidth"))

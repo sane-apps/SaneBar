@@ -563,7 +563,8 @@ struct MenuBarAppearanceSuppressionTests {
     func testSuppressesOverlayForMissionControlSurface() {
         let infos: [[String: Any]] = [[
             kCGWindowOwnerPID as String: NSNumber(value: 5151),
-            kCGWindowLayer as String: NSNumber(value: 24),
+            kCGWindowOwnerName as String: "Dock",
+            kCGWindowLayer as String: NSNumber(value: 18),
             kCGWindowIsOnscreen as String: NSNumber(value: true),
             kCGWindowAlpha as String: NSNumber(value: 1),
             kCGWindowBounds as String: [
@@ -585,10 +586,65 @@ struct MenuBarAppearanceSuppressionTests {
         )
     }
 
+    @Test("Appearance overlay hides for Dock-owned Mission Control while another app remains frontmost")
+    func testSuppressesOverlayForMissionControlWhenDockIsNotFrontmost() {
+        let infos: [[String: Any]] = [[
+            kCGWindowOwnerPID as String: NSNumber(value: 5151),
+            kCGWindowOwnerName as String: "Dock",
+            kCGWindowLayer as String: NSNumber(value: 18),
+            kCGWindowIsOnscreen as String: NSNumber(value: true),
+            kCGWindowAlpha as String: NSNumber(value: 1),
+            kCGWindowBounds as String: [
+                "X": NSNumber(value: 0),
+                "Y": NSNumber(value: 0),
+                "Width": NSNumber(value: 1920),
+                "Height": NSNumber(value: 1080)
+            ]
+        ]]
+
+        #expect(
+            MenuBarAppearanceService.overlaySuppressionReason(
+                frontmostPID: 4242,
+                frontmostBundleID: "com.apple.Safari",
+                targetScreenFrame: CGRect(x: 0, y: 0, width: 1920, height: 1080),
+                windowInfos: infos,
+                selfPID: 9999
+            ) == .systemSpaceControl
+        )
+    }
+
+    @Test("Appearance overlay ignores the ordinary Dock desktop layer")
+    func testDoesNotSuppressOverlayForOrdinaryDockDesktopLayer() {
+        let infos: [[String: Any]] = [[
+            kCGWindowOwnerPID as String: NSNumber(value: 5151),
+            kCGWindowOwnerName as String: "Dock",
+            kCGWindowLayer as String: NSNumber(value: 20),
+            kCGWindowIsOnscreen as String: NSNumber(value: true),
+            kCGWindowAlpha as String: NSNumber(value: 1),
+            kCGWindowBounds as String: [
+                "X": NSNumber(value: 0),
+                "Y": NSNumber(value: 0),
+                "Width": NSNumber(value: 1920),
+                "Height": NSNumber(value: 1080)
+            ]
+        ]]
+
+        #expect(
+            MenuBarAppearanceService.overlaySuppressionReason(
+                frontmostPID: 4242,
+                frontmostBundleID: "com.apple.Safari",
+                targetScreenFrame: CGRect(x: 0, y: 0, width: 1920, height: 1080),
+                windowInfos: infos,
+                selfPID: 9999
+            ) == nil
+        )
+    }
+
     @Test("Appearance overlay does not hide for ordinary Dock-owned top surfaces")
     func testDoesNotSuppressOverlayForSmallDockSurface() {
         let infos: [[String: Any]] = [[
             kCGWindowOwnerPID as String: NSNumber(value: 5151),
+            kCGWindowOwnerName as String: "Dock",
             kCGWindowLayer as String: NSNumber(value: 24),
             kCGWindowIsOnscreen as String: NSNumber(value: true),
             kCGWindowAlpha as String: NSNumber(value: 1),

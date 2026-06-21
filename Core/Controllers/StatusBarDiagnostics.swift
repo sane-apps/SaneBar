@@ -176,7 +176,7 @@ enum StatusBarDiagnostics {
         let persisted = StatusBarPositionDefaultsStore.resolvedPreferredPosition(
             forAutosaveName: StatusBarController.mainAutosaveName
         )
-        guard StatusBarController.isPixelLikePosition(persisted), let persisted else { return nil }
+        guard StatusBarPositionStore.isPixelLikePosition(persisted), let persisted else { return nil }
         return CGFloat(persisted)
     }
 

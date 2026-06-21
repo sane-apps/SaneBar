@@ -308,6 +308,14 @@ class CustomerUIActionSweep
       'tell application "System Events"',
       %(tell process "#{APP_NAME}"),
       'set frontmost to true',
+      'repeat with candidateWindow in windows',
+      'try',
+      'if (subrole of candidateWindow is "AXSystemDialog") or ((name of candidateWindow as text) contains "Health") then',
+      'set closeButton to value of attribute "AXCloseButton" of candidateWindow',
+      'perform action "AXPress" of closeButton',
+      'end if',
+      'end try',
+      'end repeat',
       'key code 53',
       'end tell',
       'end tell'
@@ -351,6 +359,8 @@ class CustomerUIActionSweep
     bundle_path = '/Applications/SaneBar.app'
     binary_path = File.join(bundle_path, 'Contents', 'MacOS', APP_NAME)
     raise "Running release app binary is missing at #{binary_path}" unless File.executable?(binary_path)
+    @release_binary_path = binary_path
+    ensure_release_sweep_pro_unlocked!(pids, binary_path)
 
     newest_source = Dir.glob('{Core,UI,Resources}/**/*.{swift,sdef,plist,xcprivacy,xcstrings}', File::FNM_EXTGLOB)
       .concat(%w[SaneBarApp.swift project.yml])
@@ -372,6 +382,134 @@ class CustomerUIActionSweep
     @running_bundle_version = running_bundle_version
     @running_bundle_build = running_bundle_build
     @transcript << "running_pids=#{pids.join(',')} args=#{process_args.join(' | ')} bundle=#{bundle_path} version=#{running_bundle_version} build=#{running_bundle_build}"
+  end
+
+  def ensure_release_sweep_pro_unlocked!(pids, binary_path)
+    onboarding_open = release_sweep_onboarding_window_open?
+    snapshot = release_sweep_layout_snapshot
+    return if truthy?(snapshot && snapshot['licenseIsPro']) && !onboarding_open && Array(pids).length == 1
+
+    seed_release_sweep_no_keychain_pro_defaults!
+    mark_release_sweep_onboarding_complete!
+    terminate_release_sweep_processes(pids)
+    launch_release_sweep_app(binary_path)
+
+    deadline = Time.now + 15.0
+    last = snapshot
+    until Time.now >= deadline
+      sleep 0.5
+      last = release_sweep_layout_snapshot
+      return if truthy?(last && last['licenseIsPro'])
+    end
+
+    raise "#{APP_NAME} no-keychain release sweep target stayed Basic; licenseIsPro=#{last && last['licenseIsPro'].inspect}"
+  end
+
+  def ensure_pro_state_for_pro_only_action!(label)
+    pids = current_release_sweep_pids(label)
+    binary_path = @release_binary_path || File.join('/Applications/SaneBar.app', 'Contents', 'MacOS', APP_NAME)
+    ensure_release_sweep_pro_unlocked!(pids, binary_path)
+    snapshot = release_sweep_layout_snapshot
+    raise "#{label} requires Pro no-keychain state; licenseIsPro=#{snapshot && snapshot['licenseIsPro'].inspect}" unless truthy?(snapshot && snapshot['licenseIsPro'])
+
+    @transcript << "pro_only_action=#{label} pro_state=ok"
+  end
+
+  def current_release_sweep_pids(label)
+    out, status = Open3.capture2e('pgrep', '-x', APP_NAME)
+    raise "#{label} requires #{APP_NAME} to be running" unless status.success?
+
+    out.lines.map(&:strip).reject(&:empty?)
+  end
+
+  def release_sweep_layout_snapshot
+    JSON.parse(app_script('layout snapshot'))
+  rescue JSON::ParserError, StandardError
+    nil
+  end
+
+  def release_sweep_onboarding_window_open?
+    run_osascript([
+      'tell application "System Events"',
+      %(tell process "#{APP_NAME}"),
+      'repeat with candidateWindow in windows',
+      'try',
+      'set candidateText to value of static texts of candidateWindow as text',
+      'if candidateText contains "Welcome to SaneBar" then return "true"',
+      'end try',
+      'end repeat',
+      'return "false"',
+      'end tell',
+      'end tell'
+    ], timeout: 5).strip == 'true'
+  rescue StandardError
+    false
+  end
+
+  def seed_release_sweep_no_keychain_pro_defaults!
+    {
+      'sane.no-keychain.com.sanebar.app.pro_license_key' => 'early-adopter',
+      'sane.no-keychain.com.sanebar.app.pro_last_validation' => Time.now.utc.iso8601
+    }.each do |key, value|
+      Open3.capture2e('/usr/bin/defaults', 'write', 'com.sanebar.app', key, value)
+    end
+  end
+
+  def mark_release_sweep_onboarding_complete!
+    settings_path = File.expand_path('~/Library/Application Support/SaneBar/settings.json')
+    settings = if File.exist?(settings_path)
+                 JSON.parse(File.read(settings_path))
+               else
+                 {}
+               end
+    settings['hasCompletedOnboarding'] = true
+    settings['hasSeenFreemiumIntro'] = true
+    FileUtils.mkdir_p(File.dirname(settings_path))
+    File.write(settings_path, JSON.pretty_generate(settings))
+  rescue JSON::ParserError
+    FileUtils.mkdir_p(File.dirname(settings_path))
+    File.write(settings_path, JSON.pretty_generate(
+      'hasCompletedOnboarding' => true,
+      'hasSeenFreemiumIntro' => true
+    ))
+  end
+
+  def terminate_release_sweep_processes(pids)
+    ids = Array(pids).map(&:to_i).select(&:positive?).uniq
+    ids.each do |pid|
+      Process.kill('TERM', pid.to_i)
+    rescue Errno::ESRCH, ArgumentError
+      nil
+    end
+    deadline = Time.now + 5.0
+    while Time.now < deadline && ids.any? { |pid| process_alive?(pid) }
+      sleep 0.2
+    end
+    ids.each do |pid|
+      Process.kill('KILL', pid) if process_alive?(pid)
+    rescue Errno::ESRCH, ArgumentError
+      nil
+    end
+  end
+
+  def process_alive?(pid)
+    Process.kill(0, pid)
+    true
+  rescue Errno::ESRCH, ArgumentError
+    false
+  end
+
+  def launch_release_sweep_app(binary_path)
+    Process.detach(
+      Process.spawn(
+        { 'SANEAPPS_DISABLE_KEYCHAIN' => '1' },
+        binary_path,
+        '--sane-skip-app-move',
+        '--sane-no-keychain',
+        out: File::NULL,
+        err: File::NULL
+      )
+    )
   end
 
   def exercise_settings_tabs
@@ -409,11 +547,26 @@ class CustomerUIActionSweep
       'tell application "System Events"',
       %(tell process "#{APP_NAME}"),
       'set frontmost to true',
-      'if not (exists window 1 whose subrole is "AXStandardWindow") then error "Settings standard window not found; front window subrole=" & (subrole of window 1 as text)',
-      'set settingsWindow to first window whose subrole is "AXStandardWindow"',
+      'set settingsWindow to missing value',
+      'repeat with candidateWindow in windows',
+      'try',
+      'set _ to splitter group 1 of group 1 of candidateWindow',
+      'set settingsWindow to candidateWindow',
+      'exit repeat',
+      'end try',
+      'end repeat',
+      'if settingsWindow is missing value then error "Settings standard window not found; front window subrole=" & (subrole of window 1 as text)',
       %(set selected of row #{index} of outline 1 of scroll area 1 of group 1 of splitter group 1 of group 1 of settingsWindow to true),
       'delay 0.6',
-      'set settingsWindow to first window whose subrole is "AXStandardWindow"',
+      'set settingsWindow to missing value',
+      'repeat with candidateWindow in windows',
+      'try',
+      'set _ to splitter group 1 of group 1 of candidateWindow',
+      'set settingsWindow to candidateWindow',
+      'exit repeat',
+      'end try',
+      'end repeat',
+      'if settingsWindow is missing value then error "Settings standard window not found after tab selection"',
       'set windowTitle to name of settingsWindow',
       'set bodyText to value of static texts of scroll area 1 of group 2 of splitter group 1 of group 1 of settingsWindow',
       'return windowTitle & " :: " & (bodyText as text)',
@@ -538,6 +691,7 @@ class CustomerUIActionSweep
     settings_backup = File.exist?(settings_path) ? File.read(settings_path) : nil
     group_name = "QA Release #{@timestamp}"
 
+    ensure_pro_state_for_pro_only_action!('custom group creation')
     app_script('open icon panel')
     sleep 0.8
     prompt_text = run_osascript([

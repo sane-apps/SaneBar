@@ -723,20 +723,20 @@ class CustomerUIActionSweep
       expanded_path = File.expand_path(path)
       evidence_root = File.expand_path(evidence_dir) + File::SEPARATOR
       if expanded_path.start_with?(evidence_root)
-        retained_paths << expanded_path
+        retained_paths << relative(expanded_path)
         next
       end
 
       project_root = File.expand_path(PROJECT_ROOT) + File::SEPARATOR
       if expanded_path.start_with?(project_root)
-        retained_paths << expanded_path
+        retained_paths << relative(expanded_path)
         next
       end
 
       safe_label = label.to_s.gsub(/[^A-Za-z0-9_.-]/, '-')
       destination = File.join(evidence_dir, "#{safe_label}-#{File.basename(path)}")
       safe_copy_artifact(path, destination)
-      retained_paths << destination if File.file?(destination)
+      retained_paths << relative(destination) if File.file?(destination)
     end.uniq
     @retained_runtime_evidence_paths = (Array(@retained_runtime_evidence_paths) + retained).uniq
     retained

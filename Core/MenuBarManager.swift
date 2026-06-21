@@ -510,7 +510,7 @@ final class MenuBarManager: NSObject, ObservableObject {
 
         logger.warning("Force-recreating always-hidden separator after nil update")
         statusBarControllerStorage.ensureAlwaysHiddenSeparator(enabled: false)
-        StatusBarController.seedAlwaysHiddenSeparatorPositionIfNeeded()
+        StatusBarPositionRecoveryStore.seedAlwaysHiddenSeparatorPositionIfNeeded()
         statusBarControllerStorage.ensureAlwaysHiddenSeparator(enabled: true)
         alwaysHiddenSeparatorItem = statusBarControllerStorage.alwaysHiddenSeparatorItem
         hidingService.configureAlwaysHiddenDelimiter(alwaysHiddenSeparatorItem)
@@ -783,7 +783,7 @@ final class MenuBarManager: NSObject, ObservableObject {
         MenuBarSpacingService.shared.attemptGracefulRefresh()
         clearCachedSeparatorGeometry()
         recreateStatusItemsFromPersistedLayout(reason: "reset-to-defaults") {
-            StatusBarController.resetPersistentStatusItemState(
+            StatusBarPositionRecoveryStore.resetPersistentStatusItemState(
                 alwaysHiddenEnabled: self.currentEffectiveAlwaysHiddenSectionEnabled(),
                 referenceScreen: self.statusItemScreen,
                 freshAutosaveNamespace: true

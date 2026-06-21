@@ -84,9 +84,9 @@ final class RuntimeGuardAppleScriptActivationXCTests: RuntimeGuardTestCase {
         )
         XCTAssertTrue(
             profileSource.contains("func createLayoutRescueRestorePoint") &&
-                profileSource.contains("StatusBarController.captureLayoutSnapshot()") &&
+                profileSource.contains("StatusBarLayoutSnapshotStore.captureLayoutSnapshot()") &&
                 profileSource.contains("func restoreLayoutRescueRestorePoint") &&
-                profileSource.contains("StatusBarController.applyLayoutSnapshot(snapshot)") &&
+                profileSource.contains("StatusBarLayoutSnapshotStore.applyLayoutSnapshot(snapshot)") &&
                 profileSource.contains("manager.restoreStatusItemLayoutIfNeeded()") &&
                 profileSource.contains("func repairMenuBarHealth(reason: String = \"manual\") async") &&
                 profileSource.contains("func setLayoutMode(_ mode: SaneBarSettings.LayoutMode, reason: String = \"manual\") async"),

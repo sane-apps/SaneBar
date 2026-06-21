@@ -74,7 +74,7 @@ final class MenuBarAlwaysHiddenPinWorkflow {
 
         manager.clearCachedSeparatorGeometry()
         manager.statusBarController.ensureAlwaysHiddenSeparator(enabled: false)
-        StatusBarController.seedAlwaysHiddenSeparatorPositionIfNeeded(referenceScreen: manager.currentRecoveryReferenceScreen())
+        StatusBarPositionRecoveryStore.seedAlwaysHiddenSeparatorPositionIfNeeded(referenceScreen: manager.currentRecoveryReferenceScreen())
         manager.statusBarController.ensureAlwaysHiddenSeparator(enabled: true)
         manager.alwaysHiddenSeparatorItem = manager.statusBarController.alwaysHiddenSeparatorItem
         manager.hidingService.configureAlwaysHiddenDelimiter(manager.alwaysHiddenSeparatorItem)
@@ -136,13 +136,13 @@ final class MenuBarAlwaysHiddenPinWorkflow {
             logger.error(
                 "Always-hidden separator still misordered after repair (ahRight=\(postAHRightX, privacy: .public), sep=\(postSepX, privacy: .public)) - applying hard position recovery"
             )
-            StatusBarController.recoverStartupPositions(
+            StatusBarPositionRecoveryStore.recoverStartupPositions(
                 alwaysHiddenEnabled: true,
                 referenceScreen: manager.currentRecoveryReferenceScreen()
             )
             manager.clearCachedSeparatorGeometry()
             manager.statusBarController.ensureAlwaysHiddenSeparator(enabled: false)
-            StatusBarController.seedAlwaysHiddenSeparatorPositionIfNeeded(referenceScreen: manager.currentRecoveryReferenceScreen())
+            StatusBarPositionRecoveryStore.seedAlwaysHiddenSeparatorPositionIfNeeded(referenceScreen: manager.currentRecoveryReferenceScreen())
             manager.statusBarController.ensureAlwaysHiddenSeparator(enabled: true)
             manager.alwaysHiddenSeparatorItem = manager.statusBarController.alwaysHiddenSeparatorItem
             manager.hidingService.configureAlwaysHiddenDelimiter(manager.alwaysHiddenSeparatorItem)

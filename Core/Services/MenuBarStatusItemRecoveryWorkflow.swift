@@ -469,7 +469,7 @@ final class MenuBarStatusItemRecoveryWorkflow {
         switch action {
         case .captureCurrentDisplayBackup:
             manager.pendingRecoveryHideRestore = false
-            StatusBarController.captureCurrentDisplayPositionBackupIfPossible(
+            StatusBarPositionStore.captureCurrentDisplayPositionBackupIfPossible(
                 referenceScreen: manager.currentRecoveryReferenceScreen()
             )
 
@@ -495,7 +495,7 @@ final class MenuBarStatusItemRecoveryWorkflow {
                 validationContext: validationContext
             )
             if !shouldResetPersistentState {
-                StatusBarController.recoverStartupPositions(
+                StatusBarPositionRecoveryStore.recoverStartupPositions(
                     alwaysHiddenEnabled: manager.currentEffectiveAlwaysHiddenSectionEnabled(),
                     referenceScreen: manager.currentRecoveryReferenceScreen()
                 )
@@ -503,7 +503,7 @@ final class MenuBarStatusItemRecoveryWorkflow {
             manager.clearCachedSeparatorGeometry()
             manager.recreateStatusItemsFromPersistedLayout(reason: trigger) {
                 if shouldResetPersistentState {
-                    StatusBarController.resetPersistentStatusItemState(
+                    StatusBarPositionRecoveryStore.resetPersistentStatusItemState(
                         alwaysHiddenEnabled: self.manager.currentEffectiveAlwaysHiddenSectionEnabled(),
                         referenceScreen: self.manager.currentRecoveryReferenceScreen(),
                         freshAutosaveNamespace: true
@@ -803,12 +803,12 @@ final class MenuBarStatusItemRecoveryWorkflow {
         delay: Duration = .milliseconds(150)
     ) async -> Bool {
         for attempt in 1 ... maxAttempts {
-            if StatusBarController.captureCurrentDisplayPositionBackupIfPossible(
+            if StatusBarPositionStore.captureCurrentDisplayPositionBackupIfPossible(
                 referenceScreen: manager.currentRecoveryReferenceScreen()
             ) {
                 return true
             }
-            if StatusBarController.hasLaunchSafeCurrentDisplayBackupForCurrentDisplay(
+            if StatusBarPositionStore.hasLaunchSafeCurrentDisplayBackupForCurrentDisplay(
                 referenceScreen: manager.currentRecoveryReferenceScreen()
             ) {
                 return true
@@ -817,7 +817,7 @@ final class MenuBarStatusItemRecoveryWorkflow {
                 try? await Task.sleep(for: delay)
             }
         }
-        return StatusBarController.hasLaunchSafeCurrentDisplayBackupForCurrentDisplay(
+        return StatusBarPositionStore.hasLaunchSafeCurrentDisplayBackupForCurrentDisplay(
             referenceScreen: manager.currentRecoveryReferenceScreen()
         )
     }
