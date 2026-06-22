@@ -10,6 +10,12 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
+## [2.1.78] - 2026-06-22
+
+Pro is now free to try for 14 days. Basic remains included after the trial.
+
+---
+
 ## [2.1.77] - 2026-06-22
 
 Pro is now free to try for 14 days. Basic remains included after the trial.
