@@ -55,6 +55,25 @@ struct OnboardingPrimaryButtonStyle: ButtonStyle {
     }
 }
 
+struct OnboardingSecondaryButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundStyle(.white)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 7)
+            .background(
+                RoundedRectangle(cornerRadius: 9)
+                    .fill(Color.white.opacity(configuration.isPressed ? 0.10 : 0.06))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 9)
+                    .stroke(Color.white.opacity(0.16), lineWidth: 0.9)
+            )
+            .scaleEffect(configuration.isPressed ? 0.99 : 1.0)
+            .animation(.easeInOut(duration: 0.14), value: configuration.isPressed)
+    }
+}
+
 // MARK: - Background
 
 struct OnboardingBackground: View {

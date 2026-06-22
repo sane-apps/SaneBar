@@ -20,13 +20,13 @@ struct KeychainServiceTests {
             legacyDefaults.removePersistentDomain(forName: legacySuiteName)
         }
 
-        legacyDefaults.set("early-adopter", forKey: key)
+        legacyDefaults.set("sample-license-key", forKey: key)
 
         let keychain = KeychainService(service: service)
         let migratedValue = try? keychain.string(forKey: "pro_license_key")
 
-        #expect(migratedValue == "early-adopter")
-        #expect(primaryDefaults.string(forKey: key) == "early-adopter")
+        #expect(migratedValue == "sample-license-key")
+        #expect(primaryDefaults.string(forKey: key) == "sample-license-key")
         #expect(legacyDefaults.object(forKey: key) == nil)
     }
 }

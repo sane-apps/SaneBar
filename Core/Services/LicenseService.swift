@@ -51,11 +51,12 @@ final class LicenseService: ObservableObject {
     // MARK: - Published State
 
     @Published private(set) var isPro: Bool = false
-    @Published private(set) var isEarlyAdopter: Bool = false
     @Published private(set) var licenseEmail: String?
     @Published private(set) var isValidating: Bool = false
     @Published private(set) var isPurchasing: Bool = false
     @Published private(set) var appStoreDisplayPrice: String?
+    @Published private(set) var proTrialStartedAt: Date?
+    private var proTrialLastSeenAt: Date?
     @Published var validationError: String?
     @Published var purchaseError: String?
 
@@ -65,10 +66,13 @@ final class LicenseService: ObservableObject {
         static let licenseKey = "pro_license_key"
         static let licenseEmail = "pro_license_email"
         static let lastValidation = "pro_last_validation"
+        static let proTrialStartedAt = "sanebar.pro_trial.started_at"
+        static let proTrialLastSeenAt = "sanebar.pro_trial.last_seen_at"
     }
 
     /// Offline grace period — Pro stays active without revalidation for this long.
     private let offlineGraceDays: TimeInterval = 30
+    private let proTrialDurationDays = 14
 
     private let keychain: KeychainServiceProtocol
     #if canImport(StoreKit)
@@ -77,6 +81,9 @@ final class LicenseService: ObservableObject {
 
     init(keychain: KeychainServiceProtocol = KeychainService.shared) {
         self.keychain = keychain
+        let now = Date()
+        proTrialStartedAt = Self.storedTrialDate(keychain: keychain, key: Keys.proTrialStartedAt, now: now, rejectsFutureDate: true)
+        proTrialLastSeenAt = Self.storedTrialDate(keychain: keychain, key: Keys.proTrialLastSeenAt, now: now, rejectsFutureDate: false)
     }
 
     nonisolated static func resolvedDistributionChannel(
@@ -99,6 +106,42 @@ final class LicenseService: ObservableObject {
 
     var displayPriceLabel: String {
         appStoreDisplayPrice ?? "$14.99"
+    }
+
+    var isProTrialActive: Bool {
+        guard !usesAppStorePurchase,
+              !usesSetappDistribution,
+              let proTrialStartedAt
+        else { return false }
+        return effectiveTrialNow() < trialEndDate(startedAt: proTrialStartedAt)
+    }
+
+    var hasExpiredProTrial: Bool {
+        guard !usesAppStorePurchase,
+              !usesSetappDistribution,
+              let proTrialStartedAt
+        else { return false }
+        return effectiveTrialNow() >= trialEndDate(startedAt: proTrialStartedAt)
+    }
+
+    var proTrialDaysRemaining: Int? {
+        guard isProTrialActive, let proTrialStartedAt else { return nil }
+        let remaining = trialEndDate(startedAt: proTrialStartedAt).timeIntervalSince(effectiveTrialNow())
+        return max(1, Int(ceil(remaining / 86400)))
+    }
+
+    var proAccessBadgeTitle: String {
+        isProTrialActive ? "Pro Trial" : "Pro"
+    }
+
+    var proAccessDetail: String? {
+        if let days = proTrialDaysRemaining {
+            return days == 1 ? "1 day left" : "\(days) days left"
+        }
+        if hasExpiredProTrial {
+            return "Trial ended"
+        }
+        return nil
     }
 
     var distributionChannel: SaneDistributionChannel {
@@ -128,7 +171,6 @@ final class LicenseService: ObservableObject {
 
         if usesSetappDistribution {
             isPro = true
-            isEarlyAdopter = false
             licenseEmail = nil
             purchaseError = nil
             validationError = nil
@@ -143,7 +185,6 @@ final class LicenseService: ObservableObject {
             if NSClassFromString("XCTestCase") == nil,
                ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil {
                 isPro = true
-                isEarlyAdopter = true
                 licenseEmail = nil
                 licenseLogger.info("DEBUG build — auto-granted Pro access")
                 return
@@ -153,20 +194,23 @@ final class LicenseService: ObservableObject {
         guard let storedKey = try? keychain.string(forKey: Keys.licenseKey),
               !storedKey.isEmpty
         else {
-            isPro = false
-            isEarlyAdopter = false
+            startProTrialIfNeeded()
+            updateTrialLastSeenAt()
+            isPro = isProTrialActive
             licenseEmail = nil
             purchaseError = nil
-            licenseLogger.info("No cached unlock credential — free mode")
+            licenseLogger.info("\(self.isProTrialActive ? "No cached unlock credential — Pro trial active" : "No cached unlock credential — Basic mode", privacy: .public)")
             return
         }
 
-        // Early adopters get permanent Pro — no revalidation needed
         if storedKey == "early-adopter" {
-            isPro = true
-            isEarlyAdopter = true
+            try? keychain.delete(Keys.licenseKey)
+            try? keychain.delete(Keys.lastValidation)
+            startProTrialIfNeeded()
+            updateTrialLastSeenAt()
+            isPro = isProTrialActive
             licenseEmail = nil
-            licenseLogger.info("Early adopter — lifetime Pro access")
+            licenseLogger.info("Retired early-adopter marker — moved to Pro trial")
             return
         }
 
@@ -188,16 +232,6 @@ final class LicenseService: ObservableObject {
         Task {
             await revalidate(key: storedKey)
         }
-    }
-
-    /// Grant Pro to early adopters who used SaneBar before the freemium model.
-    func grantEarlyAdopterPro() {
-        try? keychain.set("early-adopter", forKey: Keys.licenseKey)
-        try? keychain.set(ISO8601DateFormatter().string(from: Date()), forKey: Keys.lastValidation)
-        isPro = true
-        isEarlyAdopter = true
-        licenseEmail = nil
-        licenseLogger.info("Early adopter Pro granted — lifetime access")
     }
 
     // MARK: - Activation
@@ -226,6 +260,12 @@ final class LicenseService: ObservableObject {
         do {
             let result = try await validateWithLemonSqueezy(key: trimmed)
             if result.valid {
+                guard Self.licenseProductMatchesApp(productName: result.productName, variantName: result.variantName) else {
+                    validationError = "This code is for a different SaneApps product."
+                    licenseLogger.info("License validation rejected because product did not match SaneBar")
+                    isValidating = false
+                    return
+                }
                 try keychain.set(trimmed, forKey: Keys.licenseKey)
                 if let email = result.email {
                     try keychain.set(email, forKey: Keys.licenseEmail)
@@ -261,8 +301,8 @@ final class LicenseService: ObservableObject {
         try? keychain.delete(Keys.licenseKey)
         try? keychain.delete(Keys.licenseEmail)
         try? keychain.delete(Keys.lastValidation)
-        isPro = false
-        isEarlyAdopter = false
+        updateTrialLastSeenAt()
+        isPro = isProTrialActive
         licenseEmail = nil
         validationError = nil
         licenseLogger.info("License deactivated")
@@ -339,7 +379,6 @@ final class LicenseService: ObservableObject {
 
                     await transaction.finish()
                     isPro = true
-                    isEarlyAdopter = false
                     licenseEmail = nil
                     purchaseError = nil
                     validationError = nil
@@ -395,7 +434,6 @@ final class LicenseService: ObservableObject {
                 break
             }
             isPro = unlocked
-            isEarlyAdopter = false
             if unlocked {
                 validationError = nil
                 purchaseError = nil
@@ -407,13 +445,14 @@ final class LicenseService: ObservableObject {
     private func revalidate(key: String) async {
         do {
             let result = try await validateWithLemonSqueezy(key: key)
-            if result.valid {
+            if result.valid, Self.licenseProductMatchesApp(productName: result.productName, variantName: result.variantName) {
                 try? keychain.set(ISO8601DateFormatter().string(from: Date()), forKey: Keys.lastValidation)
                 isPro = true
                 licenseLogger.info("Background revalidation succeeded")
             } else {
                 // Key was revoked — revert to free
-                isPro = false
+                updateTrialLastSeenAt()
+                isPro = isProTrialActive
                 licenseLogger.info("Background revalidation failed — reverting to free")
             }
         } catch {
@@ -428,6 +467,57 @@ final class LicenseService: ObservableObject {
         let valid: Bool
         let email: String?
         let error: String?
+        let productName: String?
+        let variantName: String?
+    }
+
+    private static func storedTrialDate(keychain: KeychainServiceProtocol, key: String, now: Date, rejectsFutureDate: Bool) -> Date? {
+        guard let stored = try? keychain.string(forKey: key),
+              let timestamp = TimeInterval(stored)
+        else { return nil }
+        guard timestamp.isFinite, timestamp > 0 else { return nil }
+        let date = Date(timeIntervalSince1970: timestamp)
+        if rejectsFutureDate, date > now.addingTimeInterval(5 * 60) {
+            return nil
+        }
+        return date
+    }
+
+    private func trialEndDate(startedAt: Date) -> Date {
+        startedAt.addingTimeInterval(TimeInterval(proTrialDurationDays) * 86400)
+    }
+
+    private func startProTrialIfNeeded(now: Date = Date()) {
+        guard proTrialStartedAt == nil else { return }
+        proTrialStartedAt = now
+        try? keychain.set(String(now.timeIntervalSince1970), forKey: Keys.proTrialStartedAt)
+        updateTrialLastSeenAt(now: now)
+        Task.detached { await EventTracker.log("pro_trial_started") }
+    }
+
+    private func effectiveTrialNow() -> Date {
+        let now = Date()
+        guard let proTrialLastSeenAt else { return now }
+        return max(now, proTrialLastSeenAt)
+    }
+
+    private func updateTrialLastSeenAt(now: Date = Date()) {
+        guard proTrialStartedAt != nil else { return }
+        let effectiveNow = max(now, proTrialLastSeenAt ?? now)
+        proTrialLastSeenAt = effectiveNow
+        try? keychain.set(String(effectiveNow.timeIntervalSince1970), forKey: Keys.proTrialLastSeenAt)
+    }
+
+    static func licenseProductMatchesApp(productName: String?, variantName: String?) -> Bool {
+        let appToken = normalizedProductToken("SaneBar")
+        let productToken = productName.map(normalizedProductToken) ?? ""
+        let variantToken = variantName.map(normalizedProductToken) ?? ""
+        guard !productToken.isEmpty || !variantToken.isEmpty else { return false }
+        return productToken.contains(appToken) || variantToken.contains(appToken)
+    }
+
+    private static func normalizedProductToken(_ value: String) -> String {
+        value.lowercased().filter { $0.isLetter || $0.isNumber }
     }
 
     private func validateWithLemonSqueezy(key: String) async throws -> ValidationResult {
@@ -444,7 +534,7 @@ final class LicenseService: ObservableObject {
         let (data, response) = try await URLSession.shared.data(for: request)
 
         guard let http = response as? HTTPURLResponse else {
-            return ValidationResult(valid: false, email: nil, error: "Unexpected response")
+            return ValidationResult(valid: false, email: nil, error: "Unexpected response", productName: nil, variantName: nil)
         }
 
         // LemonSqueezy returns 200 for valid, 400/404 for invalid
@@ -454,10 +544,12 @@ final class LicenseService: ObservableObject {
             let valid = json?["valid"] as? Bool ?? false
             let meta = json?["meta"] as? [String: Any]
             let email = meta?["customer_email"] as? String
-            return ValidationResult(valid: valid, email: email, error: nil)
+            let productName = meta?["product_name"] as? String
+            let variantName = meta?["variant_name"] as? String
+            return ValidationResult(valid: valid, email: email, error: nil, productName: productName, variantName: variantName)
         } else {
             let error = json?["error"] as? String ?? ["Invalid", Self.licenseKeyLabel().lowercased() + "."].joined(separator: " ")
-            return ValidationResult(valid: false, email: nil, error: error)
+            return ValidationResult(valid: false, email: nil, error: error, productName: nil, variantName: nil)
         }
     }
 
@@ -472,6 +564,7 @@ final class SaneBarLicenseSettingsAdapter: LicenseSettingsServiceProtocol {
     @ObservationIgnored private var observation: AnyCancellable?
 
     private(set) var isPro: Bool = false
+    private(set) var isProTrialActive: Bool = false
     private(set) var licenseEmail: String?
     private(set) var isValidating: Bool = false
     private(set) var isPurchasing: Bool = false
@@ -487,6 +580,8 @@ final class SaneBarLicenseSettingsAdapter: LicenseSettingsServiceProtocol {
     var distributionChannel: SaneDistributionChannel { base.distributionChannel }
     var usesAppStorePurchase: Bool { base.usesAppStorePurchase }
     var usesSetappPurchase: Bool { base.usesSetappDistribution }
+    var proAccessBadgeTitle: String { base.proAccessBadgeTitle }
+    var proAccessDetail: String? { base.proAccessDetail }
 
     init(base: LicenseService = .shared) {
         self.base = base
@@ -530,6 +625,7 @@ final class SaneBarLicenseSettingsAdapter: LicenseSettingsServiceProtocol {
 
     private func syncFromBase() {
         isPro = base.isPro
+        isProTrialActive = base.isProTrialActive
         licenseEmail = base.licenseEmail
         isValidating = base.isValidating
         isPurchasing = base.isPurchasing

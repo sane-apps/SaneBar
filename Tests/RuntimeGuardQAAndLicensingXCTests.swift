@@ -240,14 +240,10 @@ final class RuntimeGuardQAAndLicensingXCTests: RuntimeGuardTestCase {
         XCTAssertTrue(
             source.contains("def runtime_smoke_relaunch_command(target)") &&
                 source.contains("command = ['open', '--fresh']") &&
-                source.contains("command += ['--env', 'SANEAPPS_DISABLE_KEYCHAIN=1']") &&
                 source.contains("launch_args = ['--sane-skip-app-move']") &&
-                source.contains("launch_args << '--sane-no-keychain' if target[:no_keychain]") &&
                 source.contains("command += ['--args', *launch_args]") &&
                 source.contains("def launch_runtime_smoke_target!(target)") &&
                 source.contains("Process.spawn(") &&
-                source.contains("'SANEAPPS_DISABLE_KEYCHAIN' => '1'") &&
-                source.contains("'--sane-no-keychain'") &&
                 source.contains("launch_runtime_smoke_target!(target)") &&
                 source.contains("matches.length == 1") &&
                 source.contains("return false if matches.length > 1") &&
@@ -264,12 +260,12 @@ final class RuntimeGuardQAAndLicensingXCTests: RuntimeGuardTestCase {
                 source.contains("heartbeat_label: 'runtime smoke test_mode launch'") &&
                 source.contains("safe_write_runtime_file(\"#{RUNTIME_WAKE_PROBE_LOG_PATH}.stdout\", wake_probe_out)") &&
                 source.contains("system(*runtime_smoke_relaunch_command(target), out: File::NULL, err: File::NULL)"),
-            "Project QA runtime smoke relaunches should direct-launch no-keychain Pro checks so Launch Services cannot drop automation arguments or bind to a stale process"
+            "Project QA runtime smoke relaunches should keep one fresh target process so Launch Services cannot bind to a stale process"
         )
         XCTAssertTrue(
-            source.contains("Runtime smoke requires a Pro-enabled target for Always Hidden checks; the mini runtime target stayed in free mode") &&
+            source.contains("Runtime smoke requires a paid license or active Pro trial for Always Hidden checks; the mini runtime target stayed in Basic") &&
                 source.contains("licenseIsPro=#{snapshot['licenseIsPro'].inspect}"),
-            "Runtime smoke should fail loudly when the relaunch target still comes up in free mode"
+            "Runtime smoke should fail loudly when the relaunch target still comes up in Basic"
         )
         XCTAssertTrue(
             source.contains("def runtime_smoke_available_required_candidate_ids") &&

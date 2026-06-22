@@ -78,8 +78,10 @@ public struct WelcomeView: View {
                     }
                     .buttonStyle(OnboardingPrimaryButtonStyle())
                 } else {
-                    Button("Get Started") {
-                        if selectedTier == .pro, !LicenseService.shared.isPro {
+                    Button(finalButtonLabel) {
+                        if selectedTier == .pro,
+                           !LicenseService.shared.isPro,
+                           !LicenseService.shared.hasExpiredProTrial {
                             if LicenseService.shared.usesAppStorePurchase {
                                 Task { await LicenseService.shared.purchasePro() }
                             } else if LicenseService.shared.usesSetappDistribution {
@@ -99,5 +101,12 @@ public struct WelcomeView: View {
         }
         .frame(width: 700, height: 520)
         .background(OnboardingBackground())
+    }
+
+    private var finalButtonLabel: String {
+        if !LicenseService.shared.isPro, LicenseService.shared.hasExpiredProTrial {
+            return "Continue with Basic"
+        }
+        return "Get Started"
     }
 }

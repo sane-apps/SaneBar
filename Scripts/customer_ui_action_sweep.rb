@@ -352,10 +352,6 @@ class CustomerUIActionSweep
       args, = Open3.capture2e('ps', '-o', 'args=', '-p', pid)
       args.strip
     end.reject(&:empty?)
-    unless process_args.any? { |args| args.include?('--sane-no-keychain') }
-      raise "#{APP_NAME} is not in Pro release-sweep mode; launch with ./scripts/SaneMaster.rb mode SaneBar pro --launch after runtime smoke"
-    end
-
     bundle_path = '/Applications/SaneBar.app'
     binary_path = File.join(bundle_path, 'Contents', 'MacOS', APP_NAME)
     raise "Running release app binary is missing at #{binary_path}" unless File.executable?(binary_path)
@@ -389,7 +385,6 @@ class CustomerUIActionSweep
     snapshot = release_sweep_layout_snapshot
     return if truthy?(snapshot && snapshot['licenseIsPro']) && !onboarding_open && Array(pids).length == 1
 
-    seed_release_sweep_no_keychain_pro_defaults!
     mark_release_sweep_onboarding_complete!
     terminate_release_sweep_processes(pids)
     launch_release_sweep_app(binary_path)
@@ -402,7 +397,7 @@ class CustomerUIActionSweep
       return if truthy?(last && last['licenseIsPro'])
     end
 
-    raise "#{APP_NAME} no-keychain release sweep target stayed Basic; licenseIsPro=#{last && last['licenseIsPro'].inspect}"
+    raise "#{APP_NAME} release sweep requires a paid license or active Pro trial; licenseIsPro=#{last && last['licenseIsPro'].inspect}"
   end
 
   def ensure_pro_state_for_pro_only_action!(label)
@@ -410,7 +405,7 @@ class CustomerUIActionSweep
     binary_path = @release_binary_path || File.join('/Applications/SaneBar.app', 'Contents', 'MacOS', APP_NAME)
     ensure_release_sweep_pro_unlocked!(pids, binary_path)
     snapshot = release_sweep_layout_snapshot
-    raise "#{label} requires Pro no-keychain state; licenseIsPro=#{snapshot && snapshot['licenseIsPro'].inspect}" unless truthy?(snapshot && snapshot['licenseIsPro'])
+    raise "#{label} requires paid license or active Pro trial; licenseIsPro=#{snapshot && snapshot['licenseIsPro'].inspect}" unless truthy?(snapshot && snapshot['licenseIsPro'])
 
     @transcript << "pro_only_action=#{label} pro_state=ok"
   end
@@ -444,15 +439,6 @@ class CustomerUIActionSweep
     ], timeout: 5).strip == 'true'
   rescue StandardError
     false
-  end
-
-  def seed_release_sweep_no_keychain_pro_defaults!
-    {
-      'sane.no-keychain.com.sanebar.app.pro_license_key' => 'early-adopter',
-      'sane.no-keychain.com.sanebar.app.pro_last_validation' => Time.now.utc.iso8601
-    }.each do |key, value|
-      Open3.capture2e('/usr/bin/defaults', 'write', 'com.sanebar.app', key, value)
-    end
   end
 
   def mark_release_sweep_onboarding_complete!
@@ -502,10 +488,8 @@ class CustomerUIActionSweep
   def launch_release_sweep_app(binary_path)
     Process.detach(
       Process.spawn(
-        { 'SANEAPPS_DISABLE_KEYCHAIN' => '1' },
         binary_path,
         '--sane-skip-app-move',
-        '--sane-no-keychain',
         out: File::NULL,
         err: File::NULL
       )

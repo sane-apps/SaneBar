@@ -441,15 +441,15 @@ final class RuntimeGuardMoveActivationXCTests: RuntimeGuardTestCase {
         )
     }
 
-    func testRuntimeSmokeRequiresNoKeychainProForFocusedExactIdLanes() throws {
+    func testRuntimeSmokeRequiresProAccessForFocusedExactIdLanes() throws {
         let source = try scriptSource(entrypoint: "qa.rb", partialPrefix: "project_qa")
 
         XCTAssertTrue(
             source.contains("focused_runtime_smoke_pro_error(target, lane_name)") &&
                 source.contains("licenseIsPro") &&
                 source.contains("runtime_smoke_target_process_detail(target)") &&
-                source.contains("runtime_smoke_fallback_defaults_detail"),
-            "Focused exact-ID runtime smoke should fail early with Pro/process/defaults diagnostics before moving Apple menu extras"
+                source.contains("paid license or active Pro trial"),
+            "Focused exact-ID runtime smoke should fail early with Pro/process diagnostics before moving Apple menu extras"
         )
         XCTAssertTrue(
             source.contains("require_no_keychain && !command.include?('--sane-no-keychain')"),

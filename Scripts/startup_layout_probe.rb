@@ -832,31 +832,14 @@ class StartupLayoutProbe
     snapshot = read_layout_snapshot!
     return if truthy?(snapshot['licenseIsPro'])
 
-    seed_no_keychain_pro_defaults!
-    @probe_forced_no_keychain = true
-    @force_no_keychain = true
-    log("Relaunching #{@app_name} with no-keychain Pro defaults for #155 move proof")
+    log("Relaunching #{@app_name} to re-check paid license or active Pro trial for #155 move proof")
     quit_app
     launch_app
 
-    pro_snapshot = wait_for_healthy_snapshot(label: '#155 no-keychain Pro relaunch')
+    pro_snapshot = wait_for_healthy_snapshot(label: '#155 Pro relaunch')
     return if truthy?(pro_snapshot['licenseIsPro'])
 
-    raise "#155 dirty replay probe requires Pro no-keychain runtime before moving icons; licenseIsPro=#{pro_snapshot['licenseIsPro'].inspect} #{fallback_pro_defaults_detail}"
-  end
-
-  def seed_no_keychain_pro_defaults!
-    write_string_default('sane.no-keychain.com.sanebar.app.pro_license_key', 'early-adopter')
-    write_string_default('sane.no-keychain.com.sanebar.app.pro_last_validation', Time.now.utc.iso8601)
-  end
-
-  def fallback_pro_defaults_detail
-    key = 'sane.no-keychain.com.sanebar.app.pro_license_key'
-    out, status = capture('defaults', 'read', bundle_identifier, key)
-    value = status.success? ? out.strip : 'missing'
-    "fallbackDefaults.#{key}=#{value}"
-  rescue StandardError => e
-    "fallbackDefaults=unavailable(#{e.class}: #{e.message})"
+    raise "#155 dirty replay probe requires a paid license or active Pro trial before moving icons; licenseIsPro=#{pro_snapshot['licenseIsPro'].inspect}"
   end
 
   def deterministic_replay_candidate_id?(item)

@@ -559,8 +559,8 @@
 			children = (
 				0752D3D1CCD73101C00C78C2 /* Assets.xcassets */,
 				F673CE7642E1AAD7BE7ADBCC /* DMGIcon.icns */,
-				FB5A5E19E67E44650AC8FED0 /* Localizable.strings */,
 				375ECF968EBFF6B579A7BD5A /* SaneBar.sdef */,
+				FB5A5E19E67E44650AC8FED0 /* Localizable.strings */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -928,7 +928,6 @@
 				};
 			};
 			buildConfigurationList = 522DFAB53E640DC8E2C4B75C /* Build configuration list for PBXProject "SaneBar" */;
-			compatibilityVersion = "Xcode 14.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -944,6 +943,7 @@
 				156564281362C27A80B884E0 /* XCRemoteSwiftPackageReference "Sparkle" */,
 			);
 			preferredProjectObjectVersion = 77;
+			productRefGroup = D14A5D400198233C0D7C948F /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -2033,7 +2033,7 @@
 			repositoryURL = "https://github.com/sane-apps/SaneUI.git";
 			requirement = {
 				kind = revision;
-				revision = f1a8f67b9a53eb267a1e218b8807bd2ebddacaab;
+				revision = 9e98b9f1e93400c5d5fe164b57643513bf7f16c3;
 			};
 		};
 		D2D0D47940BF0BB98E9639FA /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */ = {
