@@ -6,7 +6,27 @@
                                 
         
                                                                                                                                                                                                                                                                                                                                         
-                                                <item>
+                                                        <item>
+            <title>2.1.77</title>
+            <link>https://sanebar.com/download</link>
+            <pubDate>Mon, 22 Jun 2026 12:58:11 -0400</pubDate>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:criticalUpdate/>            <description>
+                <![CDATA[
+                <h2>What's New</h2>
+                <ul>
+                <li>Pro is now free to try for 14 days. Basic remains included after the trial.</li>
+                </ul>
+                ]]>
+            </description>
+            <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.77.zip"
+                       sparkle:version="2177"
+                       sparkle:shortVersionString="2.1.77"
+                       length="9230801"
+                       type="application/octet-stream"
+                       sparkle:edSignature="L/OZGl9N43202TuDsJ3a4CfA3nfOHld8YRxxL3p88Oh0Sj8KmvTxr2aifSAc20LVKBF0Hg1B3NdiNd7kxBukCQ=="/>
+        </item>
+<item>
             <title>2.1.76</title>
             <link>https://sanebar.com/download</link>
             <pubDate>Sun, 21 Jun 2026 16:18:41 -0400</pubDate>
