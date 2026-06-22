@@ -48,7 +48,7 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
 
         XCTAssertTrue(project.contains("SaneUI:"), "SaneUI should remain an explicit dependency")
         XCTAssertTrue(
-            project.contains("revision: f1a8f67b9a53eb267a1e218b8807bd2ebddacaab"),
+            project.contains("revision: 9e98b9f1e93400c5d5fe164b57643513bf7f16c3"),
             "SaneUI should pin the shared settings chrome revision for release reproducibility"
         )
         XCTAssertFalse(
@@ -56,13 +56,37 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
             "SaneUI should not track a moving branch in release configuration"
         )
         XCTAssertTrue(
-            resolved.contains("\"revision\" : \"f1a8f67b9a53eb267a1e218b8807bd2ebddacaab\""),
+            resolved.contains("\"revision\" : \"9e98b9f1e93400c5d5fe164b57643513bf7f16c3\""),
             "Package.resolved should resolve SaneUI to the release-tested revision"
         )
         XCTAssertFalse(
             resolved.contains("\"branch\" : \"main\""),
             "Package.resolved should not preserve SaneUI as a moving branch pin"
         )
+    }
+
+    func testLocalOnboardingCrossSellStaysDirectAndFocused() throws {
+        let source = try String(
+            contentsOf: projectRootURL().appendingPathComponent("UI/Onboarding/WelcomePlanPage.swift"),
+            encoding: .utf8
+        )
+
+        XCTAssertTrue(
+            source.contains("!licenseService.usesAppStorePurchase && !licenseService.usesSetappDistribution"),
+            "SaneBar onboarding companion apps should stay direct-download only"
+        )
+        XCTAssertTrue(source.contains("https://saneclip.com?ref=sanebar-app"))
+        XCTAssertTrue(source.contains("https://saneclick.com?ref=sanebar-app"))
+        XCTAssertTrue(source.contains("https://sanehosts.com?ref=sanebar-app"))
+        XCTAssertTrue(source.contains("Also useful"))
+        XCTAssertTrue(source.contains("outboundActionInFlight"))
+        XCTAssertTrue(source.contains("runSingleOutboundAction"))
+        XCTAssertTrue(source.contains(".disabled(licenseService.isPurchasing || outboundActionInFlight)"))
+        XCTAssertTrue(source.contains(".buttonStyle(OnboardingSecondaryButtonStyle())"))
+        XCTAssertFalse(source.contains("SaneSales"))
+        XCTAssertFalse(source.contains("SaneVideo"))
+        XCTAssertFalse(source.contains("Works well with"))
+        XCTAssertFalse(source.contains(".buttonStyle(.bordered)"))
     }
 
     func testURLHandlingLogsDoNotExposeQueryText() throws {
@@ -1080,4 +1104,5 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
             "Visible move targeting must stay clamped inside the divider/SaneBar lane (no overshoot into the system area) while leaving reflow slack off the separator"
         )
     }
+
 }

@@ -107,21 +107,21 @@ launch_calendar:
       action: "Scan competitor issues and high-fit X/HN/Reddit threads; do not post unless the user is asking for a menu bar manager/Bartender/Ice alternative and the reply discloses 'I built SaneBar'."
       gate: "No Product Hunt relaunch, no Show HN repost, and no generic standalone launch posts."
       success_metric: "0-2 high-fit replies per week or a recorded no-go."
-      last_reviewed: "2026-06-21"
-      result: "On 2026-06-21, canonical Mini `launch_readiness --json` reran cleanly from the repo root and returned `ok: true` with warnings only. SaneBar is still meaningfully launched and still should not burn another Product Hunt/Hacker News relaunch without a major new story, but those concerns remain advisory for the already-live support lane instead of a hard no-go. Mini `release_preflight` is now passed at 0.5 days old, but it still carries 7 warnings, and `/Users/sj/SaneApps/infra/SaneProcess/outputs/validation/2026-06-21.json` is still red with stale customer-UI/runtime-proof blockers. The due weekly monitoring scan was executed read-only and found no same-day high-fit disclosed-reply opportunity, so no public reply, public post, scheduling action, or directory action was executed."
+      last_reviewed: "2026-06-22"
+      result: "On 2026-06-22, canonical Mini `launch_readiness --json` reran cleanly from the repo root and returned `ok: true` with warnings only. SaneBar is still meaningfully launched and still should not burn another Product Hunt/Hacker News relaunch without a major new story, but those concerns remain advisory for the already-live support lane instead of a hard no-go. Mini `release_preflight` is still passed at 1.5 days old with 7 warnings. The weekly opportunity-monitoring lane is not due again until 2026-06-28, so no scan, public reply, public post, scheduling action, or directory action was executed on 2026-06-22."
   last_launch_readiness:
-    date: "2026-06-21"
+    date: "2026-06-22"
     status: "ok_with_warnings"
     launch_readiness_exit: 0
     blocker_summary:
-      - "Canonical Mini `launch_readiness --json` reran on 2026-06-21 and exited zero with warnings only."
+      - "Canonical Mini `launch_readiness --json` reran on 2026-06-22 and exited zero with warnings only."
       - "The live route returned `ok: true` because SaneBar is already meaningfully launched and relaunch-story/support-noise findings are advisory-only for the already-live support lane."
       - "Already launched on Product Hunt/HN; a repost without a major new story would still look weak."
       - "Open support issues remain around layout stability and icon movement; do not amplify broadly until the current patch is live and stable."
-      - "Mini `release_preflight` is green again, but it still carries 7 warnings at 0.5 days old."
-      - "The shared validation receipt at `/Users/sj/SaneApps/infra/SaneProcess/outputs/validation/2026-06-21.json` still returned `NOT READY FOR RELEASE`, including stale customer-UI/runtime-proof blockers for SaneBar."
-      - "The due weekly opportunity-monitoring scan found no same-day high-fit disclosed-reply opportunity, so no public reply, post, scheduling, or directory action ran on 2026-06-21."
-    next_date: "2026-06-28"
+      - "Mini `release_preflight` is still green, but it carries 7 warnings at 1.5 days old."
+      - "The weekly opportunity-monitoring lane is not due again until 2026-06-28, so this run did not execute a public-support scan."
+      - "No public reply, public post, scheduling, or directory action ran on 2026-06-22."
+    next_date: "2026-06-29"
 
 x_search_keywords:
   - "\"Bartender\" (macOS OR Mac OR \"menu bar\" OR app) (alternative OR replacement OR acquired OR privacy) lang:en -is:retweet"

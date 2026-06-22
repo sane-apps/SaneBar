@@ -194,8 +194,8 @@ Full SOP: `SaneProcess/templates/RELEASE_SOP.md`
   1. Generate fresh runtime evidence on the Mini, including strict Pro move smoke
      and the default smoke logs required by the sweep.
   2. Relaunch the Mini Pro-mode build with `./Scripts/SaneMaster.rb mode SaneBar pro --launch`
-     immediately before the sweep. Some smoke paths relaunch the app and can drop
-     the no-keychain Pro argument.
+     immediately before the sweep. The running release target must have a paid license
+     or active 14-day Pro trial; public no-keychain Pro seeding is not supported.
   3. Run `ruby Scripts/customer_ui_action_sweep.rb`
   4. Confirm `Tests/CustomerUIActions.yml` and `.sane/customer_ui_action_receipt.json`
      cover every customer-facing action family before `release_preflight`.

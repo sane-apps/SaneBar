@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SaneBar — Hide Menu Bar Icons &amp; Lock with Touch ID | Mac</title>
-    <meta name="description" content="Hide and organize macOS menu bar icons. Basic is $0, Pro unlocks Touch ID lock, smart triggers, and custom styling. On-device by default, no subscriptions, transparent source.">
+    <meta name="description" content="Hide and organize macOS menu bar icons. Download starts a 14-day Pro trial for Touch ID lock, smart triggers, and custom styling. Basic remains free after trial. transparent source.">
     <link rel="canonical" href="https://sanebar.com">
     <meta name="keywords" content="macOS, menu bar, menubar manager, bartender alternative, privacy, Touch ID, Mac app">
     <meta name="author" content="Mr. Sane">
@@ -18,7 +18,7 @@
 
     <!-- Open Graph -->
     <meta property="og:title" content="SaneBar — Hide Menu Bar Icons &amp; Lock with Touch ID | Mac">
-    <meta property="og:description" content="Hide and organize macOS menu bar icons. Basic is $0, Pro unlocks Touch ID lock, smart triggers, and custom styling. On-device by default, no subscriptions, transparent source.">
+    <meta property="og:description" content="Hide and organize macOS menu bar icons. Download starts a 14-day Pro trial for Touch ID lock, smart triggers, and custom styling. Basic remains free after trial. transparent source.">
     <meta property="og:url" content="https://sanebar.com">
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="SaneBar">
@@ -33,7 +33,7 @@
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:url" content="https://sanebar.com">
     <meta name="twitter:title" content="SaneBar — Hide Menu Bar Icons &amp; Lock with Touch ID | Mac">
-    <meta name="twitter:description" content="Hide and organize macOS menu bar icons. Basic is $0, Pro unlocks Touch ID lock, smart triggers, and custom styling. On-device by default, no subscriptions, transparent source.">
+    <meta name="twitter:description" content="Hide and organize macOS menu bar icons. Download starts a 14-day Pro trial for Touch ID lock, smart triggers, and custom styling. Basic remains free after trial. transparent source.">
     <meta name="twitter:image" content="https://sanebar.com/images/og-image.png?v=20260616-card">
     <meta name="twitter:image:alt" content="SaneBar preview card for private Mac menu bar organization">
 
@@ -695,6 +695,7 @@
         }
 
         .pricing-card.featured {
+            order: -1;
             background:
                 radial-gradient(ellipse at 80% 20%, rgba(79, 143, 250, 0.12) 0%, transparent 50%),
                 linear-gradient(160deg, #0d1830 0%, #0a1225 100%);
@@ -2382,11 +2383,11 @@
         <a href="mailto:hi@saneapps.com" onclick="toggleMobileNav()">Contact</a>
         <a href="#support" onclick="toggleMobileNav()">Donate</a>
         <p class="mobile-nav-section">More SaneApps</p>
-        <a href="https://saneclip.com">SaneClip &mdash; Clipboard Manager</a>
-        <a href="https://sanehosts.com">SaneHosts &mdash; System-Level Ad Blocker</a>
-        <a href="https://sanesales.com">SaneSales &mdash; Sales Tracker</a>
-        <a href="https://saneapps.com">See all SaneApps &rarr;</a>
-        <a href="https://dist.sanebar.com/updates/SaneBar-2.1.76.zip" class="mobile-nav-cta" data-cta="download_free">Download Free</a>
+        <a href="https://saneclip.com" data-cta="cross_sell_saneclip_mobile">SaneClip &mdash; Clipboard Manager</a>
+        <a href="https://sanehosts.com" data-cta="cross_sell_sanehosts_mobile">SaneHosts &mdash; Ad &amp; Tracker Blocker</a>
+        <a href="https://saneclick.com" data-cta="cross_sell_saneclick_mobile">SaneClick &mdash; Finder Actions</a>
+        <a href="https://saneapps.com" data-cta="cross_sell_saneapps_mobile">See all SaneApps &rarr;</a>
+        <a href="https://dist.sanebar.com/updates/SaneBar-2.1.76.zip" class="mobile-nav-cta" data-cta="download_trial">Download Pro Trial</a>
     </div>
 
     <section class="hero">
@@ -2398,12 +2399,17 @@
                 <span>💵 No Subscriptions</span>
                 <a href="https://github.com/sane-apps/SaneBar/blob/main/LICENSE" target="_blank" rel="noopener" style="color: inherit; text-decoration: none;">🔎 100% Transparent Code</a>
             </div>
+            <div class="animate-in delay-4" style="margin: 22px auto 28px; text-align: center;">
+                <a href="https://dist.sanebar.com/updates/SaneBar-2.1.76.zip" class="pricing-cta pricing-cta-pro" style="display: inline-flex; align-items: center; justify-content: center; width: auto; min-width: 240px;" data-cta="download_trial">Download Pro Trial</a>
+                <p style="color: var(--text-muted); font-size: 0.92rem; margin: 12px 0 6px;">14 days free. No credit card required. Basic remains free after trial.</p>
+                <a href="https://go.saneapps.com/buy/sanebar?ref=website-hero" style="color: var(--accent); font-weight: 700; text-decoration: none;" data-cta="buy_pro">Buy Pro now — $14.99 once</a>
+            </div>
             <!-- Pricing cards — right in the hero so it's the first thing you act on -->
             <div class="animate-in delay-4 hero-pricing-grid" id="pricing">
                 <div class="pricing-card">
-                    <p class="pricing-label">Basic</p>
+                    <p class="pricing-label">Basic after trial</p>
                     <p class="pricing-price">Free</p>
-                    <p class="pricing-price-note">Forever — no catch</p>
+                    <p class="pricing-price-note">Automatic fallback after 14 days</p>
                     <ul class="pricing-features">
                         <li>Hide &amp; show menu bar icons</li>
                         <li>Left-click icon activation</li>
@@ -2411,19 +2417,13 @@
                         <li>Icon Panel or Second Menu Bar</li>
                         <li>On-device by default privacy</li>
                     </ul>
-                    <a href="https://dist.sanebar.com/updates/SaneBar-2.1.76.zip" class="pricing-cta pricing-cta-free" data-cta="download_free">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: -2px; margin-right: 6px;">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
-                        </svg>
-                        Download Free
-                    </a>
                 </div>
                 <div class="pricing-card featured">
-                    <p class="pricing-label">Pro</p>
+                    <p class="pricing-label">Pro trial</p>
                     <p class="pricing-price">$14.99<span class="price-note">*</span></p>
-                    <p class="pricing-price-note">One-time — yours forever</p>
+                    <p class="pricing-price-note">14 days free. No credit card required.</p>
                     <ul class="pricing-features">
-                        <li>Everything in Basic, plus:</li>
+                        <li>Touch ID lock and smart triggers</li>
                         <li class="extra">Touch ID &amp; password lock</li>
                         <li class="extra">6 smart triggers (battery, Wi-Fi, Focus, app launch, schedule, script)</li>
                         <li class="extra">Right-click icon actions in panel views</li>
@@ -2438,7 +2438,6 @@
                         <li class="extra">Custom menu bar icon</li>
                         <li class="extra">AppleScript &amp; Shortcuts automation</li>
                     </ul>
-                    <a href="https://go.saneapps.com/buy/sanebar?ref=website-hero" class="pricing-cta pricing-cta-pro" data-cta="buy_pro">Buy Pro</a>
                 </div>
             </div>
             <div class="setapp-availability animate-in delay-4">
@@ -2492,7 +2491,7 @@
                 </div>
             </div>
             <div class="showcase-grid animate-in delay-5">
-                <a href="javascript:void(0)" onclick="openLightbox('images/second-menu-bar-live.png', 'Second Menu Bar — Hide 20+ icons without losing access')" class="showcase-card showcase-card-wide">
+                <a href="#" onclick="openLightbox('images/second-menu-bar-live.png', 'Second Menu Bar — Hide 20+ icons without losing access'); return false" class="showcase-card showcase-card-wide">
                     <div class="showcase-copy">
                         <p class="showcase-eyebrow">Second Menu Bar</p>
                         <h3>
@@ -2506,7 +2505,7 @@
                     </div>
                     <img src="images/second-menu-bar-live-tight.png" alt="SaneBar second menu bar showing many hidden icons">
                 </a>
-                <a href="javascript:void(0)" onclick="openLightbox('images/icon-panel-live.png', 'Icon Panel — Search, filter, and drag icons between zones')" class="showcase-card">
+                <a href="#" onclick="openLightbox('images/icon-panel-live.png', 'Icon Panel — Search, filter, and drag icons between zones'); return false" class="showcase-card">
                     <div class="showcase-copy">
                         <p class="showcase-eyebrow">Icon Panel</p>
                         <h3>Find and open apps fast</h3>
@@ -2517,7 +2516,7 @@
                     </div>
                     <img src="images/icon-panel-live.png" alt="SaneBar icon panel with hidden icons, categories, and search">
                 </a>
-                <a href="javascript:void(0)" onclick="openLightbox('images/browse-settings.png', 'Choose Your View — Switch between Icon Panel and Second Menu Bar anytime')" class="showcase-card showcase-card-support">
+                <a href="#" onclick="openLightbox('images/browse-settings.png', 'Choose Your View — Switch between Icon Panel and Second Menu Bar anytime'); return false" class="showcase-card showcase-card-support">
                     <div class="showcase-copy">
                         <p class="showcase-eyebrow">Settings</p>
                         <h3>Pick the view you like</h3>
@@ -2618,7 +2617,7 @@
             <h3 style="font-size: 1.1rem; color: var(--text-secondary); margin-top: 48px; margin-bottom: 20px; font-weight: 500;">Unlock with Pro — $14.99 once</h3>
             <div class="feature-grid">
                 <!-- 1. Touch ID Lock - THE unique selling point -->
-                <a href="javascript:void(0)" onclick="openLightbox('images/touchid-prompt.png', 'Touch ID Lock — Biometric protection for your hidden icons')" class="feature-card featured">
+                <a href="#" onclick="openLightbox('images/touchid-prompt.png', 'Touch ID Lock — Biometric protection for your hidden icons'); return false" class="feature-card featured">
                     <div class="feature-icon">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
                             <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
@@ -2629,7 +2628,7 @@
                     <p>The <strong>only</strong> menu bar manager with biometric security. Perfect for shared workspaces and presentations.</p>
                 </a>
                 <!-- 2. Icon Activation & Hotkeys -->
-                <a href="javascript:void(0)" onclick="openLightbox('images/find-icon.png', 'Icon Activation & Hotkeys — Click to open menus, assign global shortcuts')" class="feature-card">
+                <a href="#" onclick="openLightbox('images/find-icon.png', 'Icon Activation & Hotkeys — Click to open menus, assign global shortcuts'); return false" class="feature-card">
                     <div class="feature-icon">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
                             <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
@@ -2651,7 +2650,7 @@
                     <p>A dedicated zone for icons you rarely need. Access and manage it in Icon Panel, Second Menu Bar, or Find Icon search.</p>
                 </div>
                 <!-- 5. Profiles & Automation -->
-                <a href="javascript:void(0)" onclick="openLightbox('images/settings-shortcuts.png', 'Profiles & Automation — Saved setups, icon groups, AppleScript')" class="feature-card">
+                <a href="#" onclick="openLightbox('images/settings-shortcuts.png', 'Profiles & Automation — Saved setups, icon groups, AppleScript'); return false" class="feature-card">
                     <div class="feature-icon">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
@@ -2664,7 +2663,7 @@
                     <p>Save different setups for work, home, or presentations. Organize icons into groups. Full AppleScript automation for Shortcuts and workflows.</p>
                 </a>
                 <!-- 4. Smart Triggers - auto-show on conditions -->
-                <a href="javascript:void(0)" onclick="openLightbox('images/settings-rules.png', 'Smart Triggers — Auto-show on Focus Mode, battery, WiFi, or app launch')" class="feature-card">
+                <a href="#" onclick="openLightbox('images/settings-rules.png', 'Smart Triggers — Auto-show on Focus Mode, battery, WiFi, or app launch'); return false" class="feature-card">
                     <div class="feature-icon">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
                             <circle cx="12" cy="12" r="10"></circle>
@@ -2675,7 +2674,7 @@
                     <p>Auto-reveal icons when Focus Mode changes, battery is low, apps launch, or you connect to certain WiFi networks.</p>
                 </a>
                 <!-- 5. Gestures & Auto-hide - MISSING BEFORE! -->
-                <a href="javascript:void(0)" onclick="openLightbox('images/settings-rules.png', 'Gestures & Auto-hide — Hover, scroll, and timed hiding')" class="feature-card">
+                <a href="#" onclick="openLightbox('images/settings-rules.png', 'Gestures & Auto-hide — Hover, scroll, and timed hiding'); return false" class="feature-card">
                     <div class="feature-icon">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"></path>
@@ -2688,7 +2687,7 @@
                     <p>Hover, scroll, or click to reveal. Directional scroll (up=show, down=hide). Auto-hide on app switch. Ice-compatible.</p>
                 </a>
                 <!-- 6. Menu Bar Spacing - unique feature -->
-                <a href="javascript:void(0)" onclick="openLightbox('images/spacing.png', 'Menu Bar Spacing — Tighter icons, recover notch-hidden apps')" class="feature-card">
+                <a href="#" onclick="openLightbox('images/spacing.png', 'Menu Bar Spacing — Tighter icons, recover notch-hidden apps'); return false" class="feature-card">
                     <div class="feature-icon">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
                             <line x1="5" y1="9" x2="5" y2="15"></line>
@@ -2703,7 +2702,7 @@
                     <p>MacBook Pro notch hiding icons? System-wide spacing (1-10) gives you more room.</p>
                 </a>
                 <!-- 7. Custom Appearance - Liquid Glass, tint, dividers -->
-                <a href="javascript:void(0)" onclick="openLightbox('images/settings-appearance.png', 'Custom Appearance — Liquid Glass, tint, shadow, borders, dividers')" class="feature-card">
+                <a href="#" onclick="openLightbox('images/settings-appearance.png', 'Custom Appearance — Liquid Glass, tint, shadow, borders, dividers'); return false" class="feature-card">
                     <div class="feature-icon">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
                             <circle cx="13.5" cy="6.5" r="0.5"></circle>
@@ -2878,7 +2877,7 @@
         <div class="container">
             <h2 class="section-title">How SaneBar Stacks Up</h2>
             <p class="section-subtitle">Other menu bar apps may spy, charge forever, or disappear. SaneBar keeps your menu bar workflow on-device, publishes its code, and stays simple to own.</p>
-            <p class="section-subtitle" style="margin-top: -10px; font-size: 0.95rem;">This table reflects SaneBar Pro. For plan details, see the Basic vs Pro comparison above.</p>
+            <p class="section-subtitle" style="margin-top: -10px; font-size: 0.95rem;">This table reflects SaneBar Pro. Download starts a 14-day Pro trial, then Basic remains free if you do not upgrade.</p>
             <div class="comparison-table-wrapper">
                 <table class="comparison-table">
                     <thead>
@@ -3204,43 +3203,35 @@
     <section class="more-apps">
         <div class="container">
             <h2 class="section-title">More from SaneApps</h2>
-            <p class="more-apps-subtitle">Privacy-first Mac utilities that don't suck</p>
+            <p class="more-apps-subtitle">Simple Mac utilities that respect your time and privacy.</p>
             <div class="more-apps-grid">
-                <a href="https://saneclip.com" class="app-card">
+                <a href="https://saneclip.com" class="app-card" data-cta="cross_sell_saneclip_card">
                     <div class="app-card-header">
                         <img src="images/saneclip-icon.png" alt="SaneClip" class="app-card-icon">
                         <div class="app-card-name">SaneClip</div>
                     </div>
-                    <p class="app-card-tagline">Clipboard history that never leaves your Mac. Touch ID protection, instant search, text transforms.</p>
+                    <p class="app-card-tagline">Save clipboard history privately. Touch ID protection, instant search, and quick text tools.</p>
                     <span class="app-card-cta">Learn more &rarr;</span>
                 </a>
-                <a href="https://sanehosts.com" class="app-card">
+                <a href="https://sanehosts.com" class="app-card" data-cta="cross_sell_sanehosts_card">
                     <div class="app-card-header">
                         <img src="images/sanehosts-icon.png" alt="SaneHosts" class="app-card-icon">
                         <div class="app-card-name">SaneHosts</div>
                     </div>
-                    <p class="app-card-tagline">Block ads, trackers, and data collection at the system level. A clean UI for your hosts file.</p>
+                    <p class="app-card-tagline">Block ads and trackers across your Mac with a simple local app.</p>
                     <span class="app-card-cta">Learn more &rarr;</span>
                 </a>
-                <a href="https://saneclick.com" class="app-card">
+                <a href="https://saneclick.com" class="app-card" data-cta="cross_sell_saneclick_card">
                     <div class="app-card-header">
                         <img src="images/saneclick-icon.png" alt="SaneClick" class="app-card-icon">
                         <div class="app-card-name">SaneClick</div>
                     </div>
-                    <p class="app-card-tagline">Run scripts, convert files, and automate your Mac directly from the right-click menu. 50+ actions, on-device by default.</p>
-                    <span class="app-card-cta">Learn more &rarr;</span>
-                </a>
-                <a href="https://sanesales.com?ref=sanebar-more-apps" class="app-card" data-cta="cross_sell_sanesales">
-                    <div class="app-card-header">
-                        <img src="images/sanesales-icon.png" alt="SaneSales" class="app-card-icon">
-                        <div class="app-card-name">SaneSales</div>
-                    </div>
-                    <p class="app-card-tagline">See sales history at a glance. Track revenue, orders, and trends in one clean view.</p>
+                    <p class="app-card-tagline">Add useful right-click actions for Finder. Convert files, run scripts, and stay on-device.</p>
                     <span class="app-card-cta">Learn more &rarr;</span>
                 </a>
             </div>
             <div class="more-apps-hub">
-                <a href="https://saneapps.com">See all apps at saneapps.com &rarr;</a>
+                <a href="https://saneapps.com" data-cta="cross_sell_saneapps_hub">See all apps at saneapps.com &rarr;</a>
             </div>
         </div>
     </section>
@@ -3250,15 +3241,15 @@
             <div class="sustainability-card">
                 <h2 style="font-family: 'Playfair Display', serif; font-size: 2.25rem; margin-bottom: 20px;">Transparent + Sustainable</h2>
                 <div class="sustainability-body">
-                    <p style="color: var(--text-secondary); max-width: 600px; margin: 0 auto 30px;">SaneBar Basic is $0. Pro upgrades and donations keep it alive. Ice is broken. Hidden Bar is abandoned. Bartender sold out. That's what happens without a sustainable model.</p>
+                    <p style="color: var(--text-secondary); max-width: 600px; margin: 0 auto 30px;">Download starts 14 days of Pro. After the trial, keep Pro with a one-time purchase or continue with Basic for free.</p>
                     <div class="sustainability-options">
                         <a href="https://dist.sanebar.com/updates/SaneBar-2.1.76.zip" class="sustainability-option">
-                            <h4>Download Basic</h4>
-                            <p>Signed, notarized, ready to use. Core features included at $0.</p>
+                            <h4>Download Pro Trial</h4>
+                            <p>Signed, notarized, and ready to use. No credit card required; Basic remains free after trial.</p>
                         </a>
                         <a href="https://go.saneapps.com/buy/sanebar?ref=website" class="sustainability-option featured">
-                            <h4>Upgrade to Pro — $14.99</h4>
-                            <p>Touch ID, triggers, profiles, styling. Supports development.</p>
+                            <h4>Keep Pro — $14.99</h4>
+                            <p>After your trial, buy once to keep Touch ID, triggers, profiles, and styling.</p>
                         </a>
                     </div>
                 </div>

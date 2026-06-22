@@ -116,7 +116,7 @@ Everything in Basic, plus:
 ![Rules and Automation](docs/images/settings-rules.png)
 ![Appearance Settings](docs/images/settings-appearance.png)
 
-**Existing users before v1.5** automatically get lifetime Pro as early adopters. No action needed.
+**Enjoy 14 days of Pro with no credit card required.** Paid customers keep Pro with their license key.
 
 ### Guided Onboarding
 

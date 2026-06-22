@@ -35,10 +35,3 @@ import SwiftUI
         .frame(width: 700, height: 520)
         .background(OnboardingBackground())
 }
-
-#Preview("Page 5 - Early Adopter") {
-    FreeVsProPage(selectedTier: .constant(.pro))
-        .frame(width: 700, height: 520)
-        .background(OnboardingBackground())
-        .onAppear { LicenseService.shared.grantEarlyAdopterPro() }
-}

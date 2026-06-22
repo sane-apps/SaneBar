@@ -92,7 +92,6 @@ class ProjectQA
         %w[move_matrix shared_bundle native_apple].include?(resume_phase) ? false : ENV.fetch('SANEBAR_RELEASE_SMOKE_SCREENSHOTS', '1') != '0'
       capture_runtime_smoke_screenshots = release_smoke_screenshots_required && screenshot_capture_available
       appearance_settings_backup = prepare_runtime_smoke_appearance_settings! if capture_runtime_smoke_screenshots
-      seed_runtime_smoke_no_keychain_pro_defaults!
       if release_smoke_screenshots_required && !capture_runtime_smoke_screenshots
         @errors << 'Runtime smoke screenshot/tint evidence is required but unavailable on this host.'
         puts '❌ runtime smoke screenshot/tint evidence unavailable'
@@ -742,23 +741,6 @@ class ProjectQA
     backup
   rescue JSON::ParserError
     backup
-  end
-
-  def seed_runtime_smoke_no_keychain_pro_defaults!
-    write_runtime_smoke_default(
-      'sane.no-keychain.com.sanebar.app.pro_license_key',
-      'early-adopter'
-    )
-    write_runtime_smoke_default(
-      'sane.no-keychain.com.sanebar.app.pro_last_validation',
-      Time.now.utc.iso8601
-    )
-  end
-
-  def write_runtime_smoke_default(key, value)
-    Open3.capture2e('/usr/bin/defaults', 'write', 'com.sanebar.app', key, value.to_s)
-  rescue StandardError
-    nil
   end
 
   def restore_runtime_smoke_appearance_settings!(backup)

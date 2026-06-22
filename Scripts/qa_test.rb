@@ -779,7 +779,7 @@ class ProjectQATest < Minitest::Test
     assert_includes source, 'policyOnlyMode: release_policy_only_mode?'
   end
 
-  def test_runtime_smoke_bootstraps_pro_for_always_hidden_checks
+  def test_runtime_smoke_requires_real_pro_access_for_always_hidden_checks
     source = qa_source
 
     assert_includes source, 'runtime_smoke_host_allowed?'
@@ -791,12 +791,9 @@ class ProjectQATest < Minitest::Test
     assert_includes source, "'SANEBAR_SMOKE_REQUIRE_ALL_ZONES' => '1'"
     assert_includes source, "'SANEBAR_SMOKE_SKIP_MOVE_CHECKS' => '0'"
     assert_includes source, 'always_hidden_setup_error = ensure_runtime_smoke_always_hidden_ready!(target)'
-    assert_includes source, "target[:no_keychain] = true"
-    assert_includes source, 'seed_runtime_smoke_no_keychain_pro_defaults!'
-    assert_includes source, "write_runtime_smoke_default(\n      'sane.no-keychain.com.sanebar.app.pro_license_key',\n      'early-adopter'"
     assert_includes source, "settings['hasSeenFreemiumIntro'] = true"
     assert_includes source, "settings['hasCompletedHealthWizard'] = true"
-    assert_includes source, "Runtime smoke requires a Pro-enabled target for Always Hidden checks;"
+    assert_includes source, "Runtime smoke requires a paid license or active Pro trial for Always Hidden checks;"
   end
 
   def test_runtime_smoke_locks_shared_runtime_target_against_overlapping_probes
@@ -2074,24 +2071,16 @@ end
     end
   end
 
-  def test_startup_layout_probe_self_seeds_no_keychain_pro_runtime
+  def test_startup_layout_probe_requires_real_pro_runtime
     source = File.read(File.join(__dir__, 'startup_layout_probe.rb'))
 
     assert_includes source, 'ensure_pro_unlocked_for_always_hidden_moves!'
-    assert_includes source, "write_string_default('sane.no-keychain.com.sanebar.app.pro_license_key', 'early-adopter')"
-    assert_includes source, "write_string_default('sane.no-keychain.com.sanebar.app.pro_last_validation'"
-    assert_includes source, '@force_no_keychain = true'
-    assert_includes source, '@probe_forced_no_keychain = true'
-    assert_includes source, 'restore_original_launch_mode!'
-    assert_includes source, 'return if no_keychain_env_requested?'
-    assert_match(
-      /Process\.spawn\(\s*\{\s*'SANEAPPS_DISABLE_KEYCHAIN' => '1',\s*AUTOMATION_QUIT_TOKEN_ENV => @automation_quit_token\s*\},\s*binary,\s*'--sane-no-keychain'/m,
-      source
-    )
+    assert_includes source, 'paid license or active Pro trial'
+    refute_includes source, "write_string_default('sane.no-keychain.com.sanebar.app.pro_license_key'"
+    refute_includes source, "write_string_default('sane.no-keychain.com.sanebar.app.pro_last_validation'"
+    refute_includes source, '@probe_forced_no_keychain = true'
     assert_includes source, "AUTOMATION_QUIT_TOKEN_ENV = 'SANEBAR_AUTOMATION_QUIT_TOKEN'"
     assert_includes source, 'write_automation_quit_marker!'
-    assert_includes source, "key = 'sane.no-keychain.com.sanebar.app.pro_license_key'"
-    assert_includes source, '"fallbackDefaults.#{key}=#{value}"'
   end
 
   def test_startup_layout_probe_waits_through_bounded_status_item_attachment_recovery

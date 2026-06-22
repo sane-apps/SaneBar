@@ -46,9 +46,15 @@ final class KeychainService: KeychainServiceProtocol, @unchecked Sendable {
         }()
         isTestEnvironment = NSClassFromString("XCTestCase") != nil
             || ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
-        isKeychainBypassed = debugBypass
-            || ProcessInfo.processInfo.environment["SANEAPPS_DISABLE_KEYCHAIN"] == "1"
-            || ProcessInfo.processInfo.arguments.contains("--sane-no-keychain")
+        let explicitDebugBypass: Bool = {
+#if DEBUG
+            return ProcessInfo.processInfo.environment["SANEAPPS_DISABLE_KEYCHAIN"] == "1"
+                || ProcessInfo.processInfo.arguments.contains("--sane-no-keychain")
+#else
+            return false
+#endif
+        }()
+        isKeychainBypassed = debugBypass || explicitDebugBypass
         usesFallbackStorage = isTestEnvironment || isKeychainBypassed
     }
 

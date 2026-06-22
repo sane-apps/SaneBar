@@ -116,7 +116,7 @@ final class GeneralSettingsSimplificationXCTests: XCTestCase {
     }
 
     @MainActor
-    func testLaunchTimeFreeModeNormalizationPersistsRowsBeforeObserversExist() {
+    func testLaunchTimeProTrialDoesNotNormalizeRowsBeforeObserversExist() {
         LicenseService.shared.deactivate()
 
         let persistence = PersistenceServiceProtocolMock()
@@ -131,13 +131,10 @@ final class GeneralSettingsSimplificationXCTests: XCTestCase {
 
         manager.actionWorkflow.normalizeLicenseDependentDefaults()
 
-        XCTAssertTrue(manager.settings.secondMenuBarShowVisible)
-        XCTAssertFalse(manager.settings.secondMenuBarShowAlwaysHidden)
+        XCTAssertFalse(manager.settings.secondMenuBarShowVisible)
+        XCTAssertTrue(manager.settings.secondMenuBarShowAlwaysHidden)
         XCTAssertTrue(manager.settings.leftClickOpensBrowseIcons)
-        XCTAssertEqual(persistence.saveSettingsCallCount, 1)
-        XCTAssertTrue(persistence.saveSettingsArgValues.last?.secondMenuBarShowVisible ?? false)
-        XCTAssertFalse(persistence.saveSettingsArgValues.last?.secondMenuBarShowAlwaysHidden ?? true)
-        XCTAssertTrue(persistence.saveSettingsArgValues.last?.leftClickOpensBrowseIcons ?? false)
+        XCTAssertEqual(persistence.saveSettingsCallCount, 0)
     }
 
     func testSparkleUpdatesAllowedForReleaseBundleIdentifier() {

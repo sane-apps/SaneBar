@@ -241,7 +241,7 @@ class ProjectQA
     end
 
     detail = snapshot.nil? ? 'snapshot unavailable' : "licenseIsPro=#{snapshot['licenseIsPro'].inspect}"
-    "Focused #{lane_name} smoke requires a Pro no-keychain target before moving exact IDs; #{detail}. #{runtime_smoke_target_process_detail(target)} #{runtime_smoke_fallback_defaults_detail}".strip
+    "Focused #{lane_name} smoke requires a paid license or active Pro trial before moving exact IDs; #{detail}. #{runtime_smoke_target_process_detail(target)}".strip
   end
 
   def runtime_smoke_candidate_lines(target)
@@ -361,15 +361,13 @@ class ProjectQA
     return 'Runtime smoke could not read the target layout snapshot before Always Hidden checks.' if snapshot.nil?
     return nil if snapshot['licenseIsPro'] == true
 
-    target[:no_keychain] = true
     target[:relaunch] = true
-    seed_runtime_smoke_no_keychain_pro_defaults!
 
     snapshot = runtime_smoke_layout_snapshot(target)
     return nil if snapshot && snapshot['licenseIsPro'] == true
 
-    detail = snapshot.nil? ? 'snapshot unavailable after no-keychain relaunch' : "licenseIsPro=#{snapshot['licenseIsPro'].inspect}"
-    "Runtime smoke requires a Pro-enabled target for Always Hidden checks; the mini runtime target stayed in free mode (#{detail})."
+    detail = snapshot.nil? ? 'snapshot unavailable after relaunch' : "licenseIsPro=#{snapshot['licenseIsPro'].inspect}"
+    "Runtime smoke requires a paid license or active Pro trial for Always Hidden checks; the mini runtime target stayed in Basic (#{detail})."
   end
 
   def restore_runtime_smoke_mode(mode)
@@ -573,15 +571,6 @@ class ProjectQA
     "process=#{matches.join(' | ')}"
   rescue StandardError => e
     "process=unavailable(#{e.class}: #{e.message})"
-  end
-
-  def runtime_smoke_fallback_defaults_detail
-    key = 'sane.no-keychain.com.sanebar.app.pro_license_key'
-    value, status = Open3.capture2e('defaults', 'read', 'com.sanebar.app', key)
-    value = status.success? ? value.strip : 'missing'
-    "fallbackDefaults.#{key}=#{value}"
-  rescue StandardError => e
-    "fallbackDefaults=unavailable(#{e.class}: #{e.message})"
   end
 
   def validate_runtime_smoke_target(target)

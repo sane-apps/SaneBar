@@ -1820,15 +1820,13 @@ class CustomerUIActionSweepTest < Minitest::Test
     assert_includes runtime_source, 'local_air_fallback:'
   end
 
-  def test_release_sweep_relaunches_when_no_keychain_target_is_still_basic
+  def test_release_sweep_relaunches_when_target_is_still_basic
     snapshots = [{ 'licenseIsPro' => false }, { 'licenseIsPro' => true }]
-    seeded = false
     onboarding_marked = false
     terminated = nil
     launched = nil
     @sweep.define_singleton_method(:release_sweep_onboarding_window_open?) { false }
     @sweep.define_singleton_method(:release_sweep_layout_snapshot) { snapshots.shift || { 'licenseIsPro' => true } }
-    @sweep.define_singleton_method(:seed_release_sweep_no_keychain_pro_defaults!) { seeded = true }
     @sweep.define_singleton_method(:mark_release_sweep_onboarding_complete!) { onboarding_marked = true }
     @sweep.define_singleton_method(:terminate_release_sweep_processes) { |pids| terminated = pids }
     @sweep.define_singleton_method(:launch_release_sweep_app) { |binary_path| launched = binary_path }
@@ -1836,16 +1834,14 @@ class CustomerUIActionSweepTest < Minitest::Test
 
     @sweep.send(:ensure_release_sweep_pro_unlocked!, ['123'], '/Applications/SaneBar.app/Contents/MacOS/SaneBar')
 
-    assert seeded
     assert onboarding_marked
     assert_equal ['123'], terminated
     assert_equal '/Applications/SaneBar.app/Contents/MacOS/SaneBar', launched
   end
 
-  def test_release_sweep_does_not_relaunch_when_no_keychain_target_is_pro
+  def test_release_sweep_does_not_relaunch_when_target_is_pro
     @sweep.define_singleton_method(:release_sweep_onboarding_window_open?) { false }
     @sweep.define_singleton_method(:release_sweep_layout_snapshot) { { 'licenseIsPro' => true } }
-    @sweep.define_singleton_method(:seed_release_sweep_no_keychain_pro_defaults!) { flunk 'should not seed when already Pro' }
     @sweep.define_singleton_method(:mark_release_sweep_onboarding_complete!) { flunk 'should not touch onboarding when already Pro and unobstructed' }
     @sweep.define_singleton_method(:terminate_release_sweep_processes) { |_pids| flunk 'should not terminate when already Pro' }
     @sweep.define_singleton_method(:launch_release_sweep_app) { |_binary_path| flunk 'should not launch when already Pro' }
@@ -1854,12 +1850,10 @@ class CustomerUIActionSweepTest < Minitest::Test
   end
 
   def test_release_sweep_relaunches_when_onboarding_dialog_is_open
-    seeded = false
     onboarding_marked = false
     launched = false
     @sweep.define_singleton_method(:release_sweep_onboarding_window_open?) { true }
     @sweep.define_singleton_method(:release_sweep_layout_snapshot) { { 'licenseIsPro' => true } }
-    @sweep.define_singleton_method(:seed_release_sweep_no_keychain_pro_defaults!) { seeded = true }
     @sweep.define_singleton_method(:mark_release_sweep_onboarding_complete!) { onboarding_marked = true }
     @sweep.define_singleton_method(:terminate_release_sweep_processes) { |_pids| }
     @sweep.define_singleton_method(:launch_release_sweep_app) { |_binary_path| launched = true }
@@ -1867,19 +1861,16 @@ class CustomerUIActionSweepTest < Minitest::Test
 
     @sweep.send(:ensure_release_sweep_pro_unlocked!, ['123'], '/Applications/SaneBar.app/Contents/MacOS/SaneBar')
 
-    assert seeded
     assert onboarding_marked
     assert launched
   end
 
-  def test_release_sweep_relaunches_when_duplicate_no_keychain_processes_exist
-    seeded = false
+  def test_release_sweep_relaunches_when_duplicate_processes_exist
     onboarding_marked = false
     terminated = nil
     launched = false
     @sweep.define_singleton_method(:release_sweep_onboarding_window_open?) { false }
     @sweep.define_singleton_method(:release_sweep_layout_snapshot) { { 'licenseIsPro' => true } }
-    @sweep.define_singleton_method(:seed_release_sweep_no_keychain_pro_defaults!) { seeded = true }
     @sweep.define_singleton_method(:mark_release_sweep_onboarding_complete!) { onboarding_marked = true }
     @sweep.define_singleton_method(:terminate_release_sweep_processes) { |pids| terminated = pids }
     @sweep.define_singleton_method(:launch_release_sweep_app) { |_binary_path| launched = true }
@@ -1887,7 +1878,6 @@ class CustomerUIActionSweepTest < Minitest::Test
 
     @sweep.send(:ensure_release_sweep_pro_unlocked!, %w[123 456], '/Applications/SaneBar.app/Contents/MacOS/SaneBar')
 
-    assert seeded
     assert onboarding_marked
     assert_equal %w[123 456], terminated
     assert launched

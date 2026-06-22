@@ -23,13 +23,18 @@ private final class MockKeychainService: KeychainServiceProtocol, @unchecked Sen
 
 @MainActor
 struct LicenseServiceTests {
-    @Test("Fresh install starts in free mode")
-    func freshInstallIsFree() {
+    @Test("Fresh install starts the 14-day Pro trial")
+    func freshInstallStartsProTrial() throws {
         let keychain = MockKeychainService()
         let service = LicenseService(keychain: keychain)
         service.checkCachedLicense()
 
-        #expect(!service.isPro)
+        #expect(service.isPro)
+        #expect(service.isProTrialActive)
+        #expect(service.proAccessBadgeTitle == "Pro Trial")
+        #expect(service.proTrialDaysRemaining == 14)
+        #expect(try keychain.string(forKey: "sanebar.pro_trial.started_at") != nil)
+        #expect(try keychain.string(forKey: "sanebar.pro_trial.last_seen_at") != nil)
         #expect(service.licenseEmail == nil)
     }
 
@@ -47,6 +52,55 @@ struct LicenseServiceTests {
 
         #expect(service.isPro)
         #expect(service.licenseEmail == "user@example.com")
+    }
+
+    @Test("Existing paid Pro users stay Pro without trial state")
+    func existingPaidUsersStayProWithoutTrialState() throws {
+        let keychain = MockKeychainService()
+        try keychain.set("paid-license-key-123", forKey: "pro_license_key")
+        try keychain.set("paid@example.com", forKey: "pro_license_email")
+        try keychain.set(ISO8601DateFormatter().string(from: Date()), forKey: "pro_last_validation")
+
+        let service = LicenseService(keychain: keychain)
+        service.checkCachedLicense()
+
+        #expect(service.isPro)
+        #expect(!service.isProTrialActive)
+        #expect(service.proTrialStartedAt == nil)
+        #expect(service.licenseEmail == "paid@example.com")
+        #expect(try keychain.string(forKey: "pro_license_key") == "paid-license-key-123")
+    }
+
+    @Test("Legacy early-adopter marker is retired into Pro trial")
+    func legacyEarlyAdopterMarkerIsRetiredIntoProTrial() throws {
+        let keychain = MockKeychainService()
+        try keychain.set("early-adopter", forKey: "pro_license_key")
+        try keychain.set(ISO8601DateFormatter().string(from: Date()), forKey: "pro_last_validation")
+
+        let service = LicenseService(keychain: keychain)
+        service.checkCachedLicense()
+
+        #expect(service.isPro)
+        #expect(service.isProTrialActive)
+        #expect(service.proTrialDaysRemaining == 14)
+        #expect(try keychain.string(forKey: "pro_license_key") == nil)
+        #expect(try keychain.string(forKey: "pro_last_validation") == nil)
+        #expect(try keychain.string(forKey: "sanebar.pro_trial.started_at") != nil)
+    }
+
+    @Test("Trial uses last seen timestamp against clock rollback")
+    func trialUsesLastSeenTimestampAgainstClockRollback() throws {
+        let keychain = MockKeychainService()
+        try keychain.set(String(Date().addingTimeInterval(-13 * 86400).timeIntervalSince1970), forKey: "sanebar.pro_trial.started_at")
+        try keychain.set(String(Date().addingTimeInterval(2 * 86400).timeIntervalSince1970), forKey: "sanebar.pro_trial.last_seen_at")
+
+        let service = LicenseService(keychain: keychain)
+        service.checkCachedLicense()
+
+        #expect(!service.isPro)
+        #expect(!service.isProTrialActive)
+        #expect(service.hasExpiredProTrial)
+        #expect(service.proAccessDetail == "Trial ended")
     }
 
     @Test("Deactivation clears all license data")
@@ -77,6 +131,14 @@ struct LicenseServiceTests {
 
         #expect(!service.isPro)
         #expect(service.validationError == "Please enter a license key.")
+    }
+
+    @Test("License metadata must match SaneBar")
+    func licenseMetadataMustMatchSaneBar() {
+        #expect(LicenseService.licenseProductMatchesApp(productName: "SaneBar", variantName: "Pro"))
+        #expect(LicenseService.licenseProductMatchesApp(productName: "SaneApps Bundle", variantName: "SaneBar Pro"))
+        #expect(!LicenseService.licenseProductMatchesApp(productName: "SaneVideo", variantName: "Pro"))
+        #expect(!LicenseService.licenseProductMatchesApp(productName: nil, variantName: nil))
     }
 
     @Test("ProFeature enum has all required cases")
