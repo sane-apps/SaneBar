@@ -21,12 +21,20 @@ private final class MockKeychainService: KeychainServiceProtocol, @unchecked Sen
 
 // MARK: - Tests
 
+private func makeIsolatedDefaults() -> UserDefaults {
+    let suiteName = "LicenseServiceTests.\(UUID().uuidString)"
+    let defaults = UserDefaults(suiteName: suiteName)!
+    defaults.removePersistentDomain(forName: suiteName)
+    return defaults
+}
+
 @MainActor
 struct LicenseServiceTests {
     @Test("Fresh install starts the 14-day Pro trial")
     func freshInstallStartsProTrial() throws {
         let keychain = MockKeychainService()
-        let service = LicenseService(keychain: keychain)
+        let defaults = makeIsolatedDefaults()
+        let service = LicenseService(keychain: keychain, userDefaults: defaults)
         service.checkCachedLicense()
 
         #expect(service.isPro)
@@ -35,6 +43,8 @@ struct LicenseServiceTests {
         #expect(service.proTrialDaysRemaining == 14)
         #expect(try keychain.string(forKey: "sanebar.pro_trial.started_at") != nil)
         #expect(try keychain.string(forKey: "sanebar.pro_trial.last_seen_at") != nil)
+        #expect(defaults.object(forKey: "sanebar.pro_trial.started_at") != nil)
+        #expect(defaults.object(forKey: "sanebar.pro_trial.last_seen_at") != nil)
         #expect(service.licenseEmail == nil)
     }
 
@@ -47,7 +57,7 @@ struct LicenseServiceTests {
         let fiveDaysAgo = Date().addingTimeInterval(-5 * 86400)
         try keychain.set(ISO8601DateFormatter().string(from: fiveDaysAgo), forKey: "pro_last_validation")
 
-        let service = LicenseService(keychain: keychain)
+        let service = LicenseService(keychain: keychain, userDefaults: makeIsolatedDefaults())
         service.checkCachedLicense()
 
         #expect(service.isPro)
@@ -61,7 +71,7 @@ struct LicenseServiceTests {
         try keychain.set("paid@example.com", forKey: "pro_license_email")
         try keychain.set(ISO8601DateFormatter().string(from: Date()), forKey: "pro_last_validation")
 
-        let service = LicenseService(keychain: keychain)
+        let service = LicenseService(keychain: keychain, userDefaults: makeIsolatedDefaults())
         service.checkCachedLicense()
 
         #expect(service.isPro)
@@ -77,7 +87,7 @@ struct LicenseServiceTests {
         try keychain.set("early-adopter", forKey: "pro_license_key")
         try keychain.set(ISO8601DateFormatter().string(from: Date()), forKey: "pro_last_validation")
 
-        let service = LicenseService(keychain: keychain)
+        let service = LicenseService(keychain: keychain, userDefaults: makeIsolatedDefaults())
         service.checkCachedLicense()
 
         #expect(service.isPro)
@@ -94,13 +104,31 @@ struct LicenseServiceTests {
         try keychain.set(String(Date().addingTimeInterval(-13 * 86400).timeIntervalSince1970), forKey: "sanebar.pro_trial.started_at")
         try keychain.set(String(Date().addingTimeInterval(2 * 86400).timeIntervalSince1970), forKey: "sanebar.pro_trial.last_seen_at")
 
-        let service = LicenseService(keychain: keychain)
+        let service = LicenseService(keychain: keychain, userDefaults: makeIsolatedDefaults())
         service.checkCachedLicense()
 
         #expect(!service.isPro)
         #expect(!service.isProTrialActive)
         #expect(service.hasExpiredProTrial)
         #expect(service.proAccessDetail == "Trial ended")
+    }
+
+    @Test("Trial restores from UserDefaults when keychain state is missing")
+    func trialRestoresFromUserDefaultsWhenKeychainStateIsMissing() throws {
+        let keychain = MockKeychainService()
+        let defaults = makeIsolatedDefaults()
+        let startedAt = Date().addingTimeInterval(-3 * 86400).timeIntervalSince1970
+        let lastSeenAt = Date().addingTimeInterval(-2 * 86400).timeIntervalSince1970
+        defaults.set(startedAt, forKey: "sanebar.pro_trial.started_at")
+        defaults.set(lastSeenAt, forKey: "sanebar.pro_trial.last_seen_at")
+
+        let service = LicenseService(keychain: keychain, userDefaults: defaults)
+        service.checkCachedLicense()
+
+        #expect(service.isPro)
+        #expect(service.isProTrialActive)
+        #expect(try keychain.string(forKey: "sanebar.pro_trial.started_at") != nil)
+        #expect(try keychain.string(forKey: "sanebar.pro_trial.last_seen_at") != nil)
     }
 
     @Test("Deactivation clears all license data")
@@ -110,7 +138,7 @@ struct LicenseServiceTests {
         try keychain.set("user@test.com", forKey: "pro_license_email")
         try keychain.set(ISO8601DateFormatter().string(from: Date()), forKey: "pro_last_validation")
 
-        let service = LicenseService(keychain: keychain)
+        let service = LicenseService(keychain: keychain, userDefaults: makeIsolatedDefaults())
         service.checkCachedLicense()
         #expect(service.isPro)
 
@@ -125,7 +153,7 @@ struct LicenseServiceTests {
     @Test("Empty key is rejected without network call")
     func emptyKeyRejected() async {
         let keychain = MockKeychainService()
-        let service = LicenseService(keychain: keychain)
+        let service = LicenseService(keychain: keychain, userDefaults: makeIsolatedDefaults())
 
         await service.activate(key: "   ")
 
@@ -175,7 +203,7 @@ struct LicenseServiceTests {
         @Test("Setapp build starts in Pro mode")
         func setappBuildStartsInProMode() {
             let keychain = MockKeychainService()
-            let service = LicenseService(keychain: keychain)
+            let service = LicenseService(keychain: keychain, userDefaults: makeIsolatedDefaults())
 
             service.checkCachedLicense()
 

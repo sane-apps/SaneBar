@@ -75,15 +75,17 @@ final class LicenseService: ObservableObject {
     private let proTrialDurationDays = 14
 
     private let keychain: KeychainServiceProtocol
+    private let userDefaults: UserDefaults
     #if canImport(StoreKit)
         private var appStoreProduct: Product?
     #endif
 
-    init(keychain: KeychainServiceProtocol = KeychainService.shared) {
+    init(keychain: KeychainServiceProtocol = KeychainService.shared, userDefaults: UserDefaults = .standard) {
         self.keychain = keychain
+        self.userDefaults = userDefaults
         let now = Date()
-        proTrialStartedAt = Self.storedTrialDate(keychain: keychain, key: Keys.proTrialStartedAt, now: now, rejectsFutureDate: true)
-        proTrialLastSeenAt = Self.storedTrialDate(keychain: keychain, key: Keys.proTrialLastSeenAt, now: now, rejectsFutureDate: false)
+        proTrialStartedAt = Self.storedTrialDate(userDefaults: userDefaults, keychain: keychain, key: Keys.proTrialStartedAt, now: now, rejectsFutureDate: true)
+        proTrialLastSeenAt = Self.storedTrialDate(userDefaults: userDefaults, keychain: keychain, key: Keys.proTrialLastSeenAt, now: now, rejectsFutureDate: false)
     }
 
     nonisolated static func resolvedDistributionChannel(
@@ -471,10 +473,20 @@ final class LicenseService: ObservableObject {
         let variantName: String?
     }
 
-    private static func storedTrialDate(keychain: KeychainServiceProtocol, key: String, now: Date, rejectsFutureDate: Bool) -> Date? {
-        guard let stored = try? keychain.string(forKey: key),
-              let timestamp = TimeInterval(stored)
+    private static func storedTrialDate(userDefaults: UserDefaults, keychain: KeychainServiceProtocol, key: String, now: Date, rejectsFutureDate: Bool) -> Date? {
+        if let stored = try? keychain.string(forKey: key),
+           let timestamp = TimeInterval(stored),
+           let date = saneTrialDate(timestamp: timestamp, now: now, rejectsFutureDate: rejectsFutureDate) {
+            return date
+        }
+        guard userDefaults.object(forKey: key) != nil,
+              let date = saneTrialDate(timestamp: userDefaults.double(forKey: key), now: now, rejectsFutureDate: rejectsFutureDate)
         else { return nil }
+        try? keychain.set(String(date.timeIntervalSince1970), forKey: key)
+        return date
+    }
+
+    private static func saneTrialDate(timestamp: TimeInterval, now: Date, rejectsFutureDate: Bool) -> Date? {
         guard timestamp.isFinite, timestamp > 0 else { return nil }
         let date = Date(timeIntervalSince1970: timestamp)
         if rejectsFutureDate, date > now.addingTimeInterval(5 * 60) {
@@ -491,6 +503,7 @@ final class LicenseService: ObservableObject {
         guard proTrialStartedAt == nil else { return }
         proTrialStartedAt = now
         try? keychain.set(String(now.timeIntervalSince1970), forKey: Keys.proTrialStartedAt)
+        userDefaults.set(now.timeIntervalSince1970, forKey: Keys.proTrialStartedAt)
         updateTrialLastSeenAt(now: now)
         Task.detached { await EventTracker.log("pro_trial_started") }
     }
@@ -506,6 +519,7 @@ final class LicenseService: ObservableObject {
         let effectiveNow = max(now, proTrialLastSeenAt ?? now)
         proTrialLastSeenAt = effectiveNow
         try? keychain.set(String(effectiveNow.timeIntervalSince1970), forKey: Keys.proTrialLastSeenAt)
+        userDefaults.set(effectiveNow.timeIntervalSince1970, forKey: Keys.proTrialLastSeenAt)
     }
 
     static func licenseProductMatchesApp(productName: String?, variantName: String?) -> Bool {
@@ -565,6 +579,7 @@ final class SaneBarLicenseSettingsAdapter: LicenseSettingsServiceProtocol {
 
     private(set) var isPro: Bool = false
     private(set) var isProTrialActive: Bool = false
+    private(set) var hasExpiredProTrial: Bool = false
     private(set) var licenseEmail: String?
     private(set) var isValidating: Bool = false
     private(set) var isPurchasing: Bool = false
@@ -626,6 +641,7 @@ final class SaneBarLicenseSettingsAdapter: LicenseSettingsServiceProtocol {
     private func syncFromBase() {
         isPro = base.isPro
         isProTrialActive = base.isProTrialActive
+        hasExpiredProTrial = base.hasExpiredProTrial
         licenseEmail = base.licenseEmail
         isValidating = base.isValidating
         isPurchasing = base.isPurchasing
