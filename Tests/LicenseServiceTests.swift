@@ -9,10 +9,22 @@ private final class MockKeychainService: KeychainServiceProtocol, @unchecked Sen
     private var bools: [String: Bool] = [:]
     private var strings: [String: String] = [:]
 
-    func bool(forKey key: String) throws -> Bool? { bools[key] }
-    func set(_ value: Bool, forKey key: String) throws { bools[key] = value }
-    func string(forKey key: String) throws -> String? { strings[key] }
-    func set(_ value: String, forKey key: String) throws { strings[key] = value }
+    func bool(forKey key: String) throws -> Bool? {
+        bools[key]
+    }
+
+    func set(_ value: Bool, forKey key: String) throws {
+        bools[key] = value
+    }
+
+    func string(forKey key: String) throws -> String? {
+        strings[key]
+    }
+
+    func set(_ value: String, forKey key: String) throws {
+        strings[key] = value
+    }
+
     func delete(_ key: String) throws {
         bools.removeValue(forKey: key)
         strings.removeValue(forKey: key)
@@ -79,6 +91,47 @@ struct LicenseServiceTests {
         #expect(service.proTrialStartedAt == nil)
         #expect(service.licenseEmail == "paid@example.com")
         #expect(try keychain.string(forKey: "pro_license_key") == "paid-license-key-123")
+    }
+
+    @Test("Paid license supersedes an in-progress Pro trial badge")
+    func paidLicenseSupersedesActiveTrial() throws {
+        let keychain = MockKeychainService()
+        // The 14-day trial began when the customer updated, seeding trial dates...
+        try keychain.set(String(Date().addingTimeInterval(-3 * 86400).timeIntervalSince1970), forKey: "sanebar.pro_trial.started_at")
+        try keychain.set(String(Date().timeIntervalSince1970), forKey: "sanebar.pro_trial.last_seen_at")
+        // ...then they activated a real paid license, which must win over the trial.
+        try keychain.set("paid-license-key-123", forKey: "pro_license_key")
+        try keychain.set("paid@example.com", forKey: "pro_license_email")
+        try keychain.set(ISO8601DateFormatter().string(from: Date()), forKey: "pro_last_validation")
+
+        let service = LicenseService(keychain: keychain, userDefaults: makeIsolatedDefaults())
+        service.checkCachedLicense()
+
+        #expect(service.isPro)
+        #expect(service.hasPaidUnlock)
+        #expect(!service.isProTrialActive)
+        #expect(!service.hasExpiredProTrial)
+        #expect(service.proAccessBadgeTitle == "Pro")
+        #expect(service.proAccessDetail == nil)
+    }
+
+    @Test("An expired trial never demotes a paying customer to Basic")
+    func expiredTrialDoesNotDemotePaidUser() throws {
+        let keychain = MockKeychainService()
+        // Trial clock started 20 days ago (well past the 14-day window)...
+        try keychain.set(String(Date().addingTimeInterval(-20 * 86400).timeIntervalSince1970), forKey: "sanebar.pro_trial.started_at")
+        try keychain.set(String(Date().timeIntervalSince1970), forKey: "sanebar.pro_trial.last_seen_at")
+        // ...but a paid license is present, so Pro must stay active.
+        try keychain.set("paid-license-key-456", forKey: "pro_license_key")
+        try keychain.set(ISO8601DateFormatter().string(from: Date()), forKey: "pro_last_validation")
+
+        let service = LicenseService(keychain: keychain, userDefaults: makeIsolatedDefaults())
+        service.checkCachedLicense()
+
+        #expect(service.isPro)
+        #expect(service.hasPaidUnlock)
+        #expect(!service.hasExpiredProTrial)
+        #expect(service.proAccessBadgeTitle == "Pro")
     }
 
     @Test("Legacy early-adopter marker is retired into Pro trial")
@@ -183,7 +236,7 @@ struct LicenseServiceTests {
         let features: [ProFeature] = [
             .iconActivation, .rightClickFromPanels, .zoneMoves,
             .alwaysHidden, .perIconHotkeys, .iconGroups,
-            .advancedTriggers, .menuBarAppearance, .touchIDProtection,
+            .advancedTriggers, .menuBarAppearance, .touchIDProtection
         ]
 
         for feature in features {
