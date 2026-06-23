@@ -144,9 +144,11 @@ final class RuntimeGuardStartupRecoveryXCTests: RuntimeGuardTestCase {
         )
         XCTAssertTrue(
             recoverySource.contains("StatusBarPositionStore.captureCurrentDisplayPositionBackupIfPossible(\n                referenceScreen: manager.currentRecoveryReferenceScreen()\n            )") &&
+                recoverySource.contains("snapshot.mainAnchorSource == .live") &&
+                recoverySource.contains("snapshot.separatorAnchorSource == .live") &&
                 !recoverySource.contains("mainPosition: snapshot.mainX.map(Double.init)") &&
                 !recoverySource.contains("separatorPosition: snapshot.separatorX.map(Double.init)"),
-            "Stable backup capture should use persisted NSStatusItem preferred positions, not raw runtime screen coordinates"
+            "Stable backup capture should wait for live status-item anchors and use persisted NSStatusItem preferred positions, not raw runtime screen coordinates"
         )
         XCTAssertTrue(
             positionDefaultsSource.contains("UserDefaults.standard.set(value, forKey: appKey)\n        UserDefaults.standard.synchronize()") &&

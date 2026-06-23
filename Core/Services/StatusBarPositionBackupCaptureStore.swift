@@ -28,11 +28,12 @@ enum StatusBarPositionBackupCaptureStore {
         let appSeparatorPosition = StatusBarPositionDefaultsStore.numericPositionValue(separatorValues.appValue)
         let byHostMainPosition = StatusBarPositionDefaultsStore.numericPositionValue(mainValues.byHostValue)
         let byHostSeparatorPosition = StatusBarPositionDefaultsStore.numericPositionValue(separatorValues.byHostValue)
-
-        if StatusBarPositionStore.hasOrdinalSeedPair(
+        let hasAppOrdinalSeedPair = StatusBarPositionStore.hasOrdinalSeedPair(
             mainPosition: appMainPosition,
             separatorPosition: appSeparatorPosition
-        ),
+        )
+
+        if hasAppOrdinalSeedPair,
            StatusBarPositionStore.restoreCurrentDisplayPositionBackupIfAvailable(
                referenceScreen: resolvedReferenceScreen
            ) {
@@ -115,44 +116,22 @@ enum StatusBarPositionBackupCaptureStore {
             return true
         }
 
-        if let reanchored = StatusBarPositionStore.reanchoredPreferredPositionsTowardControlCenter(
-            mainPosition: mainPosition,
-            separatorPosition: separatorPosition,
+        if hasAppOrdinalSeedPair,
+           let recoveryPair = StatusBarPositionStore.launchSafeCurrentDisplayRecoveryPair(
             screenWidth: currentWidth,
             screenHasTopSafeAreaInset: currentScreenHasTopSafeAreaInset
         ) {
-            StatusBarPositionStore.setDisplayPositionBackup(
-                for: currentWidth,
-                mainPosition: reanchored.main,
-                separatorPosition: reanchored.separator,
-                referenceScreen: resolvedReferenceScreen
+            StatusBarPositionDefaultsStore.setPreferredPosition(
+                recoveryPair.main,
+                forAutosaveName: StatusBarPositionStore.mainAutosaveName
+            )
+            StatusBarPositionDefaultsStore.setPreferredPosition(
+                recoveryPair.separator,
+                forAutosaveName: StatusBarPositionStore.separatorAutosaveName
             )
             backupCaptureLogger.info(
-                "Display validation: captured reanchored current-width backup from stable live positions (main=\(reanchored.main, privacy: .public), separator=\(reanchored.separator, privacy: .public), width=\(currentWidth, privacy: .public))"
+                "Display validation: replaced app-domain ordinal preferred positions with launch-safe anchors"
             )
-            return true
-        }
-
-        if let recoveryPair = StatusBarPositionStore.launchSafeCurrentDisplayRecoveryPair(
-            screenWidth: currentWidth,
-            screenHasTopSafeAreaInset: currentScreenHasTopSafeAreaInset
-        ) {
-            if StatusBarPositionStore.hasOrdinalSeedPair(
-                mainPosition: appMainPosition,
-                separatorPosition: appSeparatorPosition
-            ) {
-                StatusBarPositionDefaultsStore.setPreferredPosition(
-                    recoveryPair.main,
-                    forAutosaveName: StatusBarPositionStore.mainAutosaveName
-                )
-                StatusBarPositionDefaultsStore.setPreferredPosition(
-                    recoveryPair.separator,
-                    forAutosaveName: StatusBarPositionStore.separatorAutosaveName
-                )
-                backupCaptureLogger.info(
-                    "Display validation: replaced app-domain ordinal preferred positions with launch-safe anchors"
-                )
-            }
             StatusBarPositionStore.setDisplayPositionBackup(
                 for: currentWidth,
                 mainPosition: recoveryPair.main,

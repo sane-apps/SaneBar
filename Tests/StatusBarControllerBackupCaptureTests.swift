@@ -356,11 +356,11 @@ struct StatusBarControllerBackupCaptureTests {
         #expect(storedBackupSeparator == safeRecovery.separator)
     }
 
-    @Test("Stable but startup-unsafe positions backfill a reanchored current-width backup")
+    @Test("Startup-unsafe persisted positions do not backfill a current-width backup")
     @MainActor
-    func captureCurrentDisplayPositionBackupReanchorsUnsafePositions() {
+    func captureCurrentDisplayPositionBackupRejectsUnsafePersistedPositionsWithoutLiveProof() {
         guard let currentWidth = NSScreen.main?.frame.width else {
-            Issue.record("Expected a main screen for reanchored display backup capture test")
+            Issue.record("Expected a main screen for unsafe persisted display backup capture test")
             return
         }
 
@@ -369,8 +369,33 @@ struct StatusBarControllerBackupCaptureTests {
         let separatorKey = "NSStatusItem Preferred Position \(StatusBarController.separatorAutosaveName)"
         let backupMainKey = StatusBarPositionStore.displayPositionBackupKey(for: currentWidth, slot: "main")
         let backupSeparatorKey = StatusBarPositionStore.displayPositionBackupKey(for: currentWidth, slot: "separator")
-        let keys = [mainKey, separatorKey, backupMainKey, backupSeparatorKey]
+        let scopedBackupMainKey = StatusBarPositionStore.displayPositionBackupKey(
+            for: currentWidth,
+            referenceScreen: NSScreen.main,
+            slot: "main"
+        )
+        let scopedBackupSeparatorKey = StatusBarPositionStore.displayPositionBackupKey(
+            for: currentWidth,
+            referenceScreen: NSScreen.main,
+            slot: "separator"
+        )
+        let byHostMainKey = StatusBarPositionDefaultsStore.byHostPreferredPositionKey(for: StatusBarController.mainAutosaveName)
+        let byHostSeparatorKey = StatusBarPositionDefaultsStore.byHostPreferredPositionKey(for: StatusBarController.separatorAutosaveName)
+        let globalDomain = ".GlobalPreferences" as CFString
+        let keys = [mainKey, separatorKey, backupMainKey, backupSeparatorKey, scopedBackupMainKey, scopedBackupSeparatorKey]
         let originalValues: [(String, Any?)] = keys.map { ($0, defaults.object(forKey: $0)) }
+        let originalByHostMain = CFPreferencesCopyValue(
+            byHostMainKey as CFString,
+            globalDomain,
+            kCFPreferencesCurrentUser,
+            kCFPreferencesCurrentHost
+        )
+        let originalByHostSeparator = CFPreferencesCopyValue(
+            byHostSeparatorKey as CFString,
+            globalDomain,
+            kCFPreferencesCurrentUser,
+            kCFPreferencesCurrentHost
+        )
 
         defer {
             for (key, value) in originalValues {
@@ -380,6 +405,25 @@ struct StatusBarControllerBackupCaptureTests {
                     defaults.removeObject(forKey: key)
                 }
             }
+            CFPreferencesSetValue(
+                byHostMainKey as CFString,
+                originalByHostMain,
+                globalDomain,
+                kCFPreferencesCurrentUser,
+                kCFPreferencesCurrentHost
+            )
+            CFPreferencesSetValue(
+                byHostSeparatorKey as CFString,
+                originalByHostSeparator,
+                globalDomain,
+                kCFPreferencesCurrentUser,
+                kCFPreferencesCurrentHost
+            )
+            CFPreferencesSynchronize(
+                globalDomain,
+                kCFPreferencesCurrentUser,
+                kCFPreferencesCurrentHost
+            )
         }
 
         let screenHasTopSafeAreaInset = StatusBarPositionStore.screenHasTopSafeAreaInset(NSScreen.main)
@@ -394,17 +438,18 @@ struct StatusBarControllerBackupCaptureTests {
         defaults.set(unsafeSeparator, forKey: separatorKey)
         defaults.removeObject(forKey: backupMainKey)
         defaults.removeObject(forKey: backupSeparatorKey)
+        defaults.removeObject(forKey: scopedBackupMainKey)
+        defaults.removeObject(forKey: scopedBackupSeparatorKey)
+        StatusBarPositionDefaultsStore.removeByHostPreferredPosition(forAutosaveName: StatusBarController.mainAutosaveName)
+        StatusBarPositionDefaultsStore.removeByHostPreferredPosition(forAutosaveName: StatusBarController.separatorAutosaveName)
 
-        #expect(
-            StatusBarPositionStore.captureCurrentDisplayPositionBackupIfPossible(),
-            "Stable but startup-unsafe positions should still end with a safe current-width backup"
-        )
+        #expect(!StatusBarPositionStore.captureCurrentDisplayPositionBackupIfPossible())
 
         let storedBackupMain = (defaults.object(forKey: backupMainKey) as? NSNumber)?.doubleValue
         let storedBackupSeparator = (defaults.object(forKey: backupSeparatorKey) as? NSNumber)?.doubleValue
 
-        #expect(abs((storedBackupMain ?? .nan) - safeMainLimit) < 0.0001, "Startup-unsafe live positions should still seed a launch-safe current-width main backup")
-        #expect(abs((storedBackupSeparator ?? .nan) - (safeMainLimit + 34.0)) < 0.0001, "Reanchored separator backup should preserve the live gap while staying launch-safe")
+        #expect(storedBackupMain == nil, "Startup-unsafe persisted main positions should not be rewritten into a synthetic current-width backup")
+        #expect(storedBackupSeparator == nil, "Startup-unsafe persisted separator positions should not be rewritten into a synthetic current-width backup")
     }
 
     @Test("Stable live positions can backfill the current-width backup when preferred positions are still missing")
