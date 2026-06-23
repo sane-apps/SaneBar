@@ -6,7 +6,27 @@
                                 
         
                                                                                                                                                                                                                                                                                                                                         
-                                                                        <item>
+                                                                                <item>
+            <title>2.1.80</title>
+            <link>https://sanebar.com/download</link>
+            <pubDate>Tue, 23 Jun 2026 15:55:57 -0400</pubDate>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description>
+                <![CDATA[
+                <h2>What's New</h2>
+                <ul>
+                <li>Improves SaneBar divider/layout stability after app activation, Space changes, wake, and display transitions.</li>
+                </ul>
+                ]]>
+            </description>
+            <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.80.zip"
+                       sparkle:version="2180"
+                       sparkle:shortVersionString="2.1.80"
+                       length="9718825"
+                       type="application/octet-stream"
+                       sparkle:edSignature="DYhBL8dETIH8Oi7STA1JxuvGZs8ET445ck5+CW4CZX+wJamxexQlWeymoDknq2LALEPMIyLi0kfbveiiRS4eCQ=="/>
+        </item>
+<item>
             <title>2.1.79</title>
             <link>https://sanebar.com/download</link>
             <pubDate>Tue, 23 Jun 2026 04:21:31 -0400</pubDate>
