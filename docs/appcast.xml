@@ -6,7 +6,27 @@
                                 
         
                                                                                                                                                                                                                                                                                                                                         
-                                                                <item>
+                                                                        <item>
+            <title>2.1.79</title>
+            <link>https://sanebar.com/download</link>
+            <pubDate>Tue, 23 Jun 2026 04:21:31 -0400</pubDate>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:criticalUpdate sparkle:version="2179"/>            <description>
+                <![CDATA[
+                <h2>What's New</h2>
+                <ul>
+                <li>Pro is now free to try for 14 days. Updated default settings based on customer feedback: hover and scroll reveal are off by default, drag reveal stays on, and auto-hide uses a calmer 5-second delay. Improved license-key paste handling and companion app recommendations.</li>
+                </ul>
+                ]]>
+            </description>
+            <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.79.zip"
+                       sparkle:version="2179"
+                       sparkle:shortVersionString="2.1.79"
+                       length="9718379"
+                       type="application/octet-stream"
+                       sparkle:edSignature="7GnX8BOhWwVWrObg7Rh0fHwlujaE5FHiDhWRulTWH5CWDHXQ2Yy32mpzSQ9GD0dgfG+Nf3QE6YhtSfrM1ScrAg=="/>
+        </item>
+<item>
             <title>2.1.78</title>
             <link>https://sanebar.com/download</link>
             <pubDate>Mon, 22 Jun 2026 14:35:47 -0400</pubDate>
