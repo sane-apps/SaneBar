@@ -18,9 +18,93 @@ struct FreeVsProPage: View {
     private struct CompanionApp: Identifiable {
         let name: String
         let detail: String
+        let imageName: String
+        let accent: Color
         let url: URL
 
         var id: String { name }
+    }
+
+    private struct CompanionAppCard: View {
+        let app: CompanionApp
+        let action: () -> Void
+
+        @State private var isHovered = false
+
+        var body: some View {
+            Button(action: action) {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 8) {
+                        Image(app.imageName)
+                            .resizable()
+                            .scaledToFit()
+                            .clipShape(RoundedRectangle(cornerRadius: 9))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 9)
+                                    .stroke(Color.white.opacity(0.24), lineWidth: 1)
+                            )
+                            .shadow(color: Color.black.opacity(0.18), radius: 3, x: 0, y: 2)
+                            .frame(width: 38, height: 38)
+
+                        Spacer(minLength: 0)
+
+                        Image(systemName: "arrow.up.forward")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(.white)
+                            .frame(width: 24, height: 24)
+                            .background(Circle().fill(Color.white.opacity(0.12)))
+                    }
+
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(app.name)
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .lineLimit(1)
+
+                        Text(app.detail)
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(.white)
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
+                    HStack(spacing: 4) {
+                        Text("Open")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(.white)
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(.white)
+                    }
+                    .padding(.top, 1)
+                }
+                .frame(maxWidth: .infinity, minHeight: 126, alignment: .topLeading)
+                .padding(10)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    Color.white.opacity(isHovered ? 0.13 : 0.09),
+                                    app.accent.opacity(isHovered ? 0.18 : 0.10)
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(app.accent.opacity(isHovered ? 0.58 : 0.28), lineWidth: 1)
+                )
+                .shadow(color: app.accent.opacity(isHovered ? 0.20 : 0.10), radius: isHovered ? 10 : 6, x: 0, y: 4)
+                .scaleEffect(isHovered ? 1.015 : 1)
+                .animation(.easeInOut(duration: 0.14), value: isHovered)
+            }
+            .buttonStyle(.plain)
+            .onHover { isHovered = $0 }
+            .accessibilityLabel("\(app.name): \(app.detail)")
+        }
     }
 
     var body: some View {
@@ -209,50 +293,54 @@ struct FreeVsProPage: View {
 
     private var companionApps: [CompanionApp] {
         [
-            CompanionApp(name: "SaneClip", detail: "Save clipboard history privately", url: URL(string: "https://saneclip.com?ref=sanebar-app")!),
-            CompanionApp(name: "SaneClick", detail: "Add useful right-click actions", url: URL(string: "https://saneclick.com?ref=sanebar-app")!),
-            CompanionApp(name: "SaneHosts", detail: "Block ads and trackers across your Mac", url: URL(string: "https://sanehosts.com?ref=sanebar-app")!)
+            CompanionApp(
+                name: "SaneClip",
+                detail: "Save clipboard history privately",
+                imageName: "SaneClipCompanionIcon",
+                accent: Color(red: 0.63, green: 0.66, blue: 1.00),
+                url: URL(string: "https://saneclip.com?ref=sanebar-app")!
+            ),
+            CompanionApp(
+                name: "SaneClick",
+                detail: "Add useful right-click actions",
+                imageName: "SaneClickCompanionIcon",
+                accent: Color(red: 0.38, green: 0.70, blue: 1.00),
+                url: URL(string: "https://saneclick.com?ref=sanebar-app")!
+            ),
+            CompanionApp(
+                name: "SaneHosts",
+                detail: "Block ads and trackers across your Mac",
+                imageName: "SaneHostsCompanionIcon",
+                accent: Color(red: 0.37, green: 0.86, blue: 0.58),
+                url: URL(string: "https://sanehosts.com?ref=sanebar-app")!
+            )
         ]
     }
 
     private var companionAppsView: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Also useful")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(.white)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text("More helpful SaneApps")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.white)
+
+                Text("for this Mac")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(.white)
+            }
+
             HStack(spacing: 8) {
                 ForEach(companionApps) { app in
-                    Button {
+                    CompanionAppCard(app: app) {
                         runSingleOutboundAction {
                             NSWorkspace.shared.open(app.url)
                         }
-                    } label: {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(app.name)
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundStyle(.white)
-                            Text(app.detail)
-                                .font(.system(size: 11))
-                                .foregroundStyle(.white.opacity(0.9))
-                                .lineLimit(2)
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(8)
                     }
-                    .buttonStyle(.plain)
-                    .background(
-                        RoundedRectangle(cornerRadius: 10)
-                            .fill(Color.white.opacity(0.06))
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10)
-                            .stroke(Color.white.opacity(0.12), lineWidth: 1)
-                    )
                     .disabled(outboundActionInFlight)
                 }
             }
         }
-        .frame(maxWidth: 520)
+        .frame(maxWidth: 560)
     }
 
     private func runSingleOutboundAction(_ action: @escaping () -> Void) {

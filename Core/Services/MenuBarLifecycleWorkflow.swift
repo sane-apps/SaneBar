@@ -7,6 +7,8 @@ private let logger = Logger(subsystem: "com.sanebar.app", category: "MenuBarLife
 
 @MainActor
 final class MenuBarLifecycleWorkflow {
+    private static let passiveRevealDefaultsMigrationKey = "SaneBar_PassiveRevealDefaultsMigration_v1"
+
     private unowned let manager: MenuBarManager
 
     init(manager: MenuBarManager) {
@@ -15,11 +17,26 @@ final class MenuBarLifecycleWorkflow {
 
     func loadSettings() {
         manager.settingsController.loadOrDefault()
+        applyPassiveRevealDefaultsMigrationIfNeeded()
         manager.settings = manager.settingsController.settings
         manager.observerWorkflow.setInitialSettings(manager.settings)
 
         // Apply dock visibility immediately so the Dock icon does not flash on startup.
         SaneActivationPolicy.applyPolicy(showDockIcon: manager.settings.showDockIcon)
+    }
+
+    private func applyPassiveRevealDefaultsMigrationIfNeeded() {
+        let defaults = UserDefaults.standard
+        guard !defaults.bool(forKey: Self.passiveRevealDefaultsMigrationKey) else { return }
+
+        if manager.settingsController.settings.showOnHover || manager.settingsController.settings.showOnScroll {
+            manager.settingsController.settings.showOnHover = false
+            manager.settingsController.settings.showOnScroll = false
+            manager.settingsController.saveQuietly()
+            logger.info("Disabled passive hover/scroll reveal defaults during one-time migration")
+        }
+
+        defaults.set(true, forKey: Self.passiveRevealDefaultsMigrationKey)
     }
 
     /// Deferred UI setup with initial delay to ensure WindowServer is ready.
@@ -193,8 +210,8 @@ final class MenuBarLifecycleWorkflow {
         if !manager.settings.hasCompletedOnboarding {
             manager.settings.autoRehide = true
             manager.settings.rehideDelay = 5.0
-            manager.settings.showOnHover = true
-            manager.settings.showOnScroll = true
+            manager.settings.showOnHover = false
+            manager.settings.showOnScroll = false
             manager.settings.showOnUserDrag = true
             manager.settings.hasSeenFreemiumIntro = true
             manager.saveSettings()

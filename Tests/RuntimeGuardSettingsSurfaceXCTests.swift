@@ -3,6 +3,25 @@ import XCTest
 
 @MainActor
 final class RuntimeGuardSettingsSurfaceXCTests: RuntimeGuardTestCase {
+    func testFirstLaunchDefaultsKeepPassiveRevealGesturesOptIn() throws {
+        let lifecycleURL = projectRootURL().appendingPathComponent("Core/Services/MenuBarLifecycleWorkflow.swift")
+        let lifecycleSource = try String(contentsOf: lifecycleURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            lifecycleSource.contains("manager.settings.showOnHover = false") &&
+                lifecycleSource.contains("manager.settings.showOnScroll = false") &&
+                lifecycleSource.contains("manager.settings.showOnUserDrag = true"),
+            "First launch should default to click-to-reveal plus command-drag support, not passive hover/scroll reveal"
+        )
+        XCTAssertTrue(
+            lifecycleSource.contains("SaneBar_PassiveRevealDefaultsMigration_v1") &&
+                lifecycleSource.contains("settingsController.settings.showOnHover = false") &&
+                lifecycleSource.contains("settingsController.settings.showOnScroll = false") &&
+                lifecycleSource.contains("defaults.set(true, forKey: Self.passiveRevealDefaultsMigrationKey)"),
+            "Existing users should get one bounded migration away from passive hover/scroll reveal, then keep future explicit choices"
+        )
+    }
+
     func testBrowsePanelsKeepTierGatesAligned() throws {
         let secondMenuBarSource = try secondMenuBarSource()
         let gridURL = projectRootURL().appendingPathComponent("UI/SearchWindow/BrowseAppGridView.swift")

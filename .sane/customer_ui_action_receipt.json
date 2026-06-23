@@ -2,9 +2,9 @@
   "app": "SaneBar",
   "status": "passed",
   "host": "stephans-mac-mini.local",
-  "generated_at": "2026-06-22T16:22:38Z",
+  "generated_at": "2026-06-23T04:59:51Z",
   "manifest_sha256": "33ce10776371b7be5e7415d722f8b2cfe36b1c6112d660a65a744e063623e344",
-  "source_fingerprint": "0b7a8bd30bf2219a6bdc9c5e62939f38900d651232b95044b8b995ecc38221c6",
+  "source_fingerprint": "f83f3a0be0b3754a0eeea72ec3c33edcd26be224d6df3271c0d02b12e3ea4b24",
   "tested_action_ids": [
     "status-item-click-routes",
     "status-menu-command-actions",
@@ -52,23 +52,23 @@
         "mini_screenshots"
       ],
       "evidence_paths": [
-        "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-fixture-evidence-1.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-mini_runtime-evidence-2.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-mini_runtime-evidence-3.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-screenshot.png",
-        "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-state_receipt-evidence-5.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-state_receipt-evidence-6.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_shared_bundle_smoke.log",
-        "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_native_apple_smoke.log",
-        "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_host_exact_id_smoke.log",
-        "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_startup_probe.log",
-        "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_wake_probe.log",
-        "outputs/customer-ui/evidence-20260622T162129Z/license-about-support-actions-mini_click-evidence-1.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/license-about-support-actions-screenshot.png",
-        "outputs/customer-ui/evidence-20260622T162129Z/license-about-support-actions-fixture-evidence-3.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/license-about-support-actions-support-report.json",
-        "outputs/customer-ui/settings-license-20260622T162129Z.png",
-        "outputs/customer-ui/settings-about-20260622T162129Z.png"
+        "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-fixture-evidence-1.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-mini_runtime-evidence-2.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-mini_runtime-evidence-3.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-screenshot.png",
+        "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-state_receipt-evidence-5.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-state_receipt-evidence-6.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_shared_bundle_smoke.log",
+        "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_native_apple_smoke.log",
+        "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_host_exact_id_smoke.log",
+        "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_startup_probe.log",
+        "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_wake_probe.log",
+        "outputs/customer-ui/evidence-20260623T045833Z/license-about-support-actions-mini_click-evidence-1.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/license-about-support-actions-screenshot.png",
+        "outputs/customer-ui/evidence-20260623T045833Z/license-about-support-actions-fixture-evidence-3.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/license-about-support-actions-support-report.json",
+        "outputs/customer-ui/settings-license-20260623T045833Z.png",
+        "outputs/customer-ui/settings-about-20260623T045833Z.png"
       ],
       "completed_scenarios": [
         "Run the startup layout probe against the signed release-like build.",
@@ -83,8 +83,8 @@
       "failure_reasons": [],
       "runtime_candidate": {
         "app_path": "/Applications/SaneBar.app",
-        "app_version": "2.1.76",
-        "app_build": "2176",
+        "app_version": "2.1.79",
+        "app_build": "2179",
         "process_path": "/Applications/SaneBar.app/Contents/MacOS/SaneBar"
       },
       "manifest_sha256": "33ce10776371b7be5e7415d722f8b2cfe36b1c6112d660a65a744e063623e344"
@@ -112,20 +112,20 @@
         "unit_guard"
       ],
       "evidence_paths": [
-        "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-fixture-evidence-1.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-mini_runtime-evidence-2.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-mini_runtime-evidence-3.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-screenshot.png",
-        "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-state_receipt-evidence-5.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-state_receipt-evidence-6.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_shared_bundle_smoke.log",
-        "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_native_apple_smoke.log",
-        "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_host_exact_id_smoke.log",
-        "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_startup_probe.log",
-        "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_wake_probe.log",
-        "outputs/customer-ui/evidence-20260622T162129Z/status-item-click-routes-fixture-evidence-1.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/status-item-click-routes-mini_click-evidence-2.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/status-item-click-routes-screenshot.png"
+        "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-fixture-evidence-1.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-mini_runtime-evidence-2.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-mini_runtime-evidence-3.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-screenshot.png",
+        "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-state_receipt-evidence-5.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-state_receipt-evidence-6.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_shared_bundle_smoke.log",
+        "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_native_apple_smoke.log",
+        "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_host_exact_id_smoke.log",
+        "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_startup_probe.log",
+        "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_wake_probe.log",
+        "outputs/customer-ui/evidence-20260623T045833Z/status-item-click-routes-fixture-evidence-1.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/status-item-click-routes-mini_click-evidence-2.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/status-item-click-routes-screenshot.png"
       ],
       "completed_scenarios": [
         "Run the startup layout probe against the signed release-like build.",
@@ -141,8 +141,8 @@
       "failure_reasons": [],
       "runtime_candidate": {
         "app_path": "/Applications/SaneBar.app",
-        "app_version": "2.1.76",
-        "app_build": "2176",
+        "app_version": "2.1.79",
+        "app_build": "2179",
         "process_path": "/Applications/SaneBar.app/Contents/MacOS/SaneBar"
       },
       "manifest_sha256": "33ce10776371b7be5e7415d722f8b2cfe36b1c6112d660a65a744e063623e344"
@@ -170,23 +170,23 @@
         "unit_guard"
       ],
       "evidence_paths": [
-        "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-fixture-evidence-1.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-mini_runtime-evidence-2.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-mini_runtime-evidence-3.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-screenshot.png",
-        "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-state_receipt-evidence-5.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-state_receipt-evidence-6.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_shared_bundle_smoke.log",
-        "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_native_apple_smoke.log",
-        "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_host_exact_id_smoke.log",
-        "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_startup_probe.log",
-        "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_wake_probe.log",
-        "outputs/customer-ui/evidence-20260622T162129Z/appearance-customization-actions-fixture-evidence-1.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/appearance-customization-actions-mini_click-evidence-2.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/appearance-customization-actions-screenshot.png",
-        "outputs/customer-ui/evidence-20260622T162129Z/appearance-customization-actions-state_receipt-evidence-4.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/appearance-customization-actions-state_receipt-evidence-5.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/appearance-customization-actions-mini_runtime-evidence-7.json"
+        "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-fixture-evidence-1.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-mini_runtime-evidence-2.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-mini_runtime-evidence-3.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-screenshot.png",
+        "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-state_receipt-evidence-5.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-state_receipt-evidence-6.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_shared_bundle_smoke.log",
+        "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_native_apple_smoke.log",
+        "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_host_exact_id_smoke.log",
+        "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_startup_probe.log",
+        "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_wake_probe.log",
+        "outputs/customer-ui/evidence-20260623T045833Z/appearance-customization-actions-fixture-evidence-1.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/appearance-customization-actions-mini_click-evidence-2.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/appearance-customization-actions-screenshot.png",
+        "outputs/customer-ui/evidence-20260623T045833Z/appearance-customization-actions-state_receipt-evidence-4.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/appearance-customization-actions-state_receipt-evidence-5.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/appearance-customization-actions-mini_runtime-evidence-7.json"
       ],
       "completed_scenarios": [
         "Run the startup layout probe against the signed release-like build.",
@@ -203,8 +203,8 @@
       "failure_reasons": [],
       "runtime_candidate": {
         "app_path": "/Applications/SaneBar.app",
-        "app_version": "2.1.76",
-        "app_build": "2176",
+        "app_version": "2.1.79",
+        "app_build": "2179",
         "process_path": "/Applications/SaneBar.app/Contents/MacOS/SaneBar"
       },
       "manifest_sha256": "33ce10776371b7be5e7415d722f8b2cfe36b1c6112d660a65a744e063623e344"
@@ -236,31 +236,31 @@
         "unit_guard"
       ],
       "evidence_paths": [
-        "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-fixture-evidence-1.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-mini_runtime-evidence-2.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-mini_runtime-evidence-3.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-screenshot.png",
-        "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-state_receipt-evidence-5.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-state_receipt-evidence-6.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_shared_bundle_smoke.log",
-        "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_native_apple_smoke.log",
-        "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_host_exact_id_smoke.log",
-        "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_startup_probe.log",
-        "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_wake_probe.log",
-        "outputs/customer-ui/evidence-20260622T162129Z/browse-icons-search-navigation-mini_click-evidence-1.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/browse-icons-search-navigation-screenshot.png",
-        "outputs/customer-ui/evidence-20260622T162129Z/browse-icons-search-navigation-fixture-evidence-3.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/browse-icons-search-navigation-mini_automation-evidence-4.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/browse-icons-search-navigation-mini_url_route-evidence-5.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/browse-icons-icon-context-actions-mini_click-evidence-1.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/browse-icons-icon-context-actions-screenshot.png",
-        "outputs/customer-ui/evidence-20260622T162129Z/browse-icons-icon-context-actions-fixture-evidence-3.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/appearance-customization-actions-fixture-evidence-1.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/appearance-customization-actions-mini_click-evidence-2.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/appearance-customization-actions-screenshot.png",
-        "outputs/customer-ui/evidence-20260622T162129Z/appearance-customization-actions-state_receipt-evidence-4.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/appearance-customization-actions-state_receipt-evidence-5.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/appearance-customization-actions-mini_runtime-evidence-7.json"
+        "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-fixture-evidence-1.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-mini_runtime-evidence-2.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-mini_runtime-evidence-3.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-screenshot.png",
+        "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-state_receipt-evidence-5.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-state_receipt-evidence-6.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_shared_bundle_smoke.log",
+        "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_native_apple_smoke.log",
+        "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_host_exact_id_smoke.log",
+        "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_startup_probe.log",
+        "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_wake_probe.log",
+        "outputs/customer-ui/evidence-20260623T045833Z/browse-icons-search-navigation-mini_click-evidence-1.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/browse-icons-search-navigation-screenshot.png",
+        "outputs/customer-ui/evidence-20260623T045833Z/browse-icons-search-navigation-fixture-evidence-3.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/browse-icons-search-navigation-mini_automation-evidence-4.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/browse-icons-search-navigation-mini_url_route-evidence-5.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/browse-icons-icon-context-actions-mini_click-evidence-1.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/browse-icons-icon-context-actions-screenshot.png",
+        "outputs/customer-ui/evidence-20260623T045833Z/browse-icons-icon-context-actions-fixture-evidence-3.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/appearance-customization-actions-fixture-evidence-1.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/appearance-customization-actions-mini_click-evidence-2.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/appearance-customization-actions-screenshot.png",
+        "outputs/customer-ui/evidence-20260623T045833Z/appearance-customization-actions-state_receipt-evidence-4.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/appearance-customization-actions-state_receipt-evidence-5.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/appearance-customization-actions-mini_runtime-evidence-7.json"
       ],
       "completed_scenarios": [
         "Run the startup layout probe against the signed release-like build.",
@@ -283,8 +283,8 @@
       "failure_reasons": [],
       "runtime_candidate": {
         "app_path": "/Applications/SaneBar.app",
-        "app_version": "2.1.76",
-        "app_build": "2176",
+        "app_version": "2.1.79",
+        "app_build": "2179",
         "process_path": "/Applications/SaneBar.app/Contents/MacOS/SaneBar"
       },
       "manifest_sha256": "33ce10776371b7be5e7415d722f8b2cfe36b1c6112d660a65a744e063623e344"
@@ -312,30 +312,30 @@
         "unit_guard"
       ],
       "evidence_paths": [
-        "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-fixture-evidence-1.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-mini_runtime-evidence-2.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-mini_runtime-evidence-3.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-screenshot.png",
-        "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-state_receipt-evidence-5.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-state_receipt-evidence-6.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_shared_bundle_smoke.log",
-        "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_native_apple_smoke.log",
-        "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_host_exact_id_smoke.log",
-        "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_startup_probe.log",
-        "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_wake_probe.log",
-        "outputs/customer-ui/evidence-20260622T162129Z/appearance-customization-actions-fixture-evidence-1.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/appearance-customization-actions-mini_click-evidence-2.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/appearance-customization-actions-screenshot.png",
-        "outputs/customer-ui/evidence-20260622T162129Z/appearance-customization-actions-state_receipt-evidence-4.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/appearance-customization-actions-state_receipt-evidence-5.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/appearance-customization-actions-mini_runtime-evidence-7.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/fullscreen-matrix-sanebar_runtime_fullscreen_matrix.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/fullscreen-matrix-sanebar-appearance-top-strip-baseline-20260622-160547.png",
-        "outputs/customer-ui/evidence-20260622T162129Z/fullscreen-matrix-sanebar-appearance-top-strip-maximized-host-20260622-160600.png",
-        "outputs/customer-ui/evidence-20260622T162129Z/fullscreen-matrix-sanebar-appearance-top-strip-safari-activation-immediate-20260622-160610.png",
-        "outputs/customer-ui/evidence-20260622T162129Z/fullscreen-matrix-sanebar-appearance-top-strip-safari-activation-settled-20260622-160618.png",
-        "outputs/customer-ui/evidence-20260622T162129Z/fullscreen-matrix-sanebar-appearance-top-strip-safari-fullscreen-enter-20260622-160637.png",
-        "outputs/customer-ui/evidence-20260622T162129Z/fullscreen-matrix-sanebar-appearance-top-strip-safari-fullscreen-exit-20260622-160658.png"
+        "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-fixture-evidence-1.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-mini_runtime-evidence-2.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-mini_runtime-evidence-3.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-screenshot.png",
+        "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-state_receipt-evidence-5.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-state_receipt-evidence-6.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_shared_bundle_smoke.log",
+        "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_native_apple_smoke.log",
+        "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_host_exact_id_smoke.log",
+        "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_startup_probe.log",
+        "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_wake_probe.log",
+        "outputs/customer-ui/evidence-20260623T045833Z/appearance-customization-actions-fixture-evidence-1.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/appearance-customization-actions-mini_click-evidence-2.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/appearance-customization-actions-screenshot.png",
+        "outputs/customer-ui/evidence-20260623T045833Z/appearance-customization-actions-state_receipt-evidence-4.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/appearance-customization-actions-state_receipt-evidence-5.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/appearance-customization-actions-mini_runtime-evidence-7.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/fullscreen-matrix-sanebar_runtime_fullscreen_matrix.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/fullscreen-matrix-sanebar-appearance-top-strip-baseline-20260623-044237.png",
+        "outputs/customer-ui/evidence-20260623T045833Z/fullscreen-matrix-sanebar-appearance-top-strip-maximized-host-20260623-044249.png",
+        "outputs/customer-ui/evidence-20260623T045833Z/fullscreen-matrix-sanebar-appearance-top-strip-safari-activation-immediate-20260623-044258.png",
+        "outputs/customer-ui/evidence-20260623T045833Z/fullscreen-matrix-sanebar-appearance-top-strip-safari-activation-settled-20260623-044307.png",
+        "outputs/customer-ui/evidence-20260623T045833Z/fullscreen-matrix-sanebar-appearance-top-strip-safari-fullscreen-enter-20260623-044326.png",
+        "outputs/customer-ui/evidence-20260623T045833Z/fullscreen-matrix-sanebar-appearance-top-strip-safari-fullscreen-exit-20260623-044348.png"
       ],
       "completed_scenarios": [
         "customer-visible menu-bar top-strip shade comparison, not only internal overlay snapshots",
@@ -350,8 +350,8 @@
       "failure_reasons": [],
       "runtime_candidate": {
         "app_path": "/Applications/SaneBar.app",
-        "app_version": "2.1.76",
-        "app_build": "2176",
+        "app_version": "2.1.79",
+        "app_build": "2179",
         "process_path": "/Applications/SaneBar.app/Contents/MacOS/SaneBar"
       },
       "manifest_sha256": "33ce10776371b7be5e7415d722f8b2cfe36b1c6112d660a65a744e063623e344"
@@ -379,20 +379,20 @@
         "unit_guard"
       ],
       "evidence_paths": [
-        "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-fixture-evidence-1.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-mini_runtime-evidence-2.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-mini_runtime-evidence-3.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-screenshot.png",
-        "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-state_receipt-evidence-5.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-state_receipt-evidence-6.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_shared_bundle_smoke.log",
-        "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_native_apple_smoke.log",
-        "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_host_exact_id_smoke.log",
-        "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_startup_probe.log",
-        "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_wake_probe.log",
-        "outputs/customer-ui/evidence-20260622T162129Z/browse-icons-icon-context-actions-mini_click-evidence-1.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/browse-icons-icon-context-actions-screenshot.png",
-        "outputs/customer-ui/evidence-20260622T162129Z/browse-icons-icon-context-actions-fixture-evidence-3.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-fixture-evidence-1.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-mini_runtime-evidence-2.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-mini_runtime-evidence-3.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-screenshot.png",
+        "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-state_receipt-evidence-5.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-state_receipt-evidence-6.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_shared_bundle_smoke.log",
+        "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_native_apple_smoke.log",
+        "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_host_exact_id_smoke.log",
+        "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_startup_probe.log",
+        "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_wake_probe.log",
+        "outputs/customer-ui/evidence-20260623T045833Z/browse-icons-icon-context-actions-mini_click-evidence-1.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/browse-icons-icon-context-actions-screenshot.png",
+        "outputs/customer-ui/evidence-20260623T045833Z/browse-icons-icon-context-actions-fixture-evidence-3.json",
         "outputs/runtime-preflight/sanebar_runtime_wake_probe.json",
         "outputs/runtime-preflight/sanebar_runtime_wake_probe.log"
       ],
@@ -412,8 +412,8 @@
       "failure_reasons": [],
       "runtime_candidate": {
         "app_path": "/Applications/SaneBar.app",
-        "app_version": "2.1.76",
-        "app_build": "2176",
+        "app_version": "2.1.79",
+        "app_build": "2179",
         "process_path": null
       },
       "manifest_sha256": "33ce10776371b7be5e7415d722f8b2cfe36b1c6112d660a65a744e063623e344"
@@ -442,20 +442,20 @@
         "unit_guard"
       ],
       "evidence_paths": [
-        "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-fixture-evidence-1.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-mini_runtime-evidence-2.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-mini_runtime-evidence-3.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-screenshot.png",
-        "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-state_receipt-evidence-5.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-state_receipt-evidence-6.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_shared_bundle_smoke.log",
-        "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_native_apple_smoke.log",
-        "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_host_exact_id_smoke.log",
-        "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_startup_probe.log",
-        "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_wake_probe.log",
-        "outputs/customer-ui/evidence-20260622T162129Z/browse-icons-icon-context-actions-mini_click-evidence-1.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/browse-icons-icon-context-actions-screenshot.png",
-        "outputs/customer-ui/evidence-20260622T162129Z/browse-icons-icon-context-actions-fixture-evidence-3.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-fixture-evidence-1.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-mini_runtime-evidence-2.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-mini_runtime-evidence-3.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-screenshot.png",
+        "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-state_receipt-evidence-5.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-state_receipt-evidence-6.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_shared_bundle_smoke.log",
+        "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_native_apple_smoke.log",
+        "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_host_exact_id_smoke.log",
+        "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_startup_probe.log",
+        "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_wake_probe.log",
+        "outputs/customer-ui/evidence-20260623T045833Z/browse-icons-icon-context-actions-mini_click-evidence-1.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/browse-icons-icon-context-actions-screenshot.png",
+        "outputs/customer-ui/evidence-20260623T045833Z/browse-icons-icon-context-actions-fixture-evidence-3.json",
         "outputs/runtime-preflight/sanebar_runtime_wake_probe.json",
         "outputs/runtime-preflight/sanebar_runtime_wake_probe.log"
       ],
@@ -473,8 +473,8 @@
       "failure_reasons": [],
       "runtime_candidate": {
         "app_path": "/Applications/SaneBar.app",
-        "app_version": "2.1.76",
-        "app_build": "2176",
+        "app_version": "2.1.79",
+        "app_build": "2179",
         "process_path": null
       },
       "manifest_sha256": "33ce10776371b7be5e7415d722f8b2cfe36b1c6112d660a65a744e063623e344"
@@ -502,21 +502,21 @@
         "unit_guard"
       ],
       "evidence_paths": [
-        "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-fixture-evidence-1.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-mini_runtime-evidence-2.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-mini_runtime-evidence-3.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-screenshot.png",
-        "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-state_receipt-evidence-5.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-state_receipt-evidence-6.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_shared_bundle_smoke.log",
-        "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_native_apple_smoke.log",
-        "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_host_exact_id_smoke.log",
-        "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_startup_probe.log",
-        "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_wake_probe.log",
-        "outputs/customer-ui/evidence-20260622T162129Z/browse-icons-icon-context-actions-mini_click-evidence-1.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/browse-icons-icon-context-actions-screenshot.png",
-        "outputs/customer-ui/evidence-20260622T162129Z/browse-icons-icon-context-actions-fixture-evidence-3.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/shared-bundle-exact-id-sanebar_runtime_shared_bundle_smoke.log"
+        "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-fixture-evidence-1.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-mini_runtime-evidence-2.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-mini_runtime-evidence-3.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-screenshot.png",
+        "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-state_receipt-evidence-5.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-state_receipt-evidence-6.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_shared_bundle_smoke.log",
+        "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_native_apple_smoke.log",
+        "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_host_exact_id_smoke.log",
+        "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_startup_probe.log",
+        "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_wake_probe.log",
+        "outputs/customer-ui/evidence-20260623T045833Z/browse-icons-icon-context-actions-mini_click-evidence-1.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/browse-icons-icon-context-actions-screenshot.png",
+        "outputs/customer-ui/evidence-20260623T045833Z/browse-icons-icon-context-actions-fixture-evidence-3.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/shared-bundle-exact-id-sanebar_runtime_shared_bundle_smoke.log"
       ],
       "completed_scenarios": [
         "shared-bundle exact-id smoke ran with non-empty required_ids",
@@ -526,8 +526,8 @@
       "failure_reasons": [],
       "runtime_candidate": {
         "app_path": "/Applications/SaneBar.app",
-        "app_version": "2.1.76",
-        "app_build": "2176",
+        "app_version": "2.1.79",
+        "app_build": "2179",
         "process_path": "/Applications/SaneBar.app/Contents/MacOS/SaneBar"
       },
       "manifest_sha256": "33ce10776371b7be5e7415d722f8b2cfe36b1c6112d660a65a744e063623e344"
@@ -557,22 +557,23 @@
         "log"
       ],
       "evidence_paths": [
-        "outputs/customer-ui/evidence-20260622T162129Z/control-settings-actions-fixture-evidence-1.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/control-settings-actions-mini_click-evidence-2.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/control-settings-actions-mini_ax-evidence-3.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/control-settings-actions-screenshot.png",
-        "outputs/customer-ui/evidence-20260622T162129Z/control-settings-actions-state-receipt.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-fixture-evidence-1.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-mini_runtime-evidence-2.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-mini_runtime-evidence-3.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-screenshot.png",
-        "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-state_receipt-evidence-5.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-state_receipt-evidence-6.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_shared_bundle_smoke.log",
-        "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_native_apple_smoke.log",
-        "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_host_exact_id_smoke.log",
-        "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_startup_probe.log",
-        "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_wake_probe.log",
+        "outputs/customer-ui/evidence-20260623T045833Z/control-settings-actions-fixture-evidence-1.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/control-settings-actions-mini_click-evidence-2.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/control-settings-actions-mini_click-evidence-3.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/control-settings-actions-mini_ax-evidence-4.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/control-settings-actions-screenshot.png",
+        "outputs/customer-ui/evidence-20260623T045833Z/control-settings-actions-state-receipt.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-fixture-evidence-1.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-mini_runtime-evidence-2.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-mini_runtime-evidence-3.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-screenshot.png",
+        "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-state_receipt-evidence-5.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-state_receipt-evidence-6.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_shared_bundle_smoke.log",
+        "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_native_apple_smoke.log",
+        "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_host_exact_id_smoke.log",
+        "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_startup_probe.log",
+        "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_wake_probe.log",
         "outputs/runtime-preflight/sanebar_runtime_hover_rehide.json",
         "outputs/runtime-preflight/sanebar_runtime_hover_rehide.log"
       ],
@@ -585,8 +586,8 @@
       "failure_reasons": [],
       "runtime_candidate": {
         "app_path": "/Applications/SaneBar.app",
-        "app_version": "2.1.76",
-        "app_build": "2176",
+        "app_version": "2.1.79",
+        "app_build": "2179",
         "process_path": "/Applications/SaneBar.app/Contents/MacOS/SaneBar"
       },
       "manifest_sha256": "33ce10776371b7be5e7415d722f8b2cfe36b1c6112d660a65a744e063623e344"
@@ -614,12 +615,12 @@
         "state_receipt"
       ],
       "evidence_paths": [
-        "outputs/customer-ui/evidence-20260622T162129Z/license-about-support-actions-mini_click-evidence-1.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/license-about-support-actions-screenshot.png",
-        "outputs/customer-ui/evidence-20260622T162129Z/license-about-support-actions-fixture-evidence-3.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/license-about-support-actions-support-report.json",
-        "outputs/customer-ui/settings-license-20260622T162129Z.png",
-        "outputs/customer-ui/settings-about-20260622T162129Z.png",
+        "outputs/customer-ui/evidence-20260623T045833Z/license-about-support-actions-mini_click-evidence-1.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/license-about-support-actions-screenshot.png",
+        "outputs/customer-ui/evidence-20260623T045833Z/license-about-support-actions-fixture-evidence-3.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/license-about-support-actions-support-report.json",
+        "outputs/customer-ui/settings-license-20260623T045833Z.png",
+        "outputs/customer-ui/settings-about-20260623T045833Z.png",
         "outputs/runtime-preflight/sanebar_runtime_license_paste.json",
         "outputs/runtime-preflight/sanebar_runtime_license_paste.log",
         "outputs/runtime-preflight/sanebar_runtime_license_paste.png"
@@ -633,8 +634,8 @@
       "failure_reasons": [],
       "runtime_candidate": {
         "app_path": "/Applications/SaneBar.app",
-        "app_version": "2.1.76",
-        "app_build": "2176",
+        "app_version": "2.1.79",
+        "app_build": "2179",
         "process_path": "/Applications/SaneBar.app/Contents/MacOS/SaneBar"
       },
       "manifest_sha256": "33ce10776371b7be5e7415d722f8b2cfe36b1c6112d660a65a744e063623e344"
@@ -659,8 +660,8 @@
         "source_guard"
       ],
       "evidence_paths": [
-        "outputs/customer-ui/evidence-20260622T162129Z/resource-soak-sanebar_runtime_resource_soak.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/resource-soak-sanebar_runtime_resource_soak.log"
+        "outputs/customer-ui/evidence-20260623T045833Z/resource-soak-sanebar_runtime_resource_soak.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/resource-soak-sanebar_runtime_resource_soak.log"
       ],
       "completed_scenarios": [
         "adaptive Mini resource check passed for this release build",
@@ -673,8 +674,8 @@
       "failure_reasons": [],
       "runtime_candidate": {
         "app_path": "/Applications/SaneBar.app",
-        "app_version": "2.1.76",
-        "app_build": "2176",
+        "app_version": "2.1.79",
+        "app_build": "2179",
         "process_path": "/Applications/SaneBar.app/Contents/MacOS/SaneBar"
       },
       "manifest_sha256": "33ce10776371b7be5e7415d722f8b2cfe36b1c6112d660a65a744e063623e344"
@@ -703,20 +704,20 @@
         "mini_screenshots"
       ],
       "evidence_paths": [
-        "outputs/customer-ui/evidence-20260622T162129Z/onboarding-basic-pro-permission-actions-mini_click-evidence-1.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/onboarding-basic-pro-permission-actions-screenshot.png",
-        "outputs/customer-ui/evidence-20260622T162129Z/onboarding-basic-pro-permission-actions-fixture-evidence-3.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/onboarding-basic-pro-permission-actions-log.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/pro-basic-gating-actions-mini_click-evidence-1.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/pro-basic-gating-actions-screenshot.png",
-        "outputs/customer-ui/evidence-20260622T162129Z/pro-basic-gating-actions-fixture-evidence-3.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/pro-basic-gating-actions-log.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/license-about-support-actions-mini_click-evidence-1.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/license-about-support-actions-screenshot.png",
-        "outputs/customer-ui/evidence-20260622T162129Z/license-about-support-actions-fixture-evidence-3.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/license-about-support-actions-support-report.json",
-        "outputs/customer-ui/settings-license-20260622T162129Z.png",
-        "outputs/customer-ui/settings-about-20260622T162129Z.png"
+        "outputs/customer-ui/evidence-20260623T045833Z/onboarding-basic-pro-permission-actions-mini_click-evidence-1.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/onboarding-basic-pro-permission-actions-screenshot.png",
+        "outputs/customer-ui/evidence-20260623T045833Z/onboarding-basic-pro-permission-actions-fixture-evidence-3.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/onboarding-basic-pro-permission-actions-log.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/pro-basic-gating-actions-mini_click-evidence-1.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/pro-basic-gating-actions-screenshot.png",
+        "outputs/customer-ui/evidence-20260623T045833Z/pro-basic-gating-actions-fixture-evidence-3.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/pro-basic-gating-actions-log.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/license-about-support-actions-mini_click-evidence-1.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/license-about-support-actions-screenshot.png",
+        "outputs/customer-ui/evidence-20260623T045833Z/license-about-support-actions-fixture-evidence-3.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/license-about-support-actions-support-report.json",
+        "outputs/customer-ui/settings-license-20260623T045833Z.png",
+        "outputs/customer-ui/settings-about-20260623T045833Z.png"
       ],
       "completed_scenarios": [
         "Run a clean-state first launch.",
@@ -736,8 +737,8 @@
       "failure_reasons": [],
       "runtime_candidate": {
         "app_path": "/Applications/SaneBar.app",
-        "app_version": "2.1.76",
-        "app_build": "2176",
+        "app_version": "2.1.79",
+        "app_build": "2179",
         "process_path": "/Applications/SaneBar.app/Contents/MacOS/SaneBar"
       },
       "manifest_sha256": "33ce10776371b7be5e7415d722f8b2cfe36b1c6112d660a65a744e063623e344"
@@ -765,18 +766,18 @@
         "mini_url_route"
       ],
       "evidence_paths": [
-        "outputs/customer-ui/evidence-20260622T162129Z/license-about-support-actions-mini_click-evidence-1.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/license-about-support-actions-screenshot.png",
-        "outputs/customer-ui/evidence-20260622T162129Z/license-about-support-actions-fixture-evidence-3.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/license-about-support-actions-support-report.json",
-        "outputs/customer-ui/settings-license-20260622T162129Z.png",
-        "outputs/customer-ui/settings-about-20260622T162129Z.png",
-        "outputs/customer-ui/evidence-20260622T162129Z/health-repair-rescue-diagnostics-mini_click-evidence-1.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/health-repair-rescue-diagnostics-screenshot.png",
-        "outputs/customer-ui/evidence-20260622T162129Z/health-repair-rescue-diagnostics-fixture-evidence-3.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_startup_probe.log",
-        "outputs/customer-ui/evidence-20260622T162129Z/health-repair-rescue-diagnostics-mini_url_route-evidence-6.json",
-        "outputs/customer-ui/evidence-20260622T162129Z/health-repair-rescue-diagnostics-mini_url_route-evidence-7.json"
+        "outputs/customer-ui/evidence-20260623T045833Z/license-about-support-actions-mini_click-evidence-1.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/license-about-support-actions-screenshot.png",
+        "outputs/customer-ui/evidence-20260623T045833Z/license-about-support-actions-fixture-evidence-3.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/license-about-support-actions-support-report.json",
+        "outputs/customer-ui/settings-license-20260623T045833Z.png",
+        "outputs/customer-ui/settings-about-20260623T045833Z.png",
+        "outputs/customer-ui/evidence-20260623T045833Z/health-repair-rescue-diagnostics-mini_click-evidence-1.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/health-repair-rescue-diagnostics-screenshot.png",
+        "outputs/customer-ui/evidence-20260623T045833Z/health-repair-rescue-diagnostics-fixture-evidence-3.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_startup_probe.log",
+        "outputs/customer-ui/evidence-20260623T045833Z/health-repair-rescue-diagnostics-mini_url_route-evidence-6.json",
+        "outputs/customer-ui/evidence-20260623T045833Z/health-repair-rescue-diagnostics-mini_url_route-evidence-7.json"
       ],
       "completed_scenarios": [
         "Open License from Settings, status menu, Dock menu, and Pro gates.",
@@ -790,8 +791,8 @@
       "failure_reasons": [],
       "runtime_candidate": {
         "app_path": "/Applications/SaneBar.app",
-        "app_version": "2.1.76",
-        "app_build": "2176",
+        "app_version": "2.1.79",
+        "app_build": "2179",
         "process_path": "/Applications/SaneBar.app/Contents/MacOS/SaneBar"
       },
       "manifest_sha256": "33ce10776371b7be5e7415d722f8b2cfe36b1c6112d660a65a744e063623e344"
@@ -818,23 +819,23 @@
       "evidence": [
         {
           "type": "fixture",
-          "detail": "/tmp/sanebar_runtime_smoke.log: ✅ Candidate set passed: com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-B, com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-A",
+          "detail": "/tmp/sanebar_runtime_smoke.log: ✅ Candidate set passed: com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-B, com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-C",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/status-item-click-routes-fixture-evidence-1.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/status-item-click-routes-fixture-evidence-1.json"
           ]
         },
         {
           "type": "mini_click",
           "detail": "/tmp/sanebar_runtime_smoke.log: ✅ Browse mode findIcon activation ok",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/status-item-click-routes-mini_click-evidence-2.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/status-item-click-routes-mini_click-evidence-2.json"
           ]
         },
         {
           "type": "screenshot",
           "detail": "Browse Icons visual state captured during status-item route verification",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/status-item-click-routes-screenshot.png"
+            "outputs/customer-ui/evidence-20260623T045833Z/status-item-click-routes-screenshot.png"
           ]
         },
         {
@@ -852,10 +853,10 @@
         ],
         "outcome": "status-item-click-routes passed with 4 evidence item(s) on the Mini.",
         "artifacts": [
-          "outputs/customer-ui/evidence-20260622T162129Z/status-item-click-routes-fixture-evidence-1.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/status-item-click-routes-mini_click-evidence-2.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/status-item-click-routes-screenshot.png",
-          "outputs/customer-ui/evidence-20260622T162129Z/status-item-click-routes-workflow.json"
+          "outputs/customer-ui/evidence-20260623T045833Z/status-item-click-routes-fixture-evidence-1.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/status-item-click-routes-mini_click-evidence-2.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/status-item-click-routes-screenshot.png",
+          "outputs/customer-ui/evidence-20260623T045833Z/status-item-click-routes-workflow.json"
         ]
       }
     },
@@ -879,32 +880,32 @@
       "evidence": [
         {
           "type": "fixture",
-          "detail": "/tmp/sanebar_runtime_smoke.log: ✅ Candidate set passed: com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-B, com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-A",
+          "detail": "/tmp/sanebar_runtime_smoke.log: ✅ Candidate set passed: com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-B, com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-C",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/status-menu-command-actions-fixture-evidence-1.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/status-menu-command-actions-fixture-evidence-1.json"
           ]
         },
         {
           "type": "mini_click",
           "detail": "applescript=open settings window ok output=true",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/status-menu-command-actions-mini_click-evidence-2.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/status-menu-command-actions-mini_click-evidence-2.json"
           ]
         },
         {
           "type": "screenshot",
           "detail": "Settings visual state captured after shipped status menu command surfaces opened",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/status-menu-command-actions-screenshot.png"
+            "outputs/customer-ui/evidence-20260623T045833Z/status-menu-command-actions-screenshot.png"
           ]
         },
         {
           "type": "log",
           "detail": "Runtime smoke log confirms shipped settings surface and menu-bar fixture state",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_shared_bundle_smoke.log",
-            "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_native_apple_smoke.log",
-            "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_host_exact_id_smoke.log"
+            "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_shared_bundle_smoke.log",
+            "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_native_apple_smoke.log",
+            "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_host_exact_id_smoke.log"
           ]
         },
         {
@@ -919,7 +920,7 @@
           "type": "mini_runtime",
           "detail": "/tmp/sanebar_runtime_smoke.log: ✅ Settings window visual check ok",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/status-menu-command-actions-mini_runtime-evidence-7.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/status-menu-command-actions-mini_runtime-evidence-7.json"
           ]
         }
       ],
@@ -932,14 +933,14 @@
         ],
         "outcome": "status-menu-command-actions passed with 7 evidence item(s) on the Mini.",
         "artifacts": [
-          "outputs/customer-ui/evidence-20260622T162129Z/status-menu-command-actions-fixture-evidence-1.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/status-menu-command-actions-mini_click-evidence-2.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/status-menu-command-actions-screenshot.png",
-          "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_shared_bundle_smoke.log",
-          "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_native_apple_smoke.log",
-          "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_host_exact_id_smoke.log",
-          "outputs/customer-ui/evidence-20260622T162129Z/status-menu-command-actions-mini_runtime-evidence-7.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/status-menu-command-actions-workflow.json"
+          "outputs/customer-ui/evidence-20260623T045833Z/status-menu-command-actions-fixture-evidence-1.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/status-menu-command-actions-mini_click-evidence-2.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/status-menu-command-actions-screenshot.png",
+          "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_shared_bundle_smoke.log",
+          "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_native_apple_smoke.log",
+          "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_host_exact_id_smoke.log",
+          "outputs/customer-ui/evidence-20260623T045833Z/status-menu-command-actions-mini_runtime-evidence-7.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/status-menu-command-actions-workflow.json"
         ]
       }
     },
@@ -965,28 +966,28 @@
           "type": "fixture",
           "detail": "source_guard=dock_menu ok checks=5",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/dock-menu-command-actions-fixture-evidence-1.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/dock-menu-command-actions-fixture-evidence-1.json"
           ]
         },
         {
           "type": "mini_click",
           "detail": "applescript=open settings window ok output=true",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/dock-menu-command-actions-mini_click-evidence-2.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/dock-menu-command-actions-mini_click-evidence-2.json"
           ]
         },
         {
           "type": "screenshot",
           "detail": "Settings surface reached from shipped utility-command flow",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/dock-menu-command-actions-screenshot.png"
+            "outputs/customer-ui/evidence-20260623T045833Z/dock-menu-command-actions-screenshot.png"
           ]
         },
         {
           "type": "log",
           "detail": "Dock menu shares the shipped utility-command path verified by runtime command evidence",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/dock-menu-command-actions-log.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/dock-menu-command-actions-log.json"
           ]
         },
         {
@@ -1007,11 +1008,11 @@
         ],
         "outcome": "dock-menu-command-actions passed with 6 evidence item(s) on the Mini.",
         "artifacts": [
-          "outputs/customer-ui/evidence-20260622T162129Z/dock-menu-command-actions-fixture-evidence-1.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/dock-menu-command-actions-mini_click-evidence-2.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/dock-menu-command-actions-screenshot.png",
-          "outputs/customer-ui/evidence-20260622T162129Z/dock-menu-command-actions-log.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/dock-menu-command-actions-workflow.json"
+          "outputs/customer-ui/evidence-20260623T045833Z/dock-menu-command-actions-fixture-evidence-1.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/dock-menu-command-actions-mini_click-evidence-2.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/dock-menu-command-actions-screenshot.png",
+          "outputs/customer-ui/evidence-20260623T045833Z/dock-menu-command-actions-log.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/dock-menu-command-actions-workflow.json"
         ]
       }
     },
@@ -1037,35 +1038,35 @@
           "type": "mini_click",
           "detail": "/tmp/sanebar_runtime_smoke.log: ✅ Browse mode findIcon activation ok",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/browse-icons-search-navigation-mini_click-evidence-1.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/browse-icons-search-navigation-mini_click-evidence-1.json"
           ]
         },
         {
           "type": "screenshot",
           "detail": "Browse Icons panel rendered from the running Mini build",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/browse-icons-search-navigation-screenshot.png"
+            "outputs/customer-ui/evidence-20260623T045833Z/browse-icons-search-navigation-screenshot.png"
           ]
         },
         {
           "type": "fixture",
-          "detail": "/tmp/sanebar_runtime_smoke.log: ✅ Candidate set passed: com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-B, com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-A",
+          "detail": "/tmp/sanebar_runtime_smoke.log: ✅ Candidate set passed: com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-B, com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-C",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/browse-icons-search-navigation-fixture-evidence-3.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/browse-icons-search-navigation-fixture-evidence-3.json"
           ]
         },
         {
           "type": "mini_automation",
           "detail": "applescript=quick search \"Sane\" ok output=true",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/browse-icons-search-navigation-mini_automation-evidence-4.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/browse-icons-search-navigation-mini_automation-evidence-4.json"
           ]
         },
         {
           "type": "mini_url_route",
           "detail": "url_route=search?q=Sane ok",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/browse-icons-search-navigation-mini_url_route-evidence-5.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/browse-icons-search-navigation-mini_url_route-evidence-5.json"
           ]
         }
       ],
@@ -1078,12 +1079,12 @@
         ],
         "outcome": "browse-icons-search-navigation passed with 5 evidence item(s) on the Mini.",
         "artifacts": [
-          "outputs/customer-ui/evidence-20260622T162129Z/browse-icons-search-navigation-mini_click-evidence-1.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/browse-icons-search-navigation-screenshot.png",
-          "outputs/customer-ui/evidence-20260622T162129Z/browse-icons-search-navigation-fixture-evidence-3.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/browse-icons-search-navigation-mini_automation-evidence-4.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/browse-icons-search-navigation-mini_url_route-evidence-5.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/browse-icons-search-navigation-workflow.json"
+          "outputs/customer-ui/evidence-20260623T045833Z/browse-icons-search-navigation-mini_click-evidence-1.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/browse-icons-search-navigation-screenshot.png",
+          "outputs/customer-ui/evidence-20260623T045833Z/browse-icons-search-navigation-fixture-evidence-3.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/browse-icons-search-navigation-mini_automation-evidence-4.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/browse-icons-search-navigation-mini_url_route-evidence-5.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/browse-icons-search-navigation-workflow.json"
         ]
       }
     },
@@ -1109,30 +1110,30 @@
           "type": "mini_click",
           "detail": "/tmp/sanebar_runtime_smoke.log: ✅ Hidden/Visible move actions ok",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/browse-icons-icon-context-actions-mini_click-evidence-1.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/browse-icons-icon-context-actions-mini_click-evidence-1.json"
           ]
         },
         {
           "type": "screenshot",
           "detail": "Browse Icons panel rendered before icon context action verification",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/browse-icons-icon-context-actions-screenshot.png"
+            "outputs/customer-ui/evidence-20260623T045833Z/browse-icons-icon-context-actions-screenshot.png"
           ]
         },
         {
           "type": "fixture",
-          "detail": "/tmp/sanebar_runtime_smoke.log: ✅ Candidate set passed: com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-B, com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-A",
+          "detail": "/tmp/sanebar_runtime_smoke.log: ✅ Candidate set passed: com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-B, com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-C",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/browse-icons-icon-context-actions-fixture-evidence-3.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/browse-icons-icon-context-actions-fixture-evidence-3.json"
           ]
         },
         {
           "type": "log",
           "detail": "Runtime smoke log confirms icon move/context action fixture result",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_shared_bundle_smoke.log",
-            "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_native_apple_smoke.log",
-            "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_host_exact_id_smoke.log"
+            "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_shared_bundle_smoke.log",
+            "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_native_apple_smoke.log",
+            "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_host_exact_id_smoke.log"
           ]
         },
         {
@@ -1149,13 +1150,13 @@
         ],
         "outcome": "browse-icons-icon-context-actions passed with 5 evidence item(s) on the Mini.",
         "artifacts": [
-          "outputs/customer-ui/evidence-20260622T162129Z/browse-icons-icon-context-actions-mini_click-evidence-1.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/browse-icons-icon-context-actions-screenshot.png",
-          "outputs/customer-ui/evidence-20260622T162129Z/browse-icons-icon-context-actions-fixture-evidence-3.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_shared_bundle_smoke.log",
-          "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_native_apple_smoke.log",
-          "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_host_exact_id_smoke.log",
-          "outputs/customer-ui/evidence-20260622T162129Z/browse-icons-icon-context-actions-workflow.json"
+          "outputs/customer-ui/evidence-20260623T045833Z/browse-icons-icon-context-actions-mini_click-evidence-1.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/browse-icons-icon-context-actions-screenshot.png",
+          "outputs/customer-ui/evidence-20260623T045833Z/browse-icons-icon-context-actions-fixture-evidence-3.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_shared_bundle_smoke.log",
+          "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_native_apple_smoke.log",
+          "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_host_exact_id_smoke.log",
+          "outputs/customer-ui/evidence-20260623T045833Z/browse-icons-icon-context-actions-workflow.json"
         ]
       }
     },
@@ -1181,37 +1182,37 @@
           "type": "mini_click",
           "detail": "/tmp/sanebar_runtime_smoke.log: ✅ Browse mode secondMenuBar activation ok",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/second-menu-bar-actions-mini_click-evidence-1.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/second-menu-bar-actions-mini_click-evidence-1.json"
           ]
         },
         {
           "type": "screenshot",
           "detail": "Second Menu Bar rendered from the running Mini build",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/second-menu-bar-actions-screenshot.png"
+            "outputs/customer-ui/evidence-20260623T045833Z/second-menu-bar-actions-screenshot.png"
           ]
         },
         {
           "type": "fixture",
-          "detail": "/tmp/sanebar_runtime_smoke.log: ✅ Candidate set passed: com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-B, com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-A",
+          "detail": "/tmp/sanebar_runtime_smoke.log: ✅ Candidate set passed: com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-B, com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-C",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/second-menu-bar-actions-fixture-evidence-3.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/second-menu-bar-actions-fixture-evidence-3.json"
           ]
         },
         {
           "type": "log",
           "detail": "Runtime smoke log confirms second menu bar fixture result",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_shared_bundle_smoke.log",
-            "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_native_apple_smoke.log",
-            "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_host_exact_id_smoke.log"
+            "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_shared_bundle_smoke.log",
+            "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_native_apple_smoke.log",
+            "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_host_exact_id_smoke.log"
           ]
         },
         {
           "type": "mini_automation",
           "detail": "applescript=show second menu bar ok output=true",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/second-menu-bar-actions-mini_automation-evidence-5.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/second-menu-bar-actions-mini_automation-evidence-5.json"
           ]
         }
       ],
@@ -1226,14 +1227,14 @@
         ],
         "outcome": "second-menu-bar-actions passed with 5 evidence item(s) on the Mini.",
         "artifacts": [
-          "outputs/customer-ui/evidence-20260622T162129Z/second-menu-bar-actions-mini_click-evidence-1.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/second-menu-bar-actions-screenshot.png",
-          "outputs/customer-ui/evidence-20260622T162129Z/second-menu-bar-actions-fixture-evidence-3.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_shared_bundle_smoke.log",
-          "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_native_apple_smoke.log",
-          "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_host_exact_id_smoke.log",
-          "outputs/customer-ui/evidence-20260622T162129Z/second-menu-bar-actions-mini_automation-evidence-5.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/second-menu-bar-actions-workflow.json"
+          "outputs/customer-ui/evidence-20260623T045833Z/second-menu-bar-actions-mini_click-evidence-1.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/second-menu-bar-actions-screenshot.png",
+          "outputs/customer-ui/evidence-20260623T045833Z/second-menu-bar-actions-fixture-evidence-3.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_shared_bundle_smoke.log",
+          "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_native_apple_smoke.log",
+          "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_host_exact_id_smoke.log",
+          "outputs/customer-ui/evidence-20260623T045833Z/second-menu-bar-actions-mini_automation-evidence-5.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/second-menu-bar-actions-workflow.json"
         ]
       }
     },
@@ -1260,49 +1261,49 @@
           "type": "mini_click",
           "detail": "/tmp/sanebar_runtime_smoke.log: ✅ Hidden/Visible move actions ok",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/icon-zone-move-reorder-always-hidden-mini_click-evidence-1.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/icon-zone-move-reorder-always-hidden-mini_click-evidence-1.json"
           ]
         },
         {
           "type": "mini_click",
           "detail": "/tmp/sanebar_runtime_smoke.log: ✅ Hidden/Always Hidden round-trip ok",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/icon-zone-move-reorder-always-hidden-mini_click-evidence-2.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/icon-zone-move-reorder-always-hidden-mini_click-evidence-2.json"
           ]
         },
         {
           "type": "mini_click",
           "detail": "/tmp/sanebar_runtime_smoke.log: ✅ Always Hidden move actions ok",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/icon-zone-move-reorder-always-hidden-mini_click-evidence-3.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/icon-zone-move-reorder-always-hidden-mini_click-evidence-3.json"
           ]
         },
         {
           "type": "mini_click",
           "detail": "/tmp/sanebar_runtime_smoke.log: ✅ Post-settle zone stability ok: com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-B stayed alwaysHidden",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/icon-zone-move-reorder-always-hidden-mini_click-evidence-4.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/icon-zone-move-reorder-always-hidden-mini_click-evidence-4.json"
           ]
         },
         {
           "type": "screenshot",
           "detail": "Browse Icons panel rendered before exact-ID move verification",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/icon-zone-move-reorder-always-hidden-screenshot.png"
+            "outputs/customer-ui/evidence-20260623T045833Z/icon-zone-move-reorder-always-hidden-screenshot.png"
           ]
         },
         {
           "type": "fixture",
-          "detail": "/tmp/sanebar_runtime_smoke.log: ✅ Candidate set passed: com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-B, com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-A",
+          "detail": "/tmp/sanebar_runtime_smoke.log: ✅ Candidate set passed: com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-B, com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-C",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/icon-zone-move-reorder-always-hidden-fixture-evidence-6.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/icon-zone-move-reorder-always-hidden-fixture-evidence-6.json"
           ]
         },
         {
           "type": "mini_automation",
-          "detail": "applescript=list icon zones ok output=hidden true com.setapp.DesktopClient.SetappLauncher com.setapp.DesktopClient.SetappLauncher::axid:Setapp-MenuBar-Item SetappLauncher hidden true com.sindresorhus.Lungo-setapp com.sindresorhus.Lungo-setapp::statusItem:0 Lungo hidden true com.apple.Spotlight com.apple.menuextra.spotlight Spotlight hid",
+          "detail": "applescript=list icon zones ok output=hidden true com.openai.codex com.openai.codex::statusItem:0 Codex hidden true com.setapp.DesktopClient.SetappLauncher com.setapp.DesktopClient.SetappLauncher::axid:Setapp-MenuBar-Item SetappLauncher hidden true com.sindresorhus.Lungo-setapp com.sindresorhus.Lungo-setapp::statusItem:0 Lungo hidden tr",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/icon-zone-move-reorder-always-hidden-mini_automation-evidence-7.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/icon-zone-move-reorder-always-hidden-mini_automation-evidence-7.json"
           ]
         }
       ],
@@ -1317,14 +1318,14 @@
         ],
         "outcome": "icon-zone-move-reorder-always-hidden passed with 7 evidence item(s) on the Mini.",
         "artifacts": [
-          "outputs/customer-ui/evidence-20260622T162129Z/icon-zone-move-reorder-always-hidden-mini_click-evidence-1.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/icon-zone-move-reorder-always-hidden-mini_click-evidence-2.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/icon-zone-move-reorder-always-hidden-mini_click-evidence-3.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/icon-zone-move-reorder-always-hidden-mini_click-evidence-4.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/icon-zone-move-reorder-always-hidden-screenshot.png",
-          "outputs/customer-ui/evidence-20260622T162129Z/icon-zone-move-reorder-always-hidden-fixture-evidence-6.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/icon-zone-move-reorder-always-hidden-mini_automation-evidence-7.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/icon-zone-move-reorder-always-hidden-workflow.json"
+          "outputs/customer-ui/evidence-20260623T045833Z/icon-zone-move-reorder-always-hidden-mini_click-evidence-1.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/icon-zone-move-reorder-always-hidden-mini_click-evidence-2.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/icon-zone-move-reorder-always-hidden-mini_click-evidence-3.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/icon-zone-move-reorder-always-hidden-mini_click-evidence-4.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/icon-zone-move-reorder-always-hidden-screenshot.png",
+          "outputs/customer-ui/evidence-20260623T045833Z/icon-zone-move-reorder-always-hidden-fixture-evidence-6.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/icon-zone-move-reorder-always-hidden-mini_automation-evidence-7.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/icon-zone-move-reorder-always-hidden-workflow.json"
         ]
       }
     },
@@ -1348,37 +1349,37 @@
       "evidence": [
         {
           "type": "mini_click",
-          "detail": "icon_hotkeys_groups_custom_group_click=ok group=QA Release 20260622T162129Z snapshot=outputs/customer-ui/hotkeys-groups-20260622T162129Z.png",
+          "detail": "icon_hotkeys_groups_custom_group_click=ok group=QA Release 20260623T045833Z snapshot=outputs/customer-ui/hotkeys-groups-20260623T045833Z.png",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/icon-hotkeys-and-groups-mini_click-evidence-1.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/icon-hotkeys-and-groups-mini_click-evidence-1.json"
           ]
         },
         {
           "type": "screenshot",
           "detail": "Custom group creation prompt and result were exercised on the running Mini build",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/icon-hotkeys-and-groups-screenshot.png"
+            "outputs/customer-ui/evidence-20260623T045833Z/icon-hotkeys-and-groups-screenshot.png"
           ]
         },
         {
           "type": "fixture",
           "detail": "Hotkey and group behavior covered by persistence fixtures and customer UI source guards.",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/icon-hotkeys-and-groups-fixture-evidence-3.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/icon-hotkeys-and-groups-fixture-evidence-3.json"
           ]
         },
         {
           "type": "state_receipt",
           "detail": "source_guard=profiles ok checks=5",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/icon-hotkeys-and-groups-state_receipt-evidence-4.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/icon-hotkeys-and-groups-state_receipt-evidence-4.json"
           ]
         },
         {
           "type": "log",
           "detail": "Unit and source guards prove hotkey/group pathways without destructive UI mutation in release sweep",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/icon-hotkeys-and-groups-state-receipt.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/icon-hotkeys-and-groups-state-receipt.json"
           ]
         },
         {
@@ -1399,12 +1400,12 @@
         ],
         "outcome": "icon-hotkeys-and-groups passed with 7 evidence item(s) on the Mini.",
         "artifacts": [
-          "outputs/customer-ui/evidence-20260622T162129Z/icon-hotkeys-and-groups-mini_click-evidence-1.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/icon-hotkeys-and-groups-screenshot.png",
-          "outputs/customer-ui/evidence-20260622T162129Z/icon-hotkeys-and-groups-fixture-evidence-3.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/icon-hotkeys-and-groups-state_receipt-evidence-4.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/icon-hotkeys-and-groups-state-receipt.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/icon-hotkeys-and-groups-workflow.json"
+          "outputs/customer-ui/evidence-20260623T045833Z/icon-hotkeys-and-groups-mini_click-evidence-1.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/icon-hotkeys-and-groups-screenshot.png",
+          "outputs/customer-ui/evidence-20260623T045833Z/icon-hotkeys-and-groups-fixture-evidence-3.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/icon-hotkeys-and-groups-state_receipt-evidence-4.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/icon-hotkeys-and-groups-state-receipt.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/icon-hotkeys-and-groups-workflow.json"
         ]
       }
     },
@@ -1428,37 +1429,37 @@
       "evidence": [
         {
           "type": "mini_click",
-          "detail": "settings_ax_tab_index=1 text=Control :: Browse IconsBrowse Icons viewLeft-click SaneBar iconHiding BehaviorHide icons automaticallyWait before hidingQuick (5s)Wait after Browse IconsNormal (15s)Hide when app changesAlways show on external monitorsReveal hidden icons on hoverHover delayQuickShow when scrolling on menu barGesture behaviorGestures reveal hidden icons.Show when rearranging iconsHide app menus during inline revealHide new/unlisted items by defaultSaved ProfilesSavedNo saved profilesCurrent SettingsLayout RepairR | settings_ax_tab_index=2 text=Rules :: Automatic TriggersShow on Low BatteryShow when specific apps openShow on ScheduleShow on Wi-Fi ChangeShow on Focus Mode ChangeLet a script control visibility | settings_ax_tab_index=3 text=Appearance :: Menu Bar IconIconDivider StyleStyleMovable visual dividers0Adds small line/dot menu bar items. Command-drag them into place. They do not create extra hidden sections or menu-bar layers.Menu Bar StyleCustom AppearanceTranslucent",
+          "detail": "settings_ax_tab_index=1 text=Control :: Browse IconsBrowse Icons viewLeft-click SaneBar iconHiding BehaviorWait before hidingQuick (5s)Wait after Browse IconsNormal (15s)Saved ProfilesSavedNo saved profilesCurrent SettingsLayout RepairRepair ModeStabilityStability repairs only at startup or when you click Arrange Now. This is the calm default.Arrange NowSecurityStartupSoftware UpdatesCheck frequencyActionsDataSettingsMigrationMaintenanceReset App | settings_ax_tab_index=2 text=Rules :: Automatic Triggers | settings_ax_tab_index=3 text=Appearance :: Menu Bar IconIconDivider StyleStyleMovable visual dividers0Adds small line/dot menu bar items. Command-drag them into place. They do not create extra hidden sections or menu-bar layers.Menu Bar StyleLight Tint35%Dark Tint35%Menu Bar Layout | settings_ax_tab_index=4 text=Shortcuts :: Global HotkeysBrowse IconsShow / Hide iconsShow iconsHide iconsOpen SettingsAutomationToggle hidden iconsopen \"sanebar://toggle\"Show hidden iconsopen \"sanebar://",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/settings-shell-tabs-render-mini_click-evidence-1.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/settings-shell-tabs-render-mini_click-evidence-1.json"
           ]
         },
         {
           "type": "screenshot",
-          "detail": "Captured usable settings window screenshot: outputs/customer-ui/evidence-20260622T162129Z/settings-shell-tabs-render-screenshot.png",
+          "detail": "Captured usable settings window screenshot: outputs/customer-ui/evidence-20260623T045833Z/settings-shell-tabs-render-screenshot.png",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/settings-shell-tabs-render-screenshot.png"
+            "outputs/customer-ui/evidence-20260623T045833Z/settings-shell-tabs-render-screenshot.png"
           ]
         },
         {
           "type": "fixture",
           "detail": "Settings tabs exercised on the running Mini app through AX row selection.",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/settings-shell-tabs-render-fixture-evidence-3.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/settings-shell-tabs-render-fixture-evidence-3.json"
           ]
         },
         {
           "type": "log",
-          "detail": "Captured 8 settings tab snapshot attempt(s): outputs/customer-ui/settings-control-20260622T162129Z.png, outputs/customer-ui/settings-rules-20260622T162129Z.png, outputs/customer-ui/settings-appearance-20260622T162129Z.png, outputs/customer-ui/settings-shortcuts-20260622T162129Z.png, outputs/customer-ui/settings-health-20260622T162129Z.png, outputs/customer-ui/settings-license-20260622T162129Z.png, outputs/customer-ui/settings-about-20260622T162129Z.png, outputs/customer-ui/settings-window-20260622T162129Z.png",
+          "detail": "Captured 8 settings tab snapshot attempt(s): outputs/customer-ui/settings-control-20260623T045833Z.png, outputs/customer-ui/settings-rules-20260623T045833Z.png, outputs/customer-ui/settings-appearance-20260623T045833Z.png, outputs/customer-ui/settings-shortcuts-20260623T045833Z.png, outputs/customer-ui/settings-health-20260623T045833Z.png, outputs/customer-ui/settings-license-20260623T045833Z.png, outputs/customer-ui/settings-about-20260623T045833Z.png, outputs/customer-ui/settings-window-20260623T045833Z.png",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/settings-shell-tabs-render-log.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/settings-shell-tabs-render-log.json"
           ]
         },
         {
           "type": "mini_ax",
-          "detail": "settings_ax_tab_index=1 text=Control :: Browse IconsBrowse Icons viewLeft-click SaneBar iconHiding BehaviorHide icons automaticallyWait before hidingQuick (5s)Wait after Browse IconsNormal (15s)Hide when app changesAlways show on external monitorsReveal hidden icons on hoverHover delayQuickShow when scrolling on menu barGesture behaviorGestures reveal hidden icons.Show when rearranging iconsHide app menus during inline revealHide new/unlisted items by defaultSaved ProfilesSavedNo saved profilesCurrent SettingsLayout RepairR | settings_ax_tab_index=2 text=Rules :: Automatic TriggersShow on Low BatteryShow when specific apps openShow on ScheduleShow on Wi-Fi ChangeShow on Focus Mode ChangeLet a script control visibility | settings_ax_tab_index=3 text=Appearance :: Menu Bar IconIconDivider StyleStyleMovable visual dividers0Adds small line/dot menu bar items. Command-drag them into place. They do not create extra hidden sections or menu-bar layers.Menu Bar StyleCustom AppearanceTranslucent",
+          "detail": "settings_ax_tab_index=1 text=Control :: Browse IconsBrowse Icons viewLeft-click SaneBar iconHiding BehaviorWait before hidingQuick (5s)Wait after Browse IconsNormal (15s)Saved ProfilesSavedNo saved profilesCurrent SettingsLayout RepairRepair ModeStabilityStability repairs only at startup or when you click Arrange Now. This is the calm default.Arrange NowSecurityStartupSoftware UpdatesCheck frequencyActionsDataSettingsMigrationMaintenanceReset App | settings_ax_tab_index=2 text=Rules :: Automatic Triggers | settings_ax_tab_index=3 text=Appearance :: Menu Bar IconIconDivider StyleStyleMovable visual dividers0Adds small line/dot menu bar items. Command-drag them into place. They do not create extra hidden sections or menu-bar layers.Menu Bar StyleLight Tint35%Dark Tint35%Menu Bar Layout | settings_ax_tab_index=4 text=Shortcuts :: Global HotkeysBrowse IconsShow / Hide iconsShow iconsHide iconsOpen SettingsAutomationToggle hidden iconsopen \"sanebar://toggle\"Show hidden iconsopen \"sanebar://",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/settings-shell-tabs-render-mini_ax-evidence-5.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/settings-shell-tabs-render-mini_ax-evidence-5.json"
           ]
         }
       ],
@@ -1472,12 +1473,12 @@
         ],
         "outcome": "settings-shell-tabs-render passed with 5 evidence item(s) on the Mini.",
         "artifacts": [
-          "outputs/customer-ui/evidence-20260622T162129Z/settings-shell-tabs-render-mini_click-evidence-1.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/settings-shell-tabs-render-screenshot.png",
-          "outputs/customer-ui/evidence-20260622T162129Z/settings-shell-tabs-render-fixture-evidence-3.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/settings-shell-tabs-render-log.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/settings-shell-tabs-render-mini_ax-evidence-5.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/settings-shell-tabs-render-workflow.json"
+          "outputs/customer-ui/evidence-20260623T045833Z/settings-shell-tabs-render-mini_click-evidence-1.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/settings-shell-tabs-render-screenshot.png",
+          "outputs/customer-ui/evidence-20260623T045833Z/settings-shell-tabs-render-fixture-evidence-3.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/settings-shell-tabs-render-log.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/settings-shell-tabs-render-mini_ax-evidence-5.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/settings-shell-tabs-render-workflow.json"
         ]
       }
     },
@@ -1501,42 +1502,49 @@
       "evidence": [
         {
           "type": "fixture",
-          "detail": "source_guard=settings_control ok checks=8",
+          "detail": "source_guard=settings_control ok checks=9",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/control-settings-actions-fixture-evidence-1.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/control-settings-actions-fixture-evidence-1.json"
           ]
         },
         {
           "type": "mini_click",
-          "detail": "settings_tab=control ok snapshot=outputs/customer-ui/settings-control-20260622T162129Z.png",
+          "detail": "settings_tab=control ok snapshot=outputs/customer-ui/settings-control-20260623T045833Z.png",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/control-settings-actions-mini_click-evidence-2.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/control-settings-actions-mini_click-evidence-2.json"
+          ]
+        },
+        {
+          "type": "mini_click",
+          "detail": "settings_control_hide_new_unlisted_toggle=ok click=role=AXButton action=AXPress value=On visible_allow_list_count=0 final=false",
+          "artifacts": [
+            "outputs/customer-ui/evidence-20260623T045833Z/control-settings-actions-mini_click-evidence-3.json"
           ]
         },
         {
           "type": "mini_ax",
-          "detail": "settings_ax_tab_index=1 text=Control :: Browse IconsBrowse Icons viewLeft-click SaneBar iconHiding BehaviorHide icons automaticallyWait before hidingQuick (5s)Wait after Browse IconsNormal (15s)Hide when app changesAlways show on external monitorsReveal hidden icons on hoverHover delayQuickShow when scrolling on menu barGesture behaviorGestures reveal hidden icons.Show when rearranging iconsHide app menus during inline revealHide new/unlisted items by defaultSaved ProfilesSavedNo saved profilesCurrent SettingsLayout RepairR",
+          "detail": "settings_ax_tab_index=1 text=Control :: Browse IconsBrowse Icons viewLeft-click SaneBar iconHiding BehaviorWait before hidingQuick (5s)Wait after Browse IconsNormal (15s)Saved ProfilesSavedNo saved profilesCurrent SettingsLayout RepairRepair ModeStabilityStability repairs only at startup or when you click Arrange Now. This is the calm default.Arrange NowSecurityStartupSoftware UpdatesCheck frequencyActionsDataSettingsMigrationMaintenanceReset App",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/control-settings-actions-mini_ax-evidence-3.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/control-settings-actions-mini_ax-evidence-4.json"
           ]
         },
         {
           "type": "screenshot",
           "detail": "Control settings tab rendered during the Mini settings sweep",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/control-settings-actions-screenshot.png"
+            "outputs/customer-ui/evidence-20260623T045833Z/control-settings-actions-screenshot.png"
           ]
         },
         {
           "type": "state_receipt",
-          "detail": "source_guard=settings_control ok checks=8",
+          "detail": "source_guard=settings_control ok checks=9",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/control-settings-actions-state-receipt.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/control-settings-actions-state-receipt.json"
           ]
         },
         {
           "type": "source_guard",
-          "detail": "source_guard=settings_control ok checks=8"
+          "detail": "source_guard=settings_control ok checks=9"
         },
         {
           "type": "unit_guard",
@@ -1554,14 +1562,15 @@
           "Toggle login item and Dock icon controls where non-destructive.",
           "Toggle update auto-check and frequency, then click Check Now."
         ],
-        "outcome": "control-settings-actions passed with 7 evidence item(s) on the Mini.",
+        "outcome": "control-settings-actions passed with 8 evidence item(s) on the Mini.",
         "artifacts": [
-          "outputs/customer-ui/evidence-20260622T162129Z/control-settings-actions-fixture-evidence-1.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/control-settings-actions-mini_click-evidence-2.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/control-settings-actions-mini_ax-evidence-3.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/control-settings-actions-screenshot.png",
-          "outputs/customer-ui/evidence-20260622T162129Z/control-settings-actions-state-receipt.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/control-settings-actions-workflow.json"
+          "outputs/customer-ui/evidence-20260623T045833Z/control-settings-actions-fixture-evidence-1.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/control-settings-actions-mini_click-evidence-2.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/control-settings-actions-mini_click-evidence-3.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/control-settings-actions-mini_ax-evidence-4.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/control-settings-actions-screenshot.png",
+          "outputs/customer-ui/evidence-20260623T045833Z/control-settings-actions-state-receipt.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/control-settings-actions-workflow.json"
         ]
       }
     },
@@ -1587,21 +1596,21 @@
           "type": "mini_click",
           "detail": "applescript=layout snapshot ok output={\"alwaysHiddenBeforeSeparator\":false,\"alwaysHiddenGeometryReliable\":false,\"alwaysHiddenSectionEnabledEffective\":true,\"alwaysHiddenSectionEnabledRequested\":true,\"alwaysHiddenSeparatorBoundaryX\":null,\"alwaysHiddenSeparatorOriginX\":null,\"alwaysHiddenSeparatorPresent\":true,\"autoRehideBlockReason\":\"none\"",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/profiles-save-load-delete-apply-mini_click-evidence-1.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/profiles-save-load-delete-apply-mini_click-evidence-1.json"
           ]
         },
         {
           "type": "screenshot",
           "detail": "Settings window visual state captured while profile-capable settings shell was open",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/profiles-save-load-delete-apply-screenshot.png"
+            "outputs/customer-ui/evidence-20260623T045833Z/profiles-save-load-delete-apply-screenshot.png"
           ]
         },
         {
           "type": "fixture",
           "detail": "source_guard=profiles ok checks=5",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/profiles-save-load-delete-apply-fixture-evidence-3.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/profiles-save-load-delete-apply-fixture-evidence-3.json"
           ]
         },
         {
@@ -1624,10 +1633,10 @@
         ],
         "outcome": "profiles-save-load-delete-apply passed with 5 evidence item(s) on the Mini.",
         "artifacts": [
-          "outputs/customer-ui/evidence-20260622T162129Z/profiles-save-load-delete-apply-mini_click-evidence-1.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/profiles-save-load-delete-apply-screenshot.png",
-          "outputs/customer-ui/evidence-20260622T162129Z/profiles-save-load-delete-apply-fixture-evidence-3.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/profiles-save-load-delete-apply-workflow.json"
+          "outputs/customer-ui/evidence-20260623T045833Z/profiles-save-load-delete-apply-mini_click-evidence-1.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/profiles-save-load-delete-apply-screenshot.png",
+          "outputs/customer-ui/evidence-20260623T045833Z/profiles-save-load-delete-apply-fixture-evidence-3.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/profiles-save-load-delete-apply-workflow.json"
         ]
       }
     },
@@ -1651,30 +1660,30 @@
       "evidence": [
         {
           "type": "mini_click",
-          "detail": "settings_tab=rules ok snapshot=outputs/customer-ui/settings-rules-20260622T162129Z.png",
+          "detail": "settings_tab=rules ok snapshot=outputs/customer-ui/settings-rules-20260623T045833Z.png",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/rules-trigger-actions-mini_click-evidence-1.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/rules-trigger-actions-mini_click-evidence-1.json"
           ]
         },
         {
           "type": "screenshot",
           "detail": "Rules tab visual state captured in the Mini settings sweep",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/rules-trigger-actions-screenshot.png"
+            "outputs/customer-ui/evidence-20260623T045833Z/rules-trigger-actions-screenshot.png"
           ]
         },
         {
           "type": "fixture",
           "detail": "source_guard=rules ok checks=6",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/rules-trigger-actions-fixture-evidence-3.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/rules-trigger-actions-fixture-evidence-3.json"
           ]
         },
         {
           "type": "log",
           "detail": "Rules settings and trigger source guards passed for low battery, app launch, schedule, network, Focus, and script triggers",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/rules-trigger-actions-log.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/rules-trigger-actions-log.json"
           ]
         },
         {
@@ -1696,11 +1705,11 @@
         ],
         "outcome": "rules-trigger-actions passed with 6 evidence item(s) on the Mini.",
         "artifacts": [
-          "outputs/customer-ui/evidence-20260622T162129Z/rules-trigger-actions-mini_click-evidence-1.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/rules-trigger-actions-screenshot.png",
-          "outputs/customer-ui/evidence-20260622T162129Z/rules-trigger-actions-fixture-evidence-3.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/rules-trigger-actions-log.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/rules-trigger-actions-workflow.json"
+          "outputs/customer-ui/evidence-20260623T045833Z/rules-trigger-actions-mini_click-evidence-1.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/rules-trigger-actions-screenshot.png",
+          "outputs/customer-ui/evidence-20260623T045833Z/rules-trigger-actions-fixture-evidence-3.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/rules-trigger-actions-log.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/rules-trigger-actions-workflow.json"
         ]
       }
     },
@@ -1726,35 +1735,35 @@
           "type": "fixture",
           "detail": "source_guard=appearance ok checks=6",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/appearance-customization-actions-fixture-evidence-1.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/appearance-customization-actions-fixture-evidence-1.json"
           ]
         },
         {
           "type": "mini_click",
-          "detail": "settings_tab=appearance ok snapshot=outputs/customer-ui/settings-appearance-20260622T162129Z.png",
+          "detail": "settings_tab=appearance ok snapshot=outputs/customer-ui/settings-appearance-20260623T045833Z.png",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/appearance-customization-actions-mini_click-evidence-2.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/appearance-customization-actions-mini_click-evidence-2.json"
           ]
         },
         {
           "type": "screenshot",
           "detail": "Custom Appearance overlay tint pixels captured by Mini runtime smoke",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/appearance-customization-actions-screenshot.png"
+            "outputs/customer-ui/evidence-20260623T045833Z/appearance-customization-actions-screenshot.png"
           ]
         },
         {
           "type": "state_receipt",
           "detail": "/tmp/sanebar_runtime_smoke.log: ✅ Appearance tint pixels ok (baseline): {sampled_pixels: 14880, avg_r: 251.0, avg_g: 86.0, avg_b: 5.0, avg_alpha: 128.0, orange_pixels: 14880, orange_pixel_ratio: 1.0}",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/appearance-customization-actions-state_receipt-evidence-4.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/appearance-customization-actions-state_receipt-evidence-4.json"
           ]
         },
         {
           "type": "state_receipt",
           "detail": "/tmp/sanebar_runtime_smoke.log: ✅ Visible fullscreen transition contract ok",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/appearance-customization-actions-state_receipt-evidence-5.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/appearance-customization-actions-state_receipt-evidence-5.json"
           ]
         },
         {
@@ -1765,7 +1774,7 @@
           "type": "mini_runtime",
           "detail": "/tmp/sanebar_runtime_smoke.log: ✅ Appearance tint pixels ok (baseline): {sampled_pixels: 14880, avg_r: 251.0, avg_g: 86.0, avg_b: 5.0, avg_alpha: 128.0, orange_pixels: 14880, orange_pixel_ratio: 1.0}",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/appearance-customization-actions-mini_runtime-evidence-7.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/appearance-customization-actions-mini_runtime-evidence-7.json"
           ]
         },
         {
@@ -1784,13 +1793,13 @@
         ],
         "outcome": "appearance-customization-actions passed with 8 evidence item(s) on the Mini.",
         "artifacts": [
-          "outputs/customer-ui/evidence-20260622T162129Z/appearance-customization-actions-fixture-evidence-1.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/appearance-customization-actions-mini_click-evidence-2.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/appearance-customization-actions-screenshot.png",
-          "outputs/customer-ui/evidence-20260622T162129Z/appearance-customization-actions-state_receipt-evidence-4.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/appearance-customization-actions-state_receipt-evidence-5.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/appearance-customization-actions-mini_runtime-evidence-7.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/appearance-customization-actions-workflow.json"
+          "outputs/customer-ui/evidence-20260623T045833Z/appearance-customization-actions-fixture-evidence-1.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/appearance-customization-actions-mini_click-evidence-2.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/appearance-customization-actions-screenshot.png",
+          "outputs/customer-ui/evidence-20260623T045833Z/appearance-customization-actions-state_receipt-evidence-4.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/appearance-customization-actions-state_receipt-evidence-5.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/appearance-customization-actions-mini_runtime-evidence-7.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/appearance-customization-actions-workflow.json"
         ]
       }
     },
@@ -1814,30 +1823,30 @@
       "evidence": [
         {
           "type": "mini_click",
-          "detail": "applescript=toggle ok output= | applescript=show hidden ok output= | applescript=hide items ok output= | applescript=layout snapshot ok output={\"alwaysHiddenBeforeSeparator\":false,\"alwaysHiddenGeometryReliable\":false,\"alwaysHiddenSectionEnabledEffective\":true,\"alwaysHiddenSectionEnabledRequested\":true,\"alwaysHiddenSeparatorBoundaryX\":null,\"alwaysHiddenSeparatorOriginX\":null,\"alwaysHiddenSeparatorPresent\":true,\"autoRehideBlockReason\":\"none\" | applescript=list icons ok output=com.setapp.DesktopClient.SetappLauncher::axid:Setapp-MenuBar-Item SetappLauncher com.sindresorhus.Lungo-setapp::statusItem:0 Lungo com.apple.menuextra.spotlight Spotlight com.apple.menuextra.siri Siri com.apple.SSMenuAgent::statusItem:0 SSMenuAgent | applescript=list icon zones ok output=hidden true com.setapp.DesktopClient.SetappLauncher com.setapp.DesktopClient.SetappLauncher::axid:Setapp-MenuBar-Item SetappLauncher hidden true com.sindresorhus.Lungo-setapp com.sindresorhus.Lungo-setapp::statusItem:0 Lungo hidden true com.apple.Spotlight com.apple.menuextra.spotlight Spotlight hid | applescript=list authoritative icon zones ok output=hidden true com.setapp.DesktopClient.SetappLauncher com.setapp.DesktopClient.SetappLauncher::axid:Setapp-MenuBar-Item SetappLauncher hidden true com.sindresorhus.Lungo-setapp com.sindresorhus.Lungo-setapp::statusItem:0 Lungo hidden true com.apple.Spotlight com.apple.menuextra.spotlight Spotlight hid | applescript=open icon panel ok output=true | applescript=quick search \"Sane\" ok output=true | applescript=close browse panel ok output=true | applescript=show second menu bar ok output=true | applescript=close browse panel ok output=true | applescript=open settings window ok output=true | applescript=activation diagnostics ok output=lastActivation: startedAt: never reques",
+          "detail": "applescript=toggle ok output= | applescript=show hidden ok output= | applescript=hide items ok output= | applescript=layout snapshot ok output={\"alwaysHiddenBeforeSeparator\":false,\"alwaysHiddenGeometryReliable\":false,\"alwaysHiddenSectionEnabledEffective\":true,\"alwaysHiddenSectionEnabledRequested\":true,\"alwaysHiddenSeparatorBoundaryX\":null,\"alwaysHiddenSeparatorOriginX\":null,\"alwaysHiddenSeparatorPresent\":true,\"autoRehideBlockReason\":\"none\" | applescript=list icons ok output=com.openai.codex::statusItem:0 Codex com.setapp.DesktopClient.SetappLauncher::axid:Setapp-MenuBar-Item SetappLauncher com.sindresorhus.Lungo-setapp::statusItem:0 Lungo com.apple.menuextra.spotlight Spotlight com.apple.menuextra.siri Siri com.apple.SSMenuAgent::statusItem:0 SSMenuAgent | applescript=list icon zones ok output=hidden true com.openai.codex com.openai.codex::statusItem:0 Codex hidden true com.setapp.DesktopClient.SetappLauncher com.setapp.DesktopClient.SetappLauncher::axid:Setapp-MenuBar-Item SetappLauncher hidden true com.sindresorhus.Lungo-setapp com.sindresorhus.Lungo-setapp::statusItem:0 Lungo hidden tr | applescript=list authoritative icon zones ok output=hidden true com.openai.codex com.openai.codex::statusItem:0 Codex hidden true com.setapp.DesktopClient.SetappLauncher com.setapp.DesktopClient.SetappLauncher::axid:Setapp-MenuBar-Item SetappLauncher hidden true com.sindresorhus.Lungo-setapp com.sindresorhus.Lungo-setapp::statusItem:0 Lungo hidden tr | applescript=open icon panel ok output=true | applescript=quick search \"Sane\" ok output=true | applescript=close browse panel ok output=true | applescript=show second menu bar ok output=true | applescript=close browse panel ok output=true | applescript=open settings window ok output=true | applescript=activation diagnostics ok output=la",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/shortcuts-and-automation-actions-mini_click-evidence-1.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/shortcuts-and-automation-actions-mini_click-evidence-1.json"
           ]
         },
         {
           "type": "screenshot",
           "detail": "Shortcuts/automation settings shell rendered in Mini settings sweep",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/shortcuts-and-automation-actions-screenshot.png"
+            "outputs/customer-ui/evidence-20260623T045833Z/shortcuts-and-automation-actions-screenshot.png"
           ]
         },
         {
           "type": "fixture",
           "detail": "source_guard=shortcuts ok checks=4",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/shortcuts-and-automation-actions-fixture-evidence-3.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/shortcuts-and-automation-actions-fixture-evidence-3.json"
           ]
         },
         {
           "type": "log",
           "detail": "AppleScript command transcript captured for automation surface",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/shortcuts-and-automation-actions-log.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/shortcuts-and-automation-actions-log.json"
           ]
         },
         {
@@ -1848,14 +1857,14 @@
           "type": "mini_url_route",
           "detail": "url_route=toggle ok | url_route=show ok | url_route=hide ok | url_route=settings ok | url_route=health ok | url_route=repair ok | url_route=search?q=Sane ok",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/shortcuts-and-automation-actions-mini_url_route-evidence-6.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/shortcuts-and-automation-actions-mini_url_route-evidence-6.json"
           ]
         },
         {
           "type": "mini_automation",
-          "detail": "applescript=toggle ok output= | applescript=show hidden ok output= | applescript=hide items ok output= | applescript=layout snapshot ok output={\"alwaysHiddenBeforeSeparator\":false,\"alwaysHiddenGeometryReliable\":false,\"alwaysHiddenSectionEnabledEffective\":true,\"alwaysHiddenSectionEnabledRequested\":true,\"alwaysHiddenSeparatorBoundaryX\":null,\"alwaysHiddenSeparatorOriginX\":null,\"alwaysHiddenSeparatorPresent\":true,\"autoRehideBlockReason\":\"none\" | applescript=list icons ok output=com.setapp.DesktopClient.SetappLauncher::axid:Setapp-MenuBar-Item SetappLauncher com.sindresorhus.Lungo-setapp::statusItem:0 Lungo com.apple.menuextra.spotlight Spotlight com.apple.menuextra.siri Siri com.apple.SSMenuAgent::statusItem:0 SSMenuAgent | applescript=list icon zones ok output=hidden true com.setapp.DesktopClient.SetappLauncher com.setapp.DesktopClient.SetappLauncher::axid:Setapp-MenuBar-Item SetappLauncher hidden true com.sindresorhus.Lungo-setapp com.sindresorhus.Lungo-setapp::statusItem:0 Lungo hidden true com.apple.Spotlight com.apple.menuextra.spotlight Spotlight hid | applescript=list authoritative icon zones ok output=hidden true com.setapp.DesktopClient.SetappLauncher com.setapp.DesktopClient.SetappLauncher::axid:Setapp-MenuBar-Item SetappLauncher hidden true com.sindresorhus.Lungo-setapp com.sindresorhus.Lungo-setapp::statusItem:0 Lungo hidden true com.apple.Spotlight com.apple.menuextra.spotlight Spotlight hid | applescript=open icon panel ok output=true | applescript=quick search \"Sane\" ok output=true | applescript=close browse panel ok output=true | applescript=show second menu bar ok output=true | applescript=close browse panel ok output=true | applescript=open settings window ok output=true | applescript=activation diagnostics ok output=lastActivation: startedAt: never reques",
+          "detail": "applescript=toggle ok output= | applescript=show hidden ok output= | applescript=hide items ok output= | applescript=layout snapshot ok output={\"alwaysHiddenBeforeSeparator\":false,\"alwaysHiddenGeometryReliable\":false,\"alwaysHiddenSectionEnabledEffective\":true,\"alwaysHiddenSectionEnabledRequested\":true,\"alwaysHiddenSeparatorBoundaryX\":null,\"alwaysHiddenSeparatorOriginX\":null,\"alwaysHiddenSeparatorPresent\":true,\"autoRehideBlockReason\":\"none\" | applescript=list icons ok output=com.openai.codex::statusItem:0 Codex com.setapp.DesktopClient.SetappLauncher::axid:Setapp-MenuBar-Item SetappLauncher com.sindresorhus.Lungo-setapp::statusItem:0 Lungo com.apple.menuextra.spotlight Spotlight com.apple.menuextra.siri Siri com.apple.SSMenuAgent::statusItem:0 SSMenuAgent | applescript=list icon zones ok output=hidden true com.openai.codex com.openai.codex::statusItem:0 Codex hidden true com.setapp.DesktopClient.SetappLauncher com.setapp.DesktopClient.SetappLauncher::axid:Setapp-MenuBar-Item SetappLauncher hidden true com.sindresorhus.Lungo-setapp com.sindresorhus.Lungo-setapp::statusItem:0 Lungo hidden tr | applescript=list authoritative icon zones ok output=hidden true com.openai.codex com.openai.codex::statusItem:0 Codex hidden true com.setapp.DesktopClient.SetappLauncher com.setapp.DesktopClient.SetappLauncher::axid:Setapp-MenuBar-Item SetappLauncher hidden true com.sindresorhus.Lungo-setapp com.sindresorhus.Lungo-setapp::statusItem:0 Lungo hidden tr | applescript=open icon panel ok output=true | applescript=quick search \"Sane\" ok output=true | applescript=close browse panel ok output=true | applescript=show second menu bar ok output=true | applescript=close browse panel ok output=true | applescript=open settings window ok output=true | applescript=activation diagnostics ok output=la",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/shortcuts-and-automation-actions-mini_automation-evidence-7.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/shortcuts-and-automation-actions-mini_automation-evidence-7.json"
           ]
         }
       ],
@@ -1870,13 +1879,13 @@
         ],
         "outcome": "shortcuts-and-automation-actions passed with 7 evidence item(s) on the Mini.",
         "artifacts": [
-          "outputs/customer-ui/evidence-20260622T162129Z/shortcuts-and-automation-actions-mini_click-evidence-1.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/shortcuts-and-automation-actions-screenshot.png",
-          "outputs/customer-ui/evidence-20260622T162129Z/shortcuts-and-automation-actions-fixture-evidence-3.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/shortcuts-and-automation-actions-log.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/shortcuts-and-automation-actions-mini_url_route-evidence-6.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/shortcuts-and-automation-actions-mini_automation-evidence-7.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/shortcuts-and-automation-actions-workflow.json"
+          "outputs/customer-ui/evidence-20260623T045833Z/shortcuts-and-automation-actions-mini_click-evidence-1.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/shortcuts-and-automation-actions-screenshot.png",
+          "outputs/customer-ui/evidence-20260623T045833Z/shortcuts-and-automation-actions-fixture-evidence-3.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/shortcuts-and-automation-actions-log.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/shortcuts-and-automation-actions-mini_url_route-evidence-6.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/shortcuts-and-automation-actions-mini_automation-evidence-7.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/shortcuts-and-automation-actions-workflow.json"
         ]
       }
     },
@@ -1902,29 +1911,29 @@
           "type": "mini_click",
           "detail": "url_route=health ok | url_route=repair ok",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/health-repair-rescue-diagnostics-mini_click-evidence-1.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/health-repair-rescue-diagnostics-mini_click-evidence-1.json"
           ]
         },
         {
           "type": "screenshot",
           "detail": "Health/repair settings window rendered from deep-link route on Mini",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/health-repair-rescue-diagnostics-screenshot.png"
+            "outputs/customer-ui/evidence-20260623T045833Z/health-repair-rescue-diagnostics-screenshot.png"
           ]
         },
         {
           "type": "fixture",
           "detail": "source_guard=health ok checks=4",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/health-repair-rescue-diagnostics-fixture-evidence-3.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/health-repair-rescue-diagnostics-fixture-evidence-3.json"
           ]
         },
         {
           "type": "log",
           "detail": "Startup and health/repair runtime logs captured",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_startup_probe.log",
-            "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_startup_probe.log"
+            "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_startup_probe.log",
+            "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_startup_probe.log"
           ]
         },
         {
@@ -1935,14 +1944,14 @@
           "type": "mini_url_route",
           "detail": "url_route=health ok",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/health-repair-rescue-diagnostics-mini_url_route-evidence-6.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/health-repair-rescue-diagnostics-mini_url_route-evidence-6.json"
           ]
         },
         {
           "type": "mini_url_route",
           "detail": "url_route=repair ok",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/health-repair-rescue-diagnostics-mini_url_route-evidence-7.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/health-repair-rescue-diagnostics-mini_url_route-evidence-7.json"
           ]
         }
       ],
@@ -1955,13 +1964,13 @@
         ],
         "outcome": "health-repair-rescue-diagnostics passed with 7 evidence item(s) on the Mini.",
         "artifacts": [
-          "outputs/customer-ui/evidence-20260622T162129Z/health-repair-rescue-diagnostics-mini_click-evidence-1.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/health-repair-rescue-diagnostics-screenshot.png",
-          "outputs/customer-ui/evidence-20260622T162129Z/health-repair-rescue-diagnostics-fixture-evidence-3.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_startup_probe.log",
-          "outputs/customer-ui/evidence-20260622T162129Z/health-repair-rescue-diagnostics-mini_url_route-evidence-6.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/health-repair-rescue-diagnostics-mini_url_route-evidence-7.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/health-repair-rescue-diagnostics-workflow.json"
+          "outputs/customer-ui/evidence-20260623T045833Z/health-repair-rescue-diagnostics-mini_click-evidence-1.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/health-repair-rescue-diagnostics-screenshot.png",
+          "outputs/customer-ui/evidence-20260623T045833Z/health-repair-rescue-diagnostics-fixture-evidence-3.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_startup_probe.log",
+          "outputs/customer-ui/evidence-20260623T045833Z/health-repair-rescue-diagnostics-mini_url_route-evidence-6.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/health-repair-rescue-diagnostics-mini_url_route-evidence-7.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/health-repair-rescue-diagnostics-workflow.json"
         ]
       }
     },
@@ -1985,28 +1994,28 @@
       "evidence": [
         {
           "type": "mini_click",
-          "detail": "settings_tab=control ok snapshot=outputs/customer-ui/settings-control-20260622T162129Z.png",
+          "detail": "settings_tab=control ok snapshot=outputs/customer-ui/settings-control-20260623T045833Z.png",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/data-import-export-reset-actions-mini_click-evidence-1.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/data-import-export-reset-actions-mini_click-evidence-1.json"
           ]
         },
         {
           "type": "screenshot",
           "detail": "Control settings visual state captured for import/export/reset action surface",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/data-import-export-reset-actions-screenshot.png"
+            "outputs/customer-ui/evidence-20260623T045833Z/data-import-export-reset-actions-screenshot.png"
           ]
         },
         {
           "type": "fixture",
-          "detail": "source_guard=settings_control ok checks=8",
+          "detail": "source_guard=settings_control ok checks=9",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/data-import-export-reset-actions-fixture-evidence-3.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/data-import-export-reset-actions-fixture-evidence-3.json"
           ]
         },
         {
           "type": "source_guard",
-          "detail": "source_guard=settings_control ok checks=8"
+          "detail": "source_guard=settings_control ok checks=9"
         },
         {
           "type": "unit_guard",
@@ -2023,10 +2032,10 @@
         ],
         "outcome": "data-import-export-reset-actions passed with 5 evidence item(s) on the Mini.",
         "artifacts": [
-          "outputs/customer-ui/evidence-20260622T162129Z/data-import-export-reset-actions-mini_click-evidence-1.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/data-import-export-reset-actions-screenshot.png",
-          "outputs/customer-ui/evidence-20260622T162129Z/data-import-export-reset-actions-fixture-evidence-3.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/data-import-export-reset-actions-workflow.json"
+          "outputs/customer-ui/evidence-20260623T045833Z/data-import-export-reset-actions-mini_click-evidence-1.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/data-import-export-reset-actions-screenshot.png",
+          "outputs/customer-ui/evidence-20260623T045833Z/data-import-export-reset-actions-fixture-evidence-3.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/data-import-export-reset-actions-workflow.json"
         ]
       }
     },
@@ -2050,30 +2059,30 @@
       "evidence": [
         {
           "type": "mini_click",
-          "detail": "settings_tab=license ok snapshot=outputs/customer-ui/settings-license-20260622T162129Z.png",
+          "detail": "settings_tab=license ok snapshot=outputs/customer-ui/settings-license-20260623T045833Z.png",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/onboarding-basic-pro-permission-actions-mini_click-evidence-1.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/onboarding-basic-pro-permission-actions-mini_click-evidence-1.json"
           ]
         },
         {
           "type": "screenshot",
           "detail": "Settings visual state captured for Basic/Pro permission-adjacent release surface",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/onboarding-basic-pro-permission-actions-screenshot.png"
+            "outputs/customer-ui/evidence-20260623T045833Z/onboarding-basic-pro-permission-actions-screenshot.png"
           ]
         },
         {
           "type": "fixture",
           "detail": "source_guard=onboarding ok checks=4",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/onboarding-basic-pro-permission-actions-fixture-evidence-3.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/onboarding-basic-pro-permission-actions-fixture-evidence-3.json"
           ]
         },
         {
           "type": "log",
           "detail": "Onboarding source guard captured Basic/Pro, import, accessibility, unlock, and restore controls",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/onboarding-basic-pro-permission-actions-log.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/onboarding-basic-pro-permission-actions-log.json"
           ]
         },
         {
@@ -2097,11 +2106,11 @@
         ],
         "outcome": "onboarding-basic-pro-permission-actions passed with 6 evidence item(s) on the Mini.",
         "artifacts": [
-          "outputs/customer-ui/evidence-20260622T162129Z/onboarding-basic-pro-permission-actions-mini_click-evidence-1.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/onboarding-basic-pro-permission-actions-screenshot.png",
-          "outputs/customer-ui/evidence-20260622T162129Z/onboarding-basic-pro-permission-actions-fixture-evidence-3.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/onboarding-basic-pro-permission-actions-log.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/onboarding-basic-pro-permission-actions-workflow.json"
+          "outputs/customer-ui/evidence-20260623T045833Z/onboarding-basic-pro-permission-actions-mini_click-evidence-1.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/onboarding-basic-pro-permission-actions-screenshot.png",
+          "outputs/customer-ui/evidence-20260623T045833Z/onboarding-basic-pro-permission-actions-fixture-evidence-3.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/onboarding-basic-pro-permission-actions-log.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/onboarding-basic-pro-permission-actions-workflow.json"
         ]
       }
     },
@@ -2125,30 +2134,30 @@
       "evidence": [
         {
           "type": "mini_click",
-          "detail": "settings_tab=license ok snapshot=outputs/customer-ui/settings-license-20260622T162129Z.png | settings_tab=about ok snapshot=outputs/customer-ui/settings-about-20260622T162129Z.png",
+          "detail": "settings_tab=license ok snapshot=outputs/customer-ui/settings-license-20260623T045833Z.png | settings_tab=about ok snapshot=outputs/customer-ui/settings-about-20260623T045833Z.png",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/license-about-support-actions-mini_click-evidence-1.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/license-about-support-actions-mini_click-evidence-1.json"
           ]
         },
         {
           "type": "screenshot",
           "detail": "License/About settings surfaces rendered during Mini settings sweep",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/license-about-support-actions-screenshot.png"
+            "outputs/customer-ui/evidence-20260623T045833Z/license-about-support-actions-screenshot.png"
           ]
         },
         {
           "type": "fixture",
           "detail": "source_guard=license_about ok checks=4",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/license-about-support-actions-fixture-evidence-3.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/license-about-support-actions-fixture-evidence-3.json"
           ]
         },
         {
           "type": "support_report",
           "detail": "Report a Bug attachment/copy/cancel path captured for support media handling",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/license-about-support-actions-support-report.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/license-about-support-actions-support-report.json"
           ]
         },
         {
@@ -2157,10 +2166,10 @@
         },
         {
           "type": "mini_screenshots",
-          "detail": "License and About tabs captured in settings tab sweep: outputs/customer-ui/settings-license-20260622T162129Z.png, outputs/customer-ui/settings-about-20260622T162129Z.png",
+          "detail": "License and About tabs captured in settings tab sweep: outputs/customer-ui/settings-license-20260623T045833Z.png, outputs/customer-ui/settings-about-20260623T045833Z.png",
           "artifacts": [
-            "outputs/customer-ui/settings-license-20260622T162129Z.png",
-            "outputs/customer-ui/settings-about-20260622T162129Z.png"
+            "outputs/customer-ui/settings-license-20260623T045833Z.png",
+            "outputs/customer-ui/settings-about-20260623T045833Z.png"
           ]
         }
       ],
@@ -2173,13 +2182,13 @@
         ],
         "outcome": "license-about-support-actions passed with 6 evidence item(s) on the Mini.",
         "artifacts": [
-          "outputs/customer-ui/evidence-20260622T162129Z/license-about-support-actions-mini_click-evidence-1.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/license-about-support-actions-screenshot.png",
-          "outputs/customer-ui/evidence-20260622T162129Z/license-about-support-actions-fixture-evidence-3.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/license-about-support-actions-support-report.json",
-          "outputs/customer-ui/settings-license-20260622T162129Z.png",
-          "outputs/customer-ui/settings-about-20260622T162129Z.png",
-          "outputs/customer-ui/evidence-20260622T162129Z/license-about-support-actions-workflow.json"
+          "outputs/customer-ui/evidence-20260623T045833Z/license-about-support-actions-mini_click-evidence-1.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/license-about-support-actions-screenshot.png",
+          "outputs/customer-ui/evidence-20260623T045833Z/license-about-support-actions-fixture-evidence-3.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/license-about-support-actions-support-report.json",
+          "outputs/customer-ui/settings-license-20260623T045833Z.png",
+          "outputs/customer-ui/settings-about-20260623T045833Z.png",
+          "outputs/customer-ui/evidence-20260623T045833Z/license-about-support-actions-workflow.json"
         ]
       }
     },
@@ -2203,30 +2212,30 @@
       "evidence": [
         {
           "type": "mini_click",
-          "detail": "settings_tab=license ok snapshot=outputs/customer-ui/settings-license-20260622T162129Z.png",
+          "detail": "settings_tab=license ok snapshot=outputs/customer-ui/settings-license-20260623T045833Z.png",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/pro-basic-gating-actions-mini_click-evidence-1.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/pro-basic-gating-actions-mini_click-evidence-1.json"
           ]
         },
         {
           "type": "screenshot",
           "detail": "Settings visual state captured for Pro/Basic gated controls",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/pro-basic-gating-actions-screenshot.png"
+            "outputs/customer-ui/evidence-20260623T045833Z/pro-basic-gating-actions-screenshot.png"
           ]
         },
         {
           "type": "fixture",
           "detail": "source_guard=pro_gates ok checks=4",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/pro-basic-gating-actions-fixture-evidence-3.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/pro-basic-gating-actions-fixture-evidence-3.json"
           ]
         },
         {
           "type": "log",
           "detail": "Pro gating guard confirms Basic copy and Pro-only automation/export/import paths",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/pro-basic-gating-actions-log.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/pro-basic-gating-actions-log.json"
           ]
         },
         {
@@ -2247,11 +2256,11 @@
         ],
         "outcome": "pro-basic-gating-actions passed with 6 evidence item(s) on the Mini.",
         "artifacts": [
-          "outputs/customer-ui/evidence-20260622T162129Z/pro-basic-gating-actions-mini_click-evidence-1.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/pro-basic-gating-actions-screenshot.png",
-          "outputs/customer-ui/evidence-20260622T162129Z/pro-basic-gating-actions-fixture-evidence-3.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/pro-basic-gating-actions-log.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/pro-basic-gating-actions-workflow.json"
+          "outputs/customer-ui/evidence-20260623T045833Z/pro-basic-gating-actions-mini_click-evidence-1.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/pro-basic-gating-actions-screenshot.png",
+          "outputs/customer-ui/evidence-20260623T045833Z/pro-basic-gating-actions-fixture-evidence-3.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/pro-basic-gating-actions-log.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/pro-basic-gating-actions-workflow.json"
         ]
       }
     },
@@ -2277,55 +2286,55 @@
           "type": "fixture",
           "detail": "/Users/stephansmac/SaneApps/apps/SaneBar/outputs/runtime-preflight/sanebar_runtime_startup_probe.json: Startup layout probe passed (current-width backup beats ordinal seeds, currentHost visibility overrides are cleared on startup, autoRehide=false prevents launch hide, #157 dirty reboot recovery keeps live anchors before hiding, #155 dirty startup AH replay allows outbound moves)",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-fixture-evidence-1.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-fixture-evidence-1.json"
           ]
         },
         {
           "type": "mini_runtime",
           "detail": "/Users/stephansmac/SaneApps/apps/SaneBar/outputs/runtime-preflight/sanebar_runtime_startup_probe.json: Startup layout probe passed (current-width backup beats ordinal seeds, currentHost visibility overrides are cleared on startup, autoRehide=false prevents launch hide, #157 dirty reboot recovery keeps live anchors before hiding, #155 dirty startup AH replay allows outbound moves)",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-mini_runtime-evidence-2.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-mini_runtime-evidence-2.json"
           ]
         },
         {
           "type": "mini_runtime",
           "detail": "/Users/stephansmac/SaneApps/apps/SaneBar/outputs/runtime-preflight/sanebar_runtime_wake_probe.json: Wake layout probe passed (hidden state survives display sleep wake, expanded state stays stable through display sleep wake)",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-mini_runtime-evidence-3.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-mini_runtime-evidence-3.json"
           ]
         },
         {
           "type": "screenshot",
           "detail": "Startup recovery includes Custom Appearance overlay tint pixel evidence from Mini runtime smoke",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-screenshot.png"
+            "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-screenshot.png"
           ]
         },
         {
           "type": "state_receipt",
           "detail": "/tmp/sanebar_runtime_smoke.log: ✅ Appearance tint pixels ok (baseline): {sampled_pixels: 14880, avg_r: 251.0, avg_g: 86.0, avg_b: 5.0, avg_alpha: 128.0, orange_pixels: 14880, orange_pixel_ratio: 1.0}",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-state_receipt-evidence-5.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-state_receipt-evidence-5.json"
           ]
         },
         {
           "type": "state_receipt",
           "detail": "/tmp/sanebar_runtime_smoke.log: ✅ Visible fullscreen transition contract ok",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-state_receipt-evidence-6.json"
+            "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-state_receipt-evidence-6.json"
           ]
         },
         {
           "type": "log",
           "detail": "Startup, wake, and appearance recovery runtime logs captured",
           "artifacts": [
-            "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_shared_bundle_smoke.log",
-            "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_native_apple_smoke.log",
-            "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_host_exact_id_smoke.log",
-            "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_startup_probe.log",
-            "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_startup_probe.log",
-            "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_wake_probe.log",
-            "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_wake_probe.log"
+            "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_shared_bundle_smoke.log",
+            "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_native_apple_smoke.log",
+            "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_host_exact_id_smoke.log",
+            "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_startup_probe.log",
+            "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_startup_probe.log",
+            "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_wake_probe.log",
+            "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_wake_probe.log"
           ]
         },
         {
@@ -2343,60 +2352,60 @@
         ],
         "outcome": "startup-wake-appearance-recovery passed with 8 evidence item(s) on the Mini.",
         "artifacts": [
-          "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-fixture-evidence-1.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-mini_runtime-evidence-2.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-mini_runtime-evidence-3.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-screenshot.png",
-          "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-state_receipt-evidence-5.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-state_receipt-evidence-6.json",
-          "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_shared_bundle_smoke.log",
-          "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_native_apple_smoke.log",
-          "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_host_exact_id_smoke.log",
-          "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_startup_probe.log",
-          "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_wake_probe.log",
-          "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-workflow.json"
+          "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-fixture-evidence-1.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-mini_runtime-evidence-2.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-mini_runtime-evidence-3.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-screenshot.png",
+          "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-state_receipt-evidence-5.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-state_receipt-evidence-6.json",
+          "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_shared_bundle_smoke.log",
+          "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_native_apple_smoke.log",
+          "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_host_exact_id_smoke.log",
+          "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_startup_probe.log",
+          "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_wake_probe.log",
+          "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-workflow.json"
         ]
       }
     }
   },
   "screenshots": [
-    "outputs/customer-ui/settings-control-20260622T162129Z.png",
-    "outputs/customer-ui/settings-rules-20260622T162129Z.png",
-    "outputs/customer-ui/settings-appearance-20260622T162129Z.png",
-    "outputs/customer-ui/settings-shortcuts-20260622T162129Z.png",
-    "outputs/customer-ui/settings-health-20260622T162129Z.png",
-    "outputs/customer-ui/settings-license-20260622T162129Z.png",
-    "outputs/customer-ui/settings-about-20260622T162129Z.png",
-    "outputs/customer-ui/browse-icons-20260622T162129Z.png",
-    "outputs/customer-ui/second-menu-bar-20260622T162129Z.png",
-    "outputs/customer-ui/settings-window-20260622T162129Z.png",
-    "outputs/customer-ui/hotkeys-groups-20260622T162129Z.png",
+    "outputs/customer-ui/settings-control-20260623T045833Z.png",
+    "outputs/customer-ui/settings-rules-20260623T045833Z.png",
+    "outputs/customer-ui/settings-appearance-20260623T045833Z.png",
+    "outputs/customer-ui/settings-shortcuts-20260623T045833Z.png",
+    "outputs/customer-ui/settings-health-20260623T045833Z.png",
+    "outputs/customer-ui/settings-license-20260623T045833Z.png",
+    "outputs/customer-ui/settings-about-20260623T045833Z.png",
+    "outputs/customer-ui/browse-icons-20260623T045833Z.png",
+    "outputs/customer-ui/second-menu-bar-20260623T045833Z.png",
+    "outputs/customer-ui/settings-window-20260623T045833Z.png",
+    "outputs/customer-ui/hotkeys-groups-20260623T045833Z.png",
     "outputs/runtime-preflight/sanebar_runtime_license_paste.png"
   ],
   "evidence": {
-    "app_version": "2.1.76",
-    "app_build": "2176",
+    "app_version": "2.1.79",
+    "app_build": "2179",
     "runtime_host": "stephans-mac-mini.local",
     "local_air_fallback": false,
     "mini_verify": "SaneMaster verify passed after customer UI contract expansion",
     "mini_release_preflight_runtime": "SANEBAR_RELEASE_SMOKE_SCREENSHOTS=1 ./scripts/SaneMaster.rb release_preflight generated runtime smoke evidence",
     "settings_tab_sweep": [
-      "settings_tab=control ok snapshot=outputs/customer-ui/settings-control-20260622T162129Z.png",
-      "settings_tab=rules ok snapshot=outputs/customer-ui/settings-rules-20260622T162129Z.png",
-      "settings_tab=appearance ok snapshot=outputs/customer-ui/settings-appearance-20260622T162129Z.png",
-      "settings_tab=shortcuts ok snapshot=outputs/customer-ui/settings-shortcuts-20260622T162129Z.png",
-      "settings_tab=health ok snapshot=outputs/customer-ui/settings-health-20260622T162129Z.png",
-      "settings_tab=license ok snapshot=outputs/customer-ui/settings-license-20260622T162129Z.png",
-      "settings_tab=about ok snapshot=outputs/customer-ui/settings-about-20260622T162129Z.png"
+      "settings_tab=control ok snapshot=outputs/customer-ui/settings-control-20260623T045833Z.png",
+      "settings_tab=rules ok snapshot=outputs/customer-ui/settings-rules-20260623T045833Z.png",
+      "settings_tab=appearance ok snapshot=outputs/customer-ui/settings-appearance-20260623T045833Z.png",
+      "settings_tab=shortcuts ok snapshot=outputs/customer-ui/settings-shortcuts-20260623T045833Z.png",
+      "settings_tab=health ok snapshot=outputs/customer-ui/settings-health-20260623T045833Z.png",
+      "settings_tab=license ok snapshot=outputs/customer-ui/settings-license-20260623T045833Z.png",
+      "settings_tab=about ok snapshot=outputs/customer-ui/settings-about-20260623T045833Z.png"
     ],
     "settings_snapshots": [
-      "outputs/customer-ui/settings-control-20260622T162129Z.png",
-      "outputs/customer-ui/settings-rules-20260622T162129Z.png",
-      "outputs/customer-ui/settings-appearance-20260622T162129Z.png",
-      "outputs/customer-ui/settings-shortcuts-20260622T162129Z.png",
-      "outputs/customer-ui/settings-health-20260622T162129Z.png",
-      "outputs/customer-ui/settings-license-20260622T162129Z.png",
-      "outputs/customer-ui/settings-about-20260622T162129Z.png"
+      "outputs/customer-ui/settings-control-20260623T045833Z.png",
+      "outputs/customer-ui/settings-rules-20260623T045833Z.png",
+      "outputs/customer-ui/settings-appearance-20260623T045833Z.png",
+      "outputs/customer-ui/settings-shortcuts-20260623T045833Z.png",
+      "outputs/customer-ui/settings-health-20260623T045833Z.png",
+      "outputs/customer-ui/settings-license-20260623T045833Z.png",
+      "outputs/customer-ui/settings-about-20260623T045833Z.png"
     ],
     "url_routes": [
       "url_route=toggle ok",
@@ -2412,9 +2421,9 @@
       "applescript=show hidden ok output=",
       "applescript=hide items ok output=",
       "applescript=layout snapshot ok output={\"alwaysHiddenBeforeSeparator\":false,\"alwaysHiddenGeometryReliable\":false,\"alwaysHiddenSectionEnabledEffective\":true,\"alwaysHiddenSectionEnabledRequested\":true,\"alwaysHiddenSeparatorBoundaryX\":null,\"alwaysHiddenSeparatorOriginX\":null,\"alwaysHiddenSeparatorPresent\":true,\"autoRehideBlockReason\":\"none\"",
-      "applescript=list icons ok output=com.setapp.DesktopClient.SetappLauncher::axid:Setapp-MenuBar-Item SetappLauncher com.sindresorhus.Lungo-setapp::statusItem:0 Lungo com.apple.menuextra.spotlight Spotlight com.apple.menuextra.siri Siri com.apple.SSMenuAgent::statusItem:0 SSMenuAgent",
-      "applescript=list icon zones ok output=hidden true com.setapp.DesktopClient.SetappLauncher com.setapp.DesktopClient.SetappLauncher::axid:Setapp-MenuBar-Item SetappLauncher hidden true com.sindresorhus.Lungo-setapp com.sindresorhus.Lungo-setapp::statusItem:0 Lungo hidden true com.apple.Spotlight com.apple.menuextra.spotlight Spotlight hid",
-      "applescript=list authoritative icon zones ok output=hidden true com.setapp.DesktopClient.SetappLauncher com.setapp.DesktopClient.SetappLauncher::axid:Setapp-MenuBar-Item SetappLauncher hidden true com.sindresorhus.Lungo-setapp com.sindresorhus.Lungo-setapp::statusItem:0 Lungo hidden true com.apple.Spotlight com.apple.menuextra.spotlight Spotlight hid",
+      "applescript=list icons ok output=com.openai.codex::statusItem:0 Codex com.setapp.DesktopClient.SetappLauncher::axid:Setapp-MenuBar-Item SetappLauncher com.sindresorhus.Lungo-setapp::statusItem:0 Lungo com.apple.menuextra.spotlight Spotlight com.apple.menuextra.siri Siri com.apple.SSMenuAgent::statusItem:0 SSMenuAgent",
+      "applescript=list icon zones ok output=hidden true com.openai.codex com.openai.codex::statusItem:0 Codex hidden true com.setapp.DesktopClient.SetappLauncher com.setapp.DesktopClient.SetappLauncher::axid:Setapp-MenuBar-Item SetappLauncher hidden true com.sindresorhus.Lungo-setapp com.sindresorhus.Lungo-setapp::statusItem:0 Lungo hidden tr",
+      "applescript=list authoritative icon zones ok output=hidden true com.openai.codex com.openai.codex::statusItem:0 Codex hidden true com.setapp.DesktopClient.SetappLauncher com.setapp.DesktopClient.SetappLauncher::axid:Setapp-MenuBar-Item SetappLauncher hidden true com.sindresorhus.Lungo-setapp com.sindresorhus.Lungo-setapp::statusItem:0 Lungo hidden tr",
       "applescript=open icon panel ok output=true",
       "applescript=quick search \"Sane\" ok output=true",
       "applescript=close browse panel ok output=true",
@@ -2422,7 +2431,7 @@
       "applescript=close browse panel ok output=true",
       "applescript=open settings window ok output=true",
       "applescript=activation diagnostics ok output=lastActivation: startedAt: never requestedApp: none origin: direct didReveal: false preferHardwareFirst: false initialResolution: not-run initialTarget: none waitOutcome: not-run firstAttempt: not-run retryAttempt: not-run finalOutcome: not-run",
-      "applescript=browse panel diagnostics ok output=secondMenuBar: showRequestedAt: 2026-06-22T16:21:48.636 currentMode: secondMenuBar windowVisible: false windowFrame: x=1315.0 y=875.0 w=400.0 h=170.0 refreshForced: true visibleCount: 0 hiddenCount: 5 alwaysHiddenCount: 0 relayoutPassCount: 0 lastRelayoutAt: 2026-06-22T16:21:48.765 lastRelayoutReaso",
+      "applescript=browse panel diagnostics ok output=secondMenuBar: showRequestedAt: 2026-06-23T04:59:01.876 currentMode: secondMenuBar windowVisible: false windowFrame: x=1319.0 y=875.0 w=400.0 h=170.0 refreshForced: true visibleCount: 0 hiddenCount: 6 alwaysHiddenCount: 0 relayoutPassCount: 0 lastRelayoutAt: 2026-06-23T04:59:02.016 lastRelayoutReaso",
       "applescript=close settings window ok output=true"
     ],
     "runtime_smoke": [
@@ -2431,59 +2440,60 @@
       "native_exact_id=/tmp/sanebar_runtime_native_apple_smoke.log ok"
     ],
     "durable_runtime_evidence": [
-      "outputs/customer-ui/evidence-20260622T162129Z/runtime-smoke-sanebar_runtime_smoke.log",
+      "outputs/customer-ui/evidence-20260623T045833Z/runtime-smoke-sanebar_runtime_smoke.log",
       "outputs/runtime-preflight/sanebar_runtime_startup_probe.log",
       "outputs/runtime-preflight/sanebar_runtime_wake_probe.log",
-      "outputs/customer-ui/evidence-20260622T162129Z/runtime-smoke-sanebar_runtime_shared_bundle_smoke.log",
-      "outputs/customer-ui/evidence-20260622T162129Z/runtime-smoke-sanebar_runtime_native_apple_smoke.log",
-      "outputs/customer-ui/evidence-20260622T162129Z/runtime-smoke-sanebar_runtime_host_exact_id_smoke.log",
-      "outputs/customer-ui/evidence-20260622T162129Z/fullscreen-matrix-sanebar_runtime_fullscreen_matrix.json",
-      "outputs/customer-ui/evidence-20260622T162129Z/fullscreen-matrix-sanebar-appearance-top-strip-baseline-20260622-160547.png",
-      "outputs/customer-ui/evidence-20260622T162129Z/fullscreen-matrix-sanebar-appearance-top-strip-maximized-host-20260622-160600.png",
-      "outputs/customer-ui/evidence-20260622T162129Z/fullscreen-matrix-sanebar-appearance-top-strip-safari-activation-immediate-20260622-160610.png",
-      "outputs/customer-ui/evidence-20260622T162129Z/fullscreen-matrix-sanebar-appearance-top-strip-safari-activation-settled-20260622-160618.png",
-      "outputs/customer-ui/evidence-20260622T162129Z/fullscreen-matrix-sanebar-appearance-top-strip-safari-fullscreen-enter-20260622-160637.png",
-      "outputs/customer-ui/evidence-20260622T162129Z/fullscreen-matrix-sanebar-appearance-top-strip-safari-fullscreen-exit-20260622-160658.png",
-      "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-fixture-evidence-1.json",
-      "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-mini_runtime-evidence-2.json",
-      "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-mini_runtime-evidence-3.json",
-      "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-screenshot.png",
-      "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-state_receipt-evidence-5.json",
-      "outputs/customer-ui/evidence-20260622T162129Z/startup-wake-appearance-recovery-state_receipt-evidence-6.json",
-      "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_shared_bundle_smoke.log",
-      "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_native_apple_smoke.log",
-      "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_host_exact_id_smoke.log",
-      "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_startup_probe.log",
-      "outputs/customer-ui/evidence-20260622T162129Z/sanebar_runtime_wake_probe.log",
-      "outputs/customer-ui/evidence-20260622T162129Z/appearance-customization-actions-fixture-evidence-1.json",
-      "outputs/customer-ui/evidence-20260622T162129Z/appearance-customization-actions-mini_click-evidence-2.json",
-      "outputs/customer-ui/evidence-20260622T162129Z/appearance-customization-actions-screenshot.png",
-      "outputs/customer-ui/evidence-20260622T162129Z/appearance-customization-actions-state_receipt-evidence-4.json",
-      "outputs/customer-ui/evidence-20260622T162129Z/appearance-customization-actions-state_receipt-evidence-5.json",
-      "outputs/customer-ui/evidence-20260622T162129Z/appearance-customization-actions-mini_runtime-evidence-7.json",
+      "outputs/customer-ui/evidence-20260623T045833Z/runtime-smoke-sanebar_runtime_shared_bundle_smoke.log",
+      "outputs/customer-ui/evidence-20260623T045833Z/runtime-smoke-sanebar_runtime_native_apple_smoke.log",
+      "outputs/customer-ui/evidence-20260623T045833Z/runtime-smoke-sanebar_runtime_host_exact_id_smoke.log",
+      "outputs/customer-ui/evidence-20260623T045833Z/fullscreen-matrix-sanebar_runtime_fullscreen_matrix.json",
+      "outputs/customer-ui/evidence-20260623T045833Z/fullscreen-matrix-sanebar-appearance-top-strip-baseline-20260623-044237.png",
+      "outputs/customer-ui/evidence-20260623T045833Z/fullscreen-matrix-sanebar-appearance-top-strip-maximized-host-20260623-044249.png",
+      "outputs/customer-ui/evidence-20260623T045833Z/fullscreen-matrix-sanebar-appearance-top-strip-safari-activation-immediate-20260623-044258.png",
+      "outputs/customer-ui/evidence-20260623T045833Z/fullscreen-matrix-sanebar-appearance-top-strip-safari-activation-settled-20260623-044307.png",
+      "outputs/customer-ui/evidence-20260623T045833Z/fullscreen-matrix-sanebar-appearance-top-strip-safari-fullscreen-enter-20260623-044326.png",
+      "outputs/customer-ui/evidence-20260623T045833Z/fullscreen-matrix-sanebar-appearance-top-strip-safari-fullscreen-exit-20260623-044348.png",
+      "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-fixture-evidence-1.json",
+      "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-mini_runtime-evidence-2.json",
+      "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-mini_runtime-evidence-3.json",
+      "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-screenshot.png",
+      "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-state_receipt-evidence-5.json",
+      "outputs/customer-ui/evidence-20260623T045833Z/startup-wake-appearance-recovery-state_receipt-evidence-6.json",
+      "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_shared_bundle_smoke.log",
+      "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_native_apple_smoke.log",
+      "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_host_exact_id_smoke.log",
+      "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_startup_probe.log",
+      "outputs/customer-ui/evidence-20260623T045833Z/sanebar_runtime_wake_probe.log",
+      "outputs/customer-ui/evidence-20260623T045833Z/appearance-customization-actions-fixture-evidence-1.json",
+      "outputs/customer-ui/evidence-20260623T045833Z/appearance-customization-actions-mini_click-evidence-2.json",
+      "outputs/customer-ui/evidence-20260623T045833Z/appearance-customization-actions-screenshot.png",
+      "outputs/customer-ui/evidence-20260623T045833Z/appearance-customization-actions-state_receipt-evidence-4.json",
+      "outputs/customer-ui/evidence-20260623T045833Z/appearance-customization-actions-state_receipt-evidence-5.json",
+      "outputs/customer-ui/evidence-20260623T045833Z/appearance-customization-actions-mini_runtime-evidence-7.json",
       "outputs/runtime-preflight/sanebar_runtime_wake_probe.json",
-      "outputs/customer-ui/evidence-20260622T162129Z/browse-icons-icon-context-actions-mini_click-evidence-1.json",
-      "outputs/customer-ui/evidence-20260622T162129Z/browse-icons-icon-context-actions-screenshot.png",
-      "outputs/customer-ui/evidence-20260622T162129Z/browse-icons-icon-context-actions-fixture-evidence-3.json",
-      "outputs/customer-ui/evidence-20260622T162129Z/shared-bundle-exact-id-sanebar_runtime_shared_bundle_smoke.log",
+      "outputs/customer-ui/evidence-20260623T045833Z/browse-icons-icon-context-actions-mini_click-evidence-1.json",
+      "outputs/customer-ui/evidence-20260623T045833Z/browse-icons-icon-context-actions-screenshot.png",
+      "outputs/customer-ui/evidence-20260623T045833Z/browse-icons-icon-context-actions-fixture-evidence-3.json",
+      "outputs/customer-ui/evidence-20260623T045833Z/shared-bundle-exact-id-sanebar_runtime_shared_bundle_smoke.log",
       "outputs/runtime-preflight/sanebar_runtime_hover_rehide.json",
       "outputs/runtime-preflight/sanebar_runtime_hover_rehide.log",
-      "outputs/customer-ui/evidence-20260622T162129Z/control-settings-actions-fixture-evidence-1.json",
-      "outputs/customer-ui/evidence-20260622T162129Z/control-settings-actions-mini_click-evidence-2.json",
-      "outputs/customer-ui/evidence-20260622T162129Z/control-settings-actions-mini_ax-evidence-3.json",
-      "outputs/customer-ui/evidence-20260622T162129Z/control-settings-actions-screenshot.png",
-      "outputs/customer-ui/evidence-20260622T162129Z/control-settings-actions-state-receipt.json",
+      "outputs/customer-ui/evidence-20260623T045833Z/control-settings-actions-fixture-evidence-1.json",
+      "outputs/customer-ui/evidence-20260623T045833Z/control-settings-actions-mini_click-evidence-2.json",
+      "outputs/customer-ui/evidence-20260623T045833Z/control-settings-actions-mini_click-evidence-3.json",
+      "outputs/customer-ui/evidence-20260623T045833Z/control-settings-actions-mini_ax-evidence-4.json",
+      "outputs/customer-ui/evidence-20260623T045833Z/control-settings-actions-screenshot.png",
+      "outputs/customer-ui/evidence-20260623T045833Z/control-settings-actions-state-receipt.json",
       "outputs/runtime-preflight/sanebar_runtime_license_paste.json",
       "outputs/runtime-preflight/sanebar_runtime_license_paste.log",
       "outputs/runtime-preflight/sanebar_runtime_license_paste.png",
-      "outputs/customer-ui/evidence-20260622T162129Z/license-about-support-actions-mini_click-evidence-1.json",
-      "outputs/customer-ui/evidence-20260622T162129Z/license-about-support-actions-screenshot.png",
-      "outputs/customer-ui/evidence-20260622T162129Z/license-about-support-actions-fixture-evidence-3.json",
-      "outputs/customer-ui/evidence-20260622T162129Z/license-about-support-actions-support-report.json",
-      "outputs/customer-ui/settings-license-20260622T162129Z.png",
-      "outputs/customer-ui/settings-about-20260622T162129Z.png",
-      "outputs/customer-ui/evidence-20260622T162129Z/resource-soak-sanebar_runtime_resource_soak.json",
-      "outputs/customer-ui/evidence-20260622T162129Z/resource-soak-sanebar_runtime_resource_soak.log"
+      "outputs/customer-ui/evidence-20260623T045833Z/license-about-support-actions-mini_click-evidence-1.json",
+      "outputs/customer-ui/evidence-20260623T045833Z/license-about-support-actions-screenshot.png",
+      "outputs/customer-ui/evidence-20260623T045833Z/license-about-support-actions-fixture-evidence-3.json",
+      "outputs/customer-ui/evidence-20260623T045833Z/license-about-support-actions-support-report.json",
+      "outputs/customer-ui/settings-license-20260623T045833Z.png",
+      "outputs/customer-ui/settings-about-20260623T045833Z.png",
+      "outputs/customer-ui/evidence-20260623T045833Z/resource-soak-sanebar_runtime_resource_soak.json",
+      "outputs/customer-ui/evidence-20260623T045833Z/resource-soak-sanebar_runtime_resource_soak.log"
     ],
     "release_note": "Customer UI sweep records only evidence produced by this Mini run; missing required action evidence blocks release."
   }

@@ -634,8 +634,7 @@ final class MenuBarManager: NSObject, ObservableObject {
             alwaysHiddenSectionEnabled: currentEffectiveAlwaysHiddenSectionEnabled(),
             pinnedItemCount: settings.alwaysHiddenPinnedItemIds.count
         )
-        let shouldReplayHideAllOther = settings.hideAllOtherMenuBarItems &&
-            !settings.hideAllOtherVisibleItemIds.isEmpty
+        let shouldReplayHideAllOther = settings.hideAllOtherMenuBarItems
         guard shouldReplayAlwaysHidden || shouldReplayHideAllOther else {
             schedulePostRecoveryAutoRehideIfNeeded(reason: "\(reason)-no-visibility-intent")
             return

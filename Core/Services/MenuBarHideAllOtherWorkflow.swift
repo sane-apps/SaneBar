@@ -150,40 +150,47 @@ final class MenuBarHideAllOtherWorkflow {
         return Array(Set(nonVisibleAllowedIds)).sorted()
     }
 
-    func enableFromCurrentLayout() {
+    func enableFromCurrentLayout(onComplete: ((Bool) -> Void)? = nil) {
         manager.hideAllOtherRuleEnforcementTask?.cancel()
 
-        guard manager.shouldRunVisibilityIntentEnforcement(reason: "enableHideAllOther") else {
-            logger.warning("Hide-all-other rule not enabled because menu bar geometry is not healthy enough to seed a visible allow-list")
-            return
-        }
-
         Task { [weak manager] in
+            guard let manager else {
+                await MainActor.run { onComplete?(false) }
+                return
+            }
+
+            if await MainActor.run(body: { manager.hidingService.state == .hidden }) {
+                let revealed = await manager.visibilityWorkflow.showHiddenItemsNow(trigger: .settingsButton)
+                let expanded = await MainActor.run(body: { manager.hidingService.state == .expanded })
+                if !revealed, !expanded {
+                    logger.warning("Hide-all-other enabled while hidden items could not be revealed; preserving the existing visible allow-list")
+                }
+            }
+
             let classified = await SearchService.shared.refreshKnownClassifiedApps()
             await MainActor.run {
-                guard let manager else { return }
-                guard manager.shouldRunVisibilityIntentEnforcement(reason: "enableHideAllOther-refresh") else {
-                    logger.warning("Hide-all-other rule not enabled after refresh because menu bar geometry is not healthy enough to seed a visible allow-list")
-                    return
+                if !manager.shouldRunVisibilityIntentEnforcement(reason: "enableHideAllOther-refresh") {
+                    logger.warning("Hide-all-other enabled; live enforcement will wait until menu bar anchors are healthy")
                 }
                 let refreshedIds = Self.visibleItemIds(from: classified.visible)
-                guard !refreshedIds.isEmpty else {
-                    logger.warning("Hide-all-other rule not enabled because no current visible item ids could be seeded")
-                    return
+                if refreshedIds.isEmpty {
+                    if manager.settings.hideAllOtherVisibleItemIds.isEmpty {
+                        logger.info("Hide-all-other rule enabled with an empty visible allow-list; all non-exempt new items will be hidden")
+                    } else {
+                        logger.info("Hide-all-other refresh found no visible items; preserving the existing visible allow-list")
+                    }
+                } else {
+                    manager.settings.hideAllOtherVisibleItemIds = refreshedIds
                 }
-                manager.settings.hideAllOtherVisibleItemIds = refreshedIds
                 manager.settings.hideAllOtherMenuBarItems = true
                 manager.saveSettings()
+                onComplete?(true)
             }
         }
     }
 
     func scheduleEnforcement(reason: String, filterBundleId: String? = nil, delay: Duration) {
         guard manager.settings.hideAllOtherMenuBarItems else { return }
-        guard !manager.settings.hideAllOtherVisibleItemIds.isEmpty else {
-            logger.warning("Hide-all-other enforcement skipped because the visible allow-list is empty (\(reason, privacy: .public))")
-            return
-        }
         guard !manager.shouldSkipHideForExternalMonitor else {
             logger.info("Hide-all-other enforcement skipped by external monitor policy (\(reason, privacy: .public))")
             return
@@ -227,11 +234,6 @@ final class MenuBarHideAllOtherWorkflow {
         }
 
         let visibleIds = Set(manager.settings.hideAllOtherVisibleItemIds)
-        guard !visibleIds.isEmpty else {
-            logger.warning("Hide-all-other enforcement rejected because the visible allow-list is empty (\(reason, privacy: .public))")
-            return false
-        }
-
         guard let separatorX = manager.geometryResolver.separatorRightEdgeX() ?? manager.geometryResolver.separatorOriginX() else {
             logger.warning("Hide-all-other enforcement (\(reason, privacy: .public)): separator position unavailable")
             return false

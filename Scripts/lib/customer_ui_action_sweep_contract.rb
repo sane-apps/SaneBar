@@ -114,6 +114,7 @@ class CustomerUIActionSweep
     pass_action('control-settings-actions', [
       evidence('fixture', source_line(source_lines, 'settings_control')),
       evidence('mini_click', @transcript.grep(/\Asettings_tab=control/).first),
+      evidence('mini_click', @transcript.grep(/\Asettings_control_hide_new_unlisted_toggle=/).first),
       evidence('mini_ax', @transcript.grep(/\Asettings_ax_tab_index=1/).first),
       evidence('screenshot', 'Control settings tab rendered during the Mini settings sweep', [screenshot_for_action('control-settings-actions')]),
       evidence('state_receipt', source_line(source_lines, 'settings_control'), [artifact_file('control-settings-actions', 'state-receipt', source_line(source_lines, 'settings_control'))]),

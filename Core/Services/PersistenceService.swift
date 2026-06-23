@@ -390,7 +390,7 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
         scheduleEndMinute = min(max(try container.decodeIfPresent(Int.self, forKey: .scheduleEndMinute) ?? 0, 0), 59)
         showOnHover = try container.decodeIfPresent(Bool.self, forKey: .showOnHover) ?? false
         hoverDelay = try container.decodeIfPresent(TimeInterval.self, forKey: .hoverDelay) ?? 0.25
-        showOnScroll = try container.decodeIfPresent(Bool.self, forKey: .showOnScroll) ?? true
+        showOnScroll = try container.decodeIfPresent(Bool.self, forKey: .showOnScroll) ?? false
         // showOnClick removed in v1.0.17 — global click monitor interfered with visible items.
         // Force to false for existing users; decode to discard old value silently.
         _ = try container.decodeIfPresent(Bool.self, forKey: .showOnClick)

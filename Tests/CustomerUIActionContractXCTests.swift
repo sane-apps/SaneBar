@@ -221,6 +221,25 @@ final class CustomerUIActionContractXCTests: XCTestCase {
         )
     }
 
+    func testLicensePasteSweepUsesVisibleEntryActionWithoutClickingKeepPro() throws {
+        let source = try read("Scripts/customer_ui_action_sweep.rb")
+
+        XCTAssertFalse(
+            source.contains("set deactivateButton to my licenseActionButton(settingsWindow, 1)"),
+            "The license paste sweep must not treat the first unlabeled action button as Deactivate; in trial state that can be Keep Pro"
+        )
+        XCTAssertTrue(
+            source.contains("set settingsWindow to first window whose subrole is \"AXStandardWindow\" and name is \"License\"") &&
+            source.contains("set entryButton to my licenseActionButton(settingsWindow, -1)") &&
+                source.contains("set minX to (item 1 of rootPosition) + ((item 1 of rootSize) * 0.55)") &&
+                source.contains("return item -1 of matches") &&
+                source.contains("clickVisibleLicenseEntryAction(settingsWindow)") &&
+                source.contains("perform action \"AXRaise\" of rootElement") &&
+                source.contains("set clickY to round ((item 2 of rootPosition) + 195)"),
+            "The license paste sweep should fall back to the bottom/right visible license action button when SwiftUI does not expose a stable button name, without clicking Keep Pro"
+        )
+    }
+
     func testLayoutSnapshotReportsAutoRehideBlockReason() throws {
         let visibilitySource = try read("Core/Services/MenuBarVisibilityWorkflow.swift")
         let snapshotSource = try read("Core/Services/LayoutSnapshotCommand.swift")
@@ -380,7 +399,7 @@ final class CustomerUIActionContractXCTests: XCTestCase {
             "\(miniRuntimePreflightPath)/sanebar_runtime_wake_probe.log"
         ]
         let allowedPrefixesByType: [String: [String]] = [
-            "mini_click": ["/tmp/sanebar_runtime_", "applescript=", "settings_ax_tab_index=", "settings_tab=", "icon_hotkeys_groups_", "url_route=", "runtime_visual="],
+            "mini_click": ["/tmp/sanebar_runtime_", "applescript=", "settings_ax_tab_index=", "settings_tab=", "settings_control_hide_new_unlisted_toggle=", "icon_hotkeys_groups_", "url_route=", "runtime_visual="],
             "mini_automation": ["applescript=", "url_route=", "settings_ax_tab_index=", "icon_hotkeys_groups_"],
             "mini_ax": ["settings_ax_tab_index="],
             "mini_url_route": ["url_route="],
