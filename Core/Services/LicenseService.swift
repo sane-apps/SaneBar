@@ -56,6 +56,10 @@ final class LicenseService: ObservableObject {
     @Published private(set) var isPurchasing: Bool = false
     @Published private(set) var appStoreDisplayPrice: String?
     @Published private(set) var proTrialStartedAt: Date?
+    /// True when a paid unlock (a real LemonSqueezy license key) is present. A paid
+    /// unlock supersedes the time-limited Pro trial: the badge reads "Pro" instead of
+    /// "Pro Trial", and an expired trial never demotes a paying customer to Basic.
+    @Published private(set) var hasPaidUnlock: Bool = false
     private var proTrialLastSeenAt: Date?
     @Published var validationError: String?
     @Published var purchaseError: String?
@@ -86,6 +90,7 @@ final class LicenseService: ObservableObject {
         let now = Date()
         proTrialStartedAt = Self.storedTrialDate(userDefaults: userDefaults, keychain: keychain, key: Keys.proTrialStartedAt, now: now, rejectsFutureDate: true)
         proTrialLastSeenAt = Self.storedTrialDate(userDefaults: userDefaults, keychain: keychain, key: Keys.proTrialLastSeenAt, now: now, rejectsFutureDate: false)
+        hasPaidUnlock = Self.storedPaidLicensePresent(keychain: keychain)
     }
 
     nonisolated static func resolvedDistributionChannel(
@@ -113,6 +118,7 @@ final class LicenseService: ObservableObject {
     var isProTrialActive: Bool {
         guard !usesAppStorePurchase,
               !usesSetappDistribution,
+              !hasPaidUnlock,
               let proTrialStartedAt
         else { return false }
         return effectiveTrialNow() < trialEndDate(startedAt: proTrialStartedAt)
@@ -121,6 +127,7 @@ final class LicenseService: ObservableObject {
     var hasExpiredProTrial: Bool {
         guard !usesAppStorePurchase,
               !usesSetappDistribution,
+              !hasPaidUnlock,
               let proTrialStartedAt
         else { return false }
         return effectiveTrialNow() >= trialEndDate(startedAt: proTrialStartedAt)
@@ -187,6 +194,7 @@ final class LicenseService: ObservableObject {
             if NSClassFromString("XCTestCase") == nil,
                ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil {
                 isPro = true
+                hasPaidUnlock = true
                 licenseEmail = nil
                 licenseLogger.info("DEBUG build — auto-granted Pro access")
                 return
@@ -196,18 +204,21 @@ final class LicenseService: ObservableObject {
         guard let storedKey = try? keychain.string(forKey: Keys.licenseKey),
               !storedKey.isEmpty
         else {
+            hasPaidUnlock = false
             startProTrialIfNeeded()
             updateTrialLastSeenAt()
             isPro = isProTrialActive
             licenseEmail = nil
             purchaseError = nil
-            licenseLogger.info("\(self.isProTrialActive ? "No cached unlock credential — Pro trial active" : "No cached unlock credential — Basic mode", privacy: .public)")
+            let credentialState = isProTrialActive ? "No cached unlock credential — Pro trial active" : "No cached unlock credential — Basic mode"
+            licenseLogger.info("\(credentialState, privacy: .public)")
             return
         }
 
         if storedKey == "early-adopter" {
             try? keychain.delete(Keys.licenseKey)
             try? keychain.delete(Keys.lastValidation)
+            hasPaidUnlock = false
             startProTrialIfNeeded()
             updateTrialLastSeenAt()
             isPro = isProTrialActive
@@ -217,6 +228,8 @@ final class LicenseService: ObservableObject {
         }
 
         licenseEmail = try? keychain.string(forKey: Keys.licenseEmail)
+        // A real stored license key is a paid unlock — it supersedes any trial.
+        hasPaidUnlock = true
 
         // Check offline grace
         if let lastDateString = try? keychain.string(forKey: Keys.lastValidation),
@@ -275,6 +288,7 @@ final class LicenseService: ObservableObject {
                 }
                 try keychain.set(ISO8601DateFormatter().string(from: Date()), forKey: Keys.lastValidation)
                 isPro = true
+                hasPaidUnlock = true
                 validationError = nil
                 Task.detached { await EventTracker.log("license_activated") }
                 licenseLogger.info("License activated successfully")
@@ -303,6 +317,7 @@ final class LicenseService: ObservableObject {
         try? keychain.delete(Keys.licenseKey)
         try? keychain.delete(Keys.licenseEmail)
         try? keychain.delete(Keys.lastValidation)
+        hasPaidUnlock = false
         updateTrialLastSeenAt()
         isPro = isProTrialActive
         licenseEmail = nil
@@ -450,9 +465,11 @@ final class LicenseService: ObservableObject {
             if result.valid, Self.licenseProductMatchesApp(productName: result.productName, variantName: result.variantName) {
                 try? keychain.set(ISO8601DateFormatter().string(from: Date()), forKey: Keys.lastValidation)
                 isPro = true
+                hasPaidUnlock = true
                 licenseLogger.info("Background revalidation succeeded")
             } else {
                 // Key was revoked — revert to free
+                hasPaidUnlock = false
                 updateTrialLastSeenAt()
                 isPro = isProTrialActive
                 licenseLogger.info("Background revalidation failed — reverting to free")
@@ -471,6 +488,13 @@ final class LicenseService: ObservableObject {
         let error: String?
         let productName: String?
         let variantName: String?
+    }
+
+    /// A paid unlock is a real stored LemonSqueezy key — not the retired
+    /// "early-adopter" marker and not an empty/absent value.
+    private static func storedPaidLicensePresent(keychain: KeychainServiceProtocol) -> Bool {
+        guard let key = try? keychain.string(forKey: Keys.licenseKey), !key.isEmpty else { return false }
+        return key != "early-adopter"
     }
 
     private static func storedTrialDate(userDefaults: UserDefaults, keychain: KeychainServiceProtocol, key: String, now: Date, rejectsFutureDate: Bool) -> Date? {
@@ -589,7 +613,6 @@ final class LicenseService: ObservableObject {
             return ValidationResult(valid: false, email: nil, error: error, productName: nil, variantName: nil)
         }
     }
-
 }
 
 @MainActor
@@ -610,16 +633,45 @@ final class SaneBarLicenseSettingsAdapter: LicenseSettingsServiceProtocol {
     var purchaseError: String?
     private(set) var appStoreDisplayPrice: String?
 
-    var displayPriceLabel: String { base.displayPriceLabel }
-    var alternateEntryLabel: String { LicenseService.keyEntryButtonLabel() }
-    var accessManagementLabel: String { LicenseService.deactivateLicenseLabel() }
-    var alternateEntryInstruction: String { LicenseService.licenseEmailInstruction() }
-    var checkoutURL: URL? { base.distributionChannel == .direct ? LicenseService.checkoutURL() : nil }
-    var distributionChannel: SaneDistributionChannel { base.distributionChannel }
-    var usesAppStorePurchase: Bool { base.usesAppStorePurchase }
-    var usesSetappPurchase: Bool { base.usesSetappDistribution }
-    var proAccessBadgeTitle: String { base.proAccessBadgeTitle }
-    var proAccessDetail: String? { base.proAccessDetail }
+    var displayPriceLabel: String {
+        base.displayPriceLabel
+    }
+
+    var alternateEntryLabel: String {
+        LicenseService.keyEntryButtonLabel()
+    }
+
+    var accessManagementLabel: String {
+        LicenseService.deactivateLicenseLabel()
+    }
+
+    var alternateEntryInstruction: String {
+        LicenseService.licenseEmailInstruction()
+    }
+
+    var checkoutURL: URL? {
+        base.distributionChannel == .direct ? LicenseService.checkoutURL() : nil
+    }
+
+    var distributionChannel: SaneDistributionChannel {
+        base.distributionChannel
+    }
+
+    var usesAppStorePurchase: Bool {
+        base.usesAppStorePurchase
+    }
+
+    var usesSetappPurchase: Bool {
+        base.usesSetappDistribution
+    }
+
+    var proAccessBadgeTitle: String {
+        base.proAccessBadgeTitle
+    }
+
+    var proAccessDetail: String? {
+        base.proAccessDetail
+    }
 
     init(base: LicenseService = .shared) {
         self.base = base
