@@ -10,6 +10,12 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
+## [2.1.79] - 2026-06-23
+
+Pro is now free to try for 14 days. Updated default settings based on customer feedback: hover and scroll reveal are off by default, drag reveal stays on, and auto-hide uses a calmer 5-second delay. Improved license-key paste handling and companion app recommendations.
+
+---
+
 ## [2.1.78] - 2026-06-22
 
 Pro is now free to try for 14 days. Basic remains included after the trial.
