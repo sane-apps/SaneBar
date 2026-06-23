@@ -53,6 +53,26 @@ final class PersistenceSettingsCodableTests: XCTestCase {
         XCTAssertTrue(settings.iconHotkeys.isEmpty)
     }
 
+    func testRevealGestureDefaultsAreOptInForMissingLegacyKeys() throws {
+        let oldJSON = """
+        {
+            "autoRehide": true,
+            "rehideDelay": 3.0,
+            "spacerCount": 0,
+            "showOnAppLaunch": false,
+            "triggerApps": []
+        }
+        """
+
+        let decoder = JSONDecoder()
+        let data = try XCTUnwrap(oldJSON.data(using: .utf8))
+        let settings = try decoder.decode(SaneBarSettings.self, from: data)
+
+        XCTAssertFalse(settings.showOnHover)
+        XCTAssertFalse(settings.showOnScroll)
+        XCTAssertTrue(settings.showOnUserDrag)
+    }
+
     // MARK: - Always Hidden Pins (Experimental)
 
     func testAlwaysHiddenPinnedItemIdsDefaultsToEmptyArray() {

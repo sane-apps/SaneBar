@@ -13,11 +13,6 @@ let saneAccentGradient = LinearGradient(
     startPoint: .leading,
     endPoint: .trailing
 )
-let saneButtonGradient = LinearGradient(
-    colors: [saneAccentSoft.opacity(0.98), saneAccent.opacity(0.98)],
-    startPoint: .topLeading,
-    endPoint: .bottomTrailing
-)
 enum Tier { case free, pro }
 
 struct OnboardingPrimaryButtonStyle: ButtonStyle {
@@ -37,8 +32,17 @@ struct OnboardingPrimaryButtonStyle: ButtonStyle {
             .padding(.horizontal, horizontalPadding)
             .padding(.vertical, verticalPadding)
             .background(
-                RoundedRectangle(cornerRadius: cornerRadius)
-                    .fill(saneButtonGradient)
+                SaneGlassRoundedBackground(
+                    cornerRadius: cornerRadius,
+                    tint: SanePanelChrome.accentTeal,
+                    edgeTint: SanePanelChrome.accentHighlight,
+                    tintStrength: 0.60,
+                    glowOpacity: 0.22,
+                    interactive: true,
+                    shadowOpacity: 0.18,
+                    shadowRadius: 7,
+                    shadowY: 3
+                )
             )
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius)

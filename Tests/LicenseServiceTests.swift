@@ -169,6 +169,14 @@ struct LicenseServiceTests {
         #expect(!LicenseService.licenseProductMatchesApp(productName: nil, variantName: nil))
     }
 
+    @Test("License input extracts forwarded receipt keys")
+    func licenseInputExtractsForwardedReceiptKeys() {
+        let key = "AAAAAAAA-BBBB-4CCC-8DDD-EEEEEEEEEEEE"
+        #expect(LicenseService.normalizedLicenseKeyInput("License key:\n\(key)\u{200B}") == key)
+        #expect(LicenseService.normalizedLicenseKeyInput("aaaaaaaa–bbbb–4ccc–8ddd–eeeeeeeeeeee") == key)
+        #expect(LicenseService.normalizedLicenseKeyInput("  \(key.prefix(8)) \n-\tBBBB-4CCC-8DDD-EEEEEEEEEEEE  ") == key)
+    }
+
     @Test("ProFeature enum has all required cases")
     func proFeatureEnumComplete() {
         // Verify key features exist and have non-empty descriptions

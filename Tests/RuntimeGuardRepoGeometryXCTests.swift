@@ -48,7 +48,7 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
 
         XCTAssertTrue(project.contains("SaneUI:"), "SaneUI should remain an explicit dependency")
         XCTAssertTrue(
-            project.contains("revision: 0133badcb1d17a5805a34a0c251d7636de3d1a21"),
+            project.contains("revision: 83d825911a53aaa6560fd342969b12d02a364de3"),
             "SaneUI should pin the shared settings chrome revision for release reproducibility"
         )
         XCTAssertFalse(
@@ -56,7 +56,7 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
             "SaneUI should not track a moving branch in release configuration"
         )
         XCTAssertTrue(
-            resolved.contains("\"revision\" : \"0133badcb1d17a5805a34a0c251d7636de3d1a21\""),
+            resolved.contains("\"revision\" : \"83d825911a53aaa6560fd342969b12d02a364de3\""),
             "Package.resolved should resolve SaneUI to the release-tested revision"
         )
         XCTAssertFalse(
@@ -78,15 +78,33 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
         XCTAssertTrue(source.contains("https://saneclip.com?ref=sanebar-app"))
         XCTAssertTrue(source.contains("https://saneclick.com?ref=sanebar-app"))
         XCTAssertTrue(source.contains("https://sanehosts.com?ref=sanebar-app"))
-        XCTAssertTrue(source.contains("Also useful"))
+        XCTAssertTrue(source.contains("More helpful SaneApps"))
+        XCTAssertTrue(source.contains("SaneClipCompanionIcon"))
+        XCTAssertTrue(source.contains("SaneClickCompanionIcon"))
+        XCTAssertTrue(source.contains("SaneHostsCompanionIcon"))
+        XCTAssertTrue(source.contains("CompanionAppCard"))
         XCTAssertTrue(source.contains("outboundActionInFlight"))
         XCTAssertTrue(source.contains("runSingleOutboundAction"))
         XCTAssertTrue(source.contains(".disabled(licenseService.isPurchasing || outboundActionInFlight)"))
         XCTAssertTrue(source.contains(".buttonStyle(OnboardingSecondaryButtonStyle())"))
+        XCTAssertFalse(source.contains("Also useful"))
+        XCTAssertFalse(source.contains(".font(.system(size: 11))"))
         XCTAssertFalse(source.contains("SaneSales"))
         XCTAssertFalse(source.contains("SaneVideo"))
         XCTAssertFalse(source.contains("Works well with"))
         XCTAssertFalse(source.contains(".buttonStyle(.bordered)"))
+    }
+
+    func testLocalOnboardingPrimaryButtonsUseSharedGlassGradient() throws {
+        let source = try String(
+            contentsOf: projectRootURL().appendingPathComponent("UI/Onboarding/WelcomeOnboardingStyle.swift"),
+            encoding: .utf8
+        )
+
+        XCTAssertTrue(source.contains("SaneGlassRoundedBackground("))
+        XCTAssertTrue(source.contains("tint: SanePanelChrome.accentTeal"))
+        XCTAssertTrue(source.contains("edgeTint: SanePanelChrome.accentHighlight"))
+        XCTAssertFalse(source.contains("colors: [saneAccentSoft.opacity(0.98), saneAccent.opacity(0.98)]"))
     }
 
     func testURLHandlingLogsDoNotExposeQueryText() throws {
@@ -698,7 +716,7 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
 
         XCTAssertTrue(
                 source.contains("var shouldRetryVisibilityReplay = false") &&
-                source.contains("let shouldReplayHideAllOther = settings.hideAllOtherMenuBarItems &&\n            !settings.hideAllOtherVisibleItemIds.isEmpty") &&
+                source.contains("let shouldReplayHideAllOther = settings.hideAllOtherMenuBarItems") &&
                 source.contains("statusItemRecoveryWorkflow.recoveryDormantUntil") &&
                 source.contains("await self.alwaysHiddenPinWorkflow.enforce(") &&
                 source.contains("mode: .auditOnly") &&
@@ -751,8 +769,9 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
                 source.contains("var initialZoneByUniqueId: [String: HideAllOtherZone]") &&
                 source.contains("initialZoneByUniqueId[item.app.uniqueId] = Self.hideAllOtherZone(") &&
                 source.contains("let orderedItems = items.enumerated().sorted") &&
-                source.contains("Hide-all-other enforcement skipped because the visible allow-list is empty") &&
-                source.contains("Hide-all-other enforcement rejected because the visible allow-list is empty") &&
+                source.contains("Hide-all-other rule enabled with an empty visible allow-list") &&
+                !source.contains("Hide-all-other enforcement skipped because the visible allow-list is empty") &&
+                !source.contains("Hide-all-other enforcement rejected because the visible allow-list is empty") &&
                 source.contains("SearchMenuBarZoneClassifier.classifyZone(") &&
                 source.contains("SearchMenuBarZoneClassifier.isAlwaysHiddenZone(") &&
                 !source.contains("width * 0.3") &&
@@ -857,14 +876,38 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
         )
 
         XCTAssertTrue(
-            source.contains("manager.shouldRunVisibilityIntentEnforcement(reason: \"enableHideAllOther\")") &&
+                !source.contains("guard manager.shouldRunVisibilityIntentEnforcement(reason: \"enableHideAllOther\")") &&
+                source.contains("manager.visibilityWorkflow.showHiddenItemsNow(trigger: .settingsButton)") &&
                 source.contains("refreshKnownClassifiedApps()") &&
+                source.contains("Hide-all-other enabled; live enforcement will wait until menu bar anchors are healthy") &&
+                source.contains("preserving the existing visible allow-list") &&
+                source.contains("Hide-all-other rule enabled with an empty visible allow-list") &&
+                source.contains("func enableFromCurrentLayout(onComplete:") &&
+                source.contains("onComplete?(false)") &&
+                source.contains("onComplete?(true)") &&
                 !source.contains("SearchService.shared.cachedClassifiedApps().visible") &&
                 !source.contains("self.settings.hideAllOtherMenuBarItems = false") &&
                 !source.contains("self.settings.hideAllOtherVisibleItemIds = []") &&
                 !source.contains("manager.settings.hideAllOtherVisibleItemIds = []") &&
                 !source.contains("settings.hideAllOtherVisibleItemIds = []"),
             "Hide-all-other setup should seed from a fresh, healthy menu bar snapshot without erasing the existing allow-list on transient geometry failures"
+        )
+    }
+
+    func testHideNewUnlistedSettingsRowOwnsPressAction() throws {
+        let source = try String(
+            contentsOf: projectRootURL().appendingPathComponent("UI/Settings/GeneralSettingsHidingSection.swift"),
+            encoding: .utf8
+        )
+
+        XCTAssertTrue(
+            source.contains("private var hideNewUnlistedToggleRow: some View") &&
+                source.contains("Button {") &&
+                source.contains("hideAllOtherMenuBarItemsBinding.wrappedValue.toggle()") &&
+                source.contains(".accessibilityIdentifier(\"sanebar-hide-new-unlisted-toggle\")") &&
+                source.contains("Capsule()") &&
+                source.contains("Circle()"),
+            "Hide new/unlisted must own a real pressable row so customers and the UI sweep can toggle it reliably"
         )
     }
 

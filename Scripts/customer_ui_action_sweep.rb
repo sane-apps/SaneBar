@@ -96,7 +96,7 @@ class CustomerUIActionSweep
   ].freeze
 
   STRICT_MINI_EVIDENCE_PATTERNS = {
-    'mini_click' => /\A(?:\/tmp\/sanebar_runtime_|#{DURABLE_RUNTIME_PREFLIGHT_EVIDENCE_PATTERN}|applescript=|settings_ax_tab_index=|settings_tab=|icon_hotkeys_groups_|url_route=|runtime_visual=)/,
+    'mini_click' => /\A(?:\/tmp\/sanebar_runtime_|#{DURABLE_RUNTIME_PREFLIGHT_EVIDENCE_PATTERN}|applescript=|settings_ax_tab_index=|settings_tab=|settings_control_hide_new_unlisted_toggle=|icon_hotkeys_groups_|url_route=|runtime_visual=)/,
     'mini_automation' => /\A(?:applescript=|url_route=|settings_ax_tab_index=|icon_hotkeys_groups_)/,
     'mini_ax' => /\Asettings_ax_tab_index=/,
     'mini_url_route' => /\Aurl_route=/,
@@ -135,6 +135,7 @@ class CustomerUIActionSweep
       ['UI/Settings/GeneralSettingsBrowseSection.swift', 'CompactSection("Browse Icons")'],
       ['UI/Settings/GeneralSettingsBrowseSection.swift', 'Browse Icons view'],
       ['UI/Settings/GeneralSettingsView.swift', 'SaneDockIconToggle(showDockIcon: showDockIconBinding)'],
+      ['UI/Settings/GeneralSettingsHidingSection.swift', 'sanebar-hide-new-unlisted-toggle'],
       ['infra/SaneUI/Sources/SaneUI/Components/SaneDockIconToggle.swift', 'Show app in Dock'],
       ['UI/Settings/GeneralSettingsView.swift', 'Check Now'],
       ['UI/Settings/GeneralSettingsView.swift', 'Export Settings...'],
@@ -227,6 +228,7 @@ class CustomerUIActionSweep
       end
       dismiss_transient_ui
       exercise_settings_tabs
+      exercise_hide_new_unlisted_toggle
       exercise_url_routes
       exercise_applescript_commands
       capture_runtime_visual_snapshots
@@ -251,8 +253,12 @@ class CustomerUIActionSweep
   def run_from_resume_transcript(path)
     load_resume_transcript!(path)
     dismiss_transient_ui
-    exercise_hover_auto_rehide_runtime_probe
-    exercise_license_clipboard_paste_runtime_probe
+    resume_probes = ENV.fetch('SANEBAR_CUSTOMER_UI_RESUME_PROBES', 'hover,license')
+      .split(',')
+      .map { |probe| probe.strip.downcase }
+      .reject(&:empty?)
+    exercise_hover_auto_rehide_runtime_probe if resume_probes.include?('hover')
+    exercise_license_clipboard_paste_runtime_probe if resume_probes.include?('license')
     verify_recent_appearance_overlay_screenshots
     verify_source_and_unit_guards
     build_action_results
@@ -490,6 +496,7 @@ class CustomerUIActionSweep
       Process.spawn(
         binary_path,
         '--sane-skip-app-move',
+        '--sane-no-keychain',
         out: File::NULL,
         err: File::NULL
       )
@@ -524,6 +531,99 @@ class CustomerUIActionSweep
     end
   ensure
     app_script('close settings window') rescue nil
+  end
+
+  def exercise_hide_new_unlisted_toggle
+    ensure_pro_state_for_pro_only_action!('hide new/unlisted items by default toggle')
+    settings_path = File.expand_path('~/Library/Application Support/SaneBar/settings.json')
+    settings_backup = File.exist?(settings_path) ? File.read(settings_path) : nil
+
+    app_script('open settings window')
+    press_settings_tab(1)
+    initial = read_hide_all_other_settings(settings_path)
+    if truthy?(initial['hideAllOtherMenuBarItems'])
+      click_hide_new_unlisted_toggle
+      wait_for_hide_new_unlisted_state(settings_path, false)
+    end
+
+    click_result = click_hide_new_unlisted_toggle
+    enabled = wait_for_hide_new_unlisted_state(settings_path, true)
+    visible_count = Array(enabled['hideAllOtherVisibleItemIds']).length
+
+    click_hide_new_unlisted_toggle
+    disabled = wait_for_hide_new_unlisted_state(settings_path, false)
+
+    @transcript << "settings_control_hide_new_unlisted_toggle=ok click=#{click_result.gsub(/\s+/, ' ')[0, 240]} visible_allow_list_count=#{visible_count} final=#{disabled['hideAllOtherMenuBarItems'].inspect}"
+  ensure
+    app_script('close settings window') rescue nil
+    app_script('hide items') rescue nil
+    if settings_backup
+      FileUtils.mkdir_p(File.dirname(settings_path))
+      File.write(settings_path, settings_backup)
+      @transcript << 'settings_control_hide_new_unlisted_settings_restored=ok'
+    elsif settings_path && File.exist?(settings_path)
+      FileUtils.rm_f(settings_path)
+      @transcript << 'settings_control_hide_new_unlisted_settings_removed=ok'
+    end
+  end
+
+  def click_hide_new_unlisted_toggle
+    run_osascript(system_events_recursive_helpers + [
+      'tell application "System Events"',
+      %(tell process "#{APP_NAME}"),
+      'set frontmost to true',
+      'set settingsWindow to first window whose subrole is "AXStandardWindow"',
+      'try',
+      'set contentScrollArea to scroll area 1 of group 2 of splitter group 1 of group 1 of settingsWindow',
+      'set value of scroll bar 1 of contentScrollArea to 0.18',
+      'delay 0.4',
+      'end try',
+      'set toggleControl to my findPressableElementByIdentifier(settingsWindow, "sanebar-hide-new-unlisted-toggle")',
+      'if toggleControl is missing value then set toggleControl to my findElementByIdentifier(settingsWindow, "sanebar-hide-new-unlisted-toggle")',
+      'if toggleControl is missing value then set toggleControl to my findElementNamed(settingsWindow, "Hide new/unlisted items by default")',
+      'if toggleControl is missing value then error "Hide new/unlisted items by default control not found"',
+      'set usedAction to "coordinate"',
+      'if my hasActionNamed(toggleControl, "AXPress") then',
+      'perform action "AXPress" of toggleControl',
+      'set usedAction to "AXPress"',
+      'else',
+      'set controlPosition to position of toggleControl',
+      'set controlSize to size of toggleControl',
+      'click at {(item 1 of controlPosition) + (item 1 of controlSize) - 24, (item 2 of controlPosition) + ((item 2 of controlSize) / 2)}',
+      'end if',
+      'delay 0.5',
+      'set controlRole to role of toggleControl as text',
+      'set controlValue to ""',
+      'try',
+      'set controlValue to value of toggleControl as text',
+      'end try',
+      'return "role=" & controlRole & " action=" & usedAction & " value=" & controlValue',
+      'end tell',
+      'end tell'
+    ], timeout: 12)
+  end
+
+  def wait_for_hide_new_unlisted_state(settings_path, expected, timeout: 15.0)
+    deadline = Time.now + timeout
+    last = nil
+    loop do
+      last = read_hide_all_other_settings(settings_path)
+      return last if truthy?(last['hideAllOtherMenuBarItems']) == expected
+
+      break if Time.now >= deadline
+
+      sleep 0.25
+    end
+
+    raise "Timed out waiting for Hide new/unlisted state=#{expected}; last=#{last.inspect}"
+  end
+
+  def read_hide_all_other_settings(settings_path)
+    return {} unless settings_path && File.exist?(settings_path)
+
+    JSON.parse(File.read(settings_path))
+  rescue JSON::ParserError
+    {}
   end
 
   def press_settings_tab(index)
@@ -839,10 +939,13 @@ class CustomerUIActionSweep
       'tell application "System Events"',
       %(tell process "#{APP_NAME}"),
       'set frontmost to true',
+      'try',
+      'set settingsWindow to first window whose subrole is "AXStandardWindow" and name is "License"',
+      'on error',
       'set settingsWindow to first window whose subrole is "AXStandardWindow"',
+      'end try',
       'set deactivateButton to my findElementByIdentifier(settingsWindow, "saneui-license-deactivate")',
       'if deactivateButton is missing value then set deactivateButton to my findButtonNamed(settingsWindow, "Deactivate Pro")',
-      'if deactivateButton is missing value then set deactivateButton to my licenseActionButton(settingsWindow, 1)',
       'if deactivateButton is not missing value then',
       'click deactivateButton',
       'delay 0.8',
@@ -850,9 +953,12 @@ class CustomerUIActionSweep
       'set entryButton to my findElementByIdentifier(settingsWindow, "saneui-license-enter-key")',
       'if entryButton is missing value then set entryButton to my findButtonNamed(settingsWindow, "Enter License Key")',
       'if entryButton is missing value then set entryButton to my findButtonNamed(settingsWindow, "I Have a License Key")',
-      'if entryButton is missing value then set entryButton to my licenseActionButton(settingsWindow, 2)',
-      'if entryButton is missing value then error "License entry button not found after opening License settings"',
+      'if entryButton is missing value then set entryButton to my licenseActionButton(settingsWindow, -1)',
+      'if entryButton is missing value then',
+      'my clickVisibleLicenseEntryAction(settingsWindow)',
+      'else',
       'click entryButton',
+      'end if',
       'delay 0.8',
       'set pasteButton to my findElementByIdentifier(settingsWindow, "saneui-license-paste")',
       'if pasteButton is missing value then error "License paste button AXIdentifier not found"',
@@ -955,50 +1061,57 @@ class CustomerUIActionSweep
   end
 
   def ensure_hover_reveal_enabled_for_probe
-    app_script('open settings window')
-    press_settings_tab(1)
-    result = run_osascript(system_events_recursive_helpers + [
-      'tell application "System Events"',
-      %(tell process "#{APP_NAME}"),
-      'set frontmost to true',
-      'set settingsWindow to first window whose subrole is "AXStandardWindow"',
-      'set hoverControl to my findElementNamed(settingsWindow, "Reveal hidden icons on hover")',
-      'if hoverControl is missing value then error "Reveal hidden icons on hover control not found"',
-      'set wasEnabled to false',
-      'try',
-      'set wasEnabled to ((value of hoverControl as integer) is 1)',
-      'end try',
-      'if wasEnabled is false then',
-      'click hoverControl',
-      'delay 0.5',
-      'return "enabled_for_probe"',
-      'end if',
-      'return "already_enabled"',
-      'end tell',
-      'end tell'
-    ], timeout: 12).strip
-    @transcript << "hover_reveal_setting=#{result}"
-    app_script('close settings window') rescue nil
-    return nil unless result == 'enabled_for_probe'
+    settings_path = File.expand_path('~/Library/Application Support/SaneBar/settings.json')
+    settings_backup = File.exist?(settings_path) ? File.read(settings_path) : nil
+    settings = settings_backup ? JSON.parse(settings_backup) : {}
+    if truthy?(settings['showOnHover'])
+      @transcript << 'hover_reveal_setting=already_enabled'
+      return nil
+    end
+
+    settings['showOnHover'] = true
+    settings['hasCompletedOnboarding'] = true
+    settings['hasSeenFreemiumIntro'] = true
+    FileUtils.mkdir_p(File.dirname(settings_path))
+    File.write(settings_path, JSON.pretty_generate(settings))
+
+    binary_path = @release_binary_path || File.join('/Applications/SaneBar.app', 'Contents', 'MacOS', APP_NAME)
+    terminate_release_sweep_processes(current_release_sweep_pids('enable hover reveal probe'))
+    launch_release_sweep_app(binary_path)
+    wait_for_release_sweep_app_relaunch!('enable hover reveal probe')
+
+    @transcript << 'hover_reveal_setting=enabled_for_probe'
 
     lambda do
-      app_script('open settings window')
-      press_settings_tab(1)
-      run_osascript(system_events_recursive_helpers + [
-        'tell application "System Events"',
-        %(tell process "#{APP_NAME}"),
-        'set frontmost to true',
-        'set settingsWindow to first window whose subrole is "AXStandardWindow"',
-        'set hoverControl to my findElementNamed(settingsWindow, "Reveal hidden icons on hover")',
-        'if hoverControl is not missing value then click hoverControl',
-        'end tell',
-        'end tell'
-      ], timeout: 12)
-      app_script('close settings window') rescue nil
+      if settings_backup
+        File.write(settings_path, settings_backup)
+      elsif File.exist?(settings_path)
+        FileUtils.rm_f(settings_path)
+      end
+      terminate_release_sweep_processes(current_release_sweep_pids('restore hover reveal probe'))
+      launch_release_sweep_app(binary_path)
+      wait_for_release_sweep_app_relaunch!('restore hover reveal probe')
       @transcript << 'hover_reveal_setting=restored_disabled'
     rescue StandardError => e
       @transcript << "hover_reveal_setting_restore_failed=#{e.class}: #{e.message}"
     end
+  end
+
+  def wait_for_release_sweep_app_relaunch!(label, timeout: 12.0)
+    deadline = Time.now + timeout
+    last_error = nil
+    loop do
+      begin
+        current_release_sweep_pids(label)
+        return if release_sweep_layout_snapshot
+      rescue StandardError => e
+        last_error = e
+      end
+      break if Time.now >= deadline
+
+      sleep 0.25
+    end
+    raise "#{APP_NAME} did not relaunch for #{label}: #{last_error&.message}"
   end
 
   def wait_for_hiding_state(expected, timeout:)
@@ -1094,6 +1207,13 @@ class CustomerUIActionSweep
       'return ""',
       'end try',
       'end elementName',
+      'on elementValueText(elementRef)',
+      'try',
+      'return value of elementRef as text',
+      'on error',
+      'return ""',
+      'end try',
+      'end elementValueText',
       'on elementIdentifier(elementRef)',
       'try',
       'tell application "System Events" to return value of attribute "AXIdentifier" of elementRef as text',
@@ -1101,6 +1221,62 @@ class CustomerUIActionSweep
       'return ""',
       'end try',
       'end elementIdentifier',
+      'on hasActionNamed(elementRef, targetAction)',
+      'try',
+      'tell application "System Events"',
+      'repeat with actionRef in actions of elementRef',
+      'if (name of actionRef as text) is targetAction then return true',
+      'end repeat',
+      'end tell',
+      'end try',
+      'return false',
+      'end hasActionNamed',
+      'on findPressableControlInRowNamed(rootElement, targetName)',
+      'set labelElement to my findElementNamed(rootElement, targetName)',
+      'if labelElement is missing value then return missing value',
+      'try',
+      'set labelPosition to position of labelElement',
+      'set labelSize to size of labelElement',
+      'set labelCenterY to (item 2 of labelPosition) + ((item 2 of labelSize) / 2)',
+      'set labelX to item 1 of labelPosition',
+      'return my findPressableControlNearRow(rootElement, labelCenterY, labelX)',
+      'end try',
+      'return missing value',
+      'end findPressableControlInRowNamed',
+      'on findPressableControlNearRow(rootElement, targetCenterY, minimumX)',
+      'try',
+      'tell application "System Events"',
+      'set roleText to role of rootElement as text',
+      'if (roleText is "AXCheckBox" or roleText is "AXButton") and my hasActionNamed(rootElement, "AXPress") then',
+      'set controlPosition to position of rootElement',
+      'set controlSize to size of rootElement',
+      'set controlCenterY to (item 2 of controlPosition) + ((item 2 of controlSize) / 2)',
+      'if (item 1 of controlPosition) > minimumX and (controlCenterY > (targetCenterY - 18)) and (controlCenterY < (targetCenterY + 18)) then return rootElement',
+      'end if',
+      'end tell',
+      'end try',
+      'try',
+      'tell application "System Events"',
+      'repeat with childElement in UI elements of rootElement',
+      'set foundElement to my findPressableControlNearRow(childElement, targetCenterY, minimumX)',
+      'if foundElement is not missing value then return foundElement',
+      'end repeat',
+      'end tell',
+      'end try',
+      'return missing value',
+      'end findPressableControlNearRow',
+      'on findPressableElementByIdentifier(rootElement, targetIdentifier)',
+      'if my elementIdentifier(rootElement) is targetIdentifier and my hasActionNamed(rootElement, "AXPress") then return rootElement',
+      'try',
+      'tell application "System Events"',
+      'repeat with childElement in UI elements of rootElement',
+      'set foundElement to my findPressableElementByIdentifier(childElement, targetIdentifier)',
+      'if foundElement is not missing value then return foundElement',
+      'end repeat',
+      'end tell',
+      'end try',
+      'return missing value',
+      'end findPressableElementByIdentifier',
       'on findElementByIdentifier(rootElement, targetIdentifier)',
       'if my elementIdentifier(rootElement) is targetIdentifier then return rootElement',
       'try',
@@ -1114,7 +1290,7 @@ class CustomerUIActionSweep
       'return missing value',
       'end findElementByIdentifier',
       'on findElementNamed(rootElement, targetName)',
-      'if my elementName(rootElement) is targetName then return rootElement',
+      'if my elementName(rootElement) is targetName or my elementValueText(rootElement) is targetName then return rootElement',
       'try',
       'tell application "System Events"',
       'repeat with childElement in UI elements of rootElement',
@@ -1144,11 +1320,31 @@ class CustomerUIActionSweep
       'on licenseActionButton(rootElement, ordinal)',
       'set matches to {}',
       'tell application "System Events"',
-      'my collectLicenseActionButtons(rootElement, matches)',
+      'set rootPosition to position of rootElement',
+      'set rootSize to size of rootElement',
+      'set minX to (item 1 of rootPosition) + ((item 1 of rootSize) * 0.55)',
+      'set minY to (item 2 of rootPosition) + 70',
+      'set maxY to (item 2 of rootPosition) + 240',
+      'my collectLicenseActionButtons(rootElement, matches, minX, minY, maxY)',
       'end tell',
+      'if ordinal is -1 then',
+      'if (count of matches) < 1 then return missing value',
+      'return item -1 of matches',
+      'end if',
       'if (count of matches) < ordinal then return missing value',
       'return item ordinal of matches',
       'end licenseActionButton',
+      'on clickVisibleLicenseEntryAction(rootElement)',
+      'tell application "System Events"',
+      'perform action "AXRaise" of rootElement',
+      'delay 0.2',
+      'set rootPosition to position of rootElement',
+      'set rootSize to size of rootElement',
+      'set clickX to round ((item 1 of rootPosition) + (item 1 of rootSize) - 96)',
+      'set clickY to round ((item 2 of rootPosition) + 195)',
+      'do shell script "/opt/homebrew/bin/cliclick c:" & clickX & "," & clickY',
+      'end tell',
+      'end clickVisibleLicenseEntryAction',
       'on allStaticText(rootElement)',
       'set collectedText to ""',
       'tell application "System Events"',
@@ -1163,18 +1359,18 @@ class CustomerUIActionSweep
       'end tell',
       'return collectedText',
       'end allStaticText',
-      'on collectLicenseActionButtons(rootElement, matches)',
+      'on collectLicenseActionButtons(rootElement, matches, minX, minY, maxY)',
       'tell application "System Events"',
       'try',
       'if role of rootElement is "AXButton" and description of rootElement is "button" then',
       'set buttonPosition to position of rootElement',
       'set buttonSize to size of rootElement',
-      'if (item 1 of buttonPosition) > 850 and (item 2 of buttonPosition) > 180 and (item 2 of buttonPosition) < 360 and (item 1 of buttonSize) > 80 then set end of matches to rootElement',
+      'if (item 1 of buttonPosition) > minX and (item 2 of buttonPosition) > minY and (item 2 of buttonPosition) < maxY and (item 1 of buttonSize) > 80 then set end of matches to rootElement',
       'end if',
       'end try',
       'try',
       'repeat with childElement in UI elements of rootElement',
-      'my collectLicenseActionButtons(childElement, matches)',
+      'my collectLicenseActionButtons(childElement, matches, minX, minY, maxY)',
       'end repeat',
       'end try',
       'end tell',

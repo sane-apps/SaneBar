@@ -5,6 +5,7 @@ struct GeneralSettingsHidingSection: View {
     @ObservedObject var menuBarManager: MenuBarManager
     @ObservedObject var licenseService: LicenseService
     let showProUpsell: (ProFeature) -> Void
+    @State private var hideAllOtherStatusMessage: String?
 
     private var rehideDelayLabel: String {
         let value = Int(menuBarManager.settings.rehideDelay)
@@ -41,9 +42,16 @@ struct GeneralSettingsHidingSection: View {
             get: { menuBarManager.settings.hideAllOtherMenuBarItems },
             set: { isEnabled in
                 if isEnabled {
-                    menuBarManager.hideAllOtherWorkflow.enableFromCurrentLayout()
+                    hideAllOtherStatusMessage = "Checking current menu bar..."
+                    menuBarManager.hideAllOtherWorkflow.enableFromCurrentLayout { enabled in
+                        hideAllOtherStatusMessage = enabled
+                            ? nil
+                            : "SaneBar couldn't turn this on safely. Open Health and repair menu bar detection, then try again."
+                    }
                 } else {
+                    hideAllOtherStatusMessage = nil
                     menuBarManager.settings.hideAllOtherMenuBarItems = false
+                    menuBarManager.saveSettings()
                 }
             }
         )
@@ -65,14 +73,6 @@ struct GeneralSettingsHidingSection: View {
             }
 
             CompactDivider()
-            if licenseService.isPro {
-                CompactToggle(label: "Always show on external monitors", isOn: $menuBarManager.settings.disableOnExternalMonitor)
-                    .help("Keep icons visible on external displays where menu bar space is less constrained.")
-            } else {
-                proGatedRow(feature: .autoRehideCustomization, label: "Always show on external monitors")
-            }
-
-            CompactDivider()
             CompactToggle(label: "Reveal hidden icons on hover", isOn: $menuBarManager.settings.showOnHover)
                 .help("Hover near the menu bar to reveal hidden icons inline. Click the SaneBar icon to open or toggle manually.")
             if menuBarManager.settings.showOnHover {
@@ -89,17 +89,62 @@ struct GeneralSettingsHidingSection: View {
             CompactToggle(label: "Show when rearranging icons", isOn: $menuBarManager.settings.showOnUserDrag)
 
             CompactDivider()
+            if licenseService.isPro {
+                CompactToggle(label: "Always show on external monitors", isOn: $menuBarManager.settings.disableOnExternalMonitor)
+                    .help("Keep icons visible on external displays where menu bar space is less constrained.")
+            } else {
+                proGatedRow(feature: .autoRehideCustomization, label: "Always show on external monitors")
+            }
+
+            CompactDivider()
             CompactToggle(label: "Hide app menus during inline reveal", isOn: $menuBarManager.settings.hideApplicationMenusOnInlineReveal)
                 .help("Temporarily hides File/Edit/View if needed to make room in the menu bar. Only affects inline reveal.")
 
             CompactDivider()
             if licenseService.isPro {
-                CompactToggle(label: "Hide new/unlisted items by default", isOn: hideAllOtherMenuBarItemsBinding)
+                hideNewUnlistedToggleRow
                     .help("Keep only the explicitly visible items shown; move other detected menu bar items to Hidden.")
+                if let hideAllOtherStatusMessage {
+                    CompactDivider()
+                    Text(hideAllOtherStatusMessage)
+                        .font(.system(size: 13))
+                        .foregroundStyle(.white.opacity(0.9))
+                        .multilineTextAlignment(.leading)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .accessibilityIdentifier("sanebar-hide-new-unlisted-status")
+                }
             } else {
                 proGatedRow(feature: .zoneMoves, label: "Hide new/unlisted items by default")
             }
         }
+    }
+
+    private var hideNewUnlistedToggleRow: some View {
+        Button {
+            hideAllOtherMenuBarItemsBinding.wrappedValue.toggle()
+        } label: {
+            HStack {
+                Text("Hide new/unlisted items by default")
+                    .foregroundStyle(.white)
+                Spacer()
+                Capsule()
+                    .fill(menuBarManager.settings.hideAllOtherMenuBarItems ? Color.accentColor : Color.white.opacity(0.22))
+                    .overlay(alignment: menuBarManager.settings.hideAllOtherMenuBarItems ? .trailing : .leading) {
+                        Circle()
+                            .fill(.white)
+                            .frame(width: 18, height: 18)
+                            .padding(3)
+                    }
+                    .frame(width: 44, height: 24)
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Hide new/unlisted items by default")
+        .accessibilityValue(menuBarManager.settings.hideAllOtherMenuBarItems ? "On" : "Off")
+        .accessibilityIdentifier("sanebar-hide-new-unlisted-toggle")
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
     }
 
     private var autoRehideRows: some View {

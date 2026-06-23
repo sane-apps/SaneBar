@@ -18,6 +18,9 @@ struct SettingsControllerTests {
 
         #expect(controller.settings.autoRehide == true)
         #expect(controller.settings.rehideDelay == 5.0, "Default rehideDelay should be 5.0")
+        #expect(controller.settings.showOnHover == false)
+        #expect(controller.settings.showOnScroll == false)
+        #expect(controller.settings.showOnUserDrag == true)
     }
 
     // MARK: - Load Tests
