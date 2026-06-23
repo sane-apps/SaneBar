@@ -271,12 +271,7 @@ enum StatusBarPositionStore {
             separatorBackup: separatorPosition,
             screenWidth: screenWidth,
             screenHasTopSafeAreaInset: screenHasTopSafeAreaInset
-        ) || reanchoredPreferredPositionsTowardControlCenter(
-            mainPosition: mainPosition,
-            separatorPosition: separatorPosition,
-            screenWidth: screenWidth,
-            screenHasTopSafeAreaInset: screenHasTopSafeAreaInset
-        ) != nil
+        )
     }
 
     nonisolated static func reanchoredPreferredPositionsTowardControlCenter(

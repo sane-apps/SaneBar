@@ -798,10 +798,23 @@ final class MenuBarStatusItemRecoveryWorkflow {
     }
 
     private func captureCurrentDisplayBackupAfterStableValidation(
-        snapshot _: MenuBarRuntimeSnapshot,
+        snapshot: MenuBarRuntimeSnapshot,
         maxAttempts: Int = 6,
         delay: Duration = .milliseconds(150)
     ) async -> Bool {
+        guard snapshot.structuralState == .ready,
+              snapshot.startupItemsValid,
+              snapshot.mainAnchorSource == .live,
+              snapshot.separatorAnchorSource == .live
+        else {
+            logger.warning(
+                "Skipping current-width backup capture until live status-item anchors are available (structure=\(snapshot.structuralState.rawValue, privacy: .public), valid=\(snapshot.startupItemsValid, privacy: .public), main=\(snapshot.mainAnchorSource.rawValue, privacy: .public), separator=\(snapshot.separatorAnchorSource.rawValue, privacy: .public))"
+            )
+            return StatusBarPositionStore.hasLaunchSafeCurrentDisplayBackupForCurrentDisplay(
+                referenceScreen: manager.currentRecoveryReferenceScreen()
+            )
+        }
+
         for attempt in 1 ... maxAttempts {
             if StatusBarPositionStore.captureCurrentDisplayPositionBackupIfPossible(
                 referenceScreen: manager.currentRecoveryReferenceScreen()
