@@ -802,11 +802,7 @@ final class MenuBarStatusItemRecoveryWorkflow {
         maxAttempts: Int = 6,
         delay: Duration = .milliseconds(150)
     ) async -> Bool {
-        guard snapshot.structuralState == .ready,
-              snapshot.startupItemsValid,
-              snapshot.mainAnchorSource == .live,
-              snapshot.separatorAnchorSource == .live
-        else {
+        guard Self.snapshotCanSeedCurrentDisplayBackupAfterStableValidation(snapshot) else {
             logger.warning(
                 "Skipping current-width backup capture until live status-item anchors are available (structure=\(snapshot.structuralState.rawValue, privacy: .public), valid=\(snapshot.startupItemsValid, privacy: .public), main=\(snapshot.mainAnchorSource.rawValue, privacy: .public), separator=\(snapshot.separatorAnchorSource.rawValue, privacy: .public))"
             )
@@ -815,9 +811,15 @@ final class MenuBarStatusItemRecoveryWorkflow {
             )
         }
 
+        let seedFromHiddenCollapsedSnapshot = Self.hiddenCollapsedSnapshotCanSeedCurrentDisplayBackup(snapshot)
+        let snapshotMainPosition = seedFromHiddenCollapsedSnapshot ? snapshot.mainX.map(Double.init) : nil
+        let snapshotSeparatorPosition = seedFromHiddenCollapsedSnapshot ? snapshot.separatorX.map(Double.init) : nil
+
         for attempt in 1 ... maxAttempts {
             if StatusBarPositionStore.captureCurrentDisplayPositionBackupIfPossible(
-                referenceScreen: manager.currentRecoveryReferenceScreen()
+                referenceScreen: manager.currentRecoveryReferenceScreen(),
+                mainPosition: snapshotMainPosition,
+                separatorPosition: snapshotSeparatorPosition
             ) {
                 return true
             }
@@ -833,5 +835,23 @@ final class MenuBarStatusItemRecoveryWorkflow {
         return StatusBarPositionStore.hasLaunchSafeCurrentDisplayBackupForCurrentDisplay(
             referenceScreen: manager.currentRecoveryReferenceScreen()
         )
+    }
+
+    private nonisolated static func snapshotCanSeedCurrentDisplayBackupAfterStableValidation(_ snapshot: MenuBarRuntimeSnapshot) -> Bool {
+        guard snapshot.structuralState == .ready,
+              snapshot.startupItemsValid,
+              snapshot.mainAnchorSource == .live
+        else {
+            return false
+        }
+        return snapshot.separatorAnchorSource == .live || hiddenCollapsedSnapshotCanSeedCurrentDisplayBackup(snapshot)
+    }
+
+    private nonisolated static func hiddenCollapsedSnapshotCanSeedCurrentDisplayBackup(_ snapshot: MenuBarRuntimeSnapshot) -> Bool {
+        snapshot.visibilityPhase == .hidden &&
+            snapshot.geometryConfidence == .cached &&
+            snapshot.separatorAnchorSource == .cached &&
+            snapshot.mainX != nil &&
+            snapshot.separatorX != nil
     }
 }

@@ -143,12 +143,17 @@ final class RuntimeGuardStartupRecoveryXCTests: RuntimeGuardTestCase {
             "Stable validation should wait briefly for a safe current-width backup instead of assuming one exists immediately"
         )
         XCTAssertTrue(
-            recoverySource.contains("StatusBarPositionStore.captureCurrentDisplayPositionBackupIfPossible(\n                referenceScreen: manager.currentRecoveryReferenceScreen()\n            )") &&
+            recoverySource.contains("StatusBarPositionStore.captureCurrentDisplayPositionBackupIfPossible(\n                referenceScreen: manager.currentRecoveryReferenceScreen(),") &&
                 recoverySource.contains("snapshot.mainAnchorSource == .live") &&
                 recoverySource.contains("snapshot.separatorAnchorSource == .live") &&
-                !recoverySource.contains("mainPosition: snapshot.mainX.map(Double.init)") &&
-                !recoverySource.contains("separatorPosition: snapshot.separatorX.map(Double.init)"),
-            "Stable backup capture should wait for live status-item anchors and use persisted NSStatusItem preferred positions, not raw runtime screen coordinates"
+                recoverySource.contains("hiddenCollapsedSnapshotCanSeedCurrentDisplayBackup(") &&
+                recoverySource.contains("snapshot.visibilityPhase == .hidden") &&
+                recoverySource.contains("snapshot.geometryConfidence == .cached") &&
+                recoverySource.contains("snapshot.separatorAnchorSource == .cached") &&
+                recoverySource.contains("let seedFromHiddenCollapsedSnapshot = Self.hiddenCollapsedSnapshotCanSeedCurrentDisplayBackup(snapshot)") &&
+                recoverySource.contains("mainPosition: snapshotMainPosition") &&
+                recoverySource.contains("separatorPosition: snapshotSeparatorPosition"),
+            "Stable backup capture should normally wait for live status-item anchors, while allowing only the hidden collapsed-separator startup proof to seed a launch-safe backup from validated snapshot coordinates"
         )
         XCTAssertTrue(
             positionDefaultsSource.contains("UserDefaults.standard.set(value, forKey: appKey)\n        UserDefaults.standard.synchronize()") &&
