@@ -178,6 +178,14 @@ class LiveZoneSmoke
     @active_avg_rss_mb_max = float_env('SANEBAR_SMOKE_ACTIVE_AVG_RSS_MB_MAX') || DEFAULT_ACTIVE_AVG_RSS_MB_MAX
     @resource_sample_path = expand_env_path('SANEBAR_SMOKE_RESOURCE_SAMPLE_PATH') || File.join(Dir.tmpdir, 'sanebar_runtime_resource_sample.txt')
     @require_always_hidden = ENV['SANEBAR_SMOKE_REQUIRE_ALWAYS_HIDDEN'] == '1'
+    # FM-1 gate (#155/#156/#166): stage the SBF fixture into Always Hidden, drive the
+    # separator into its GENUINELY hidden state (length ~10000), then issue the REAL
+    # product outbound move and assert via zone delta that the icon LEFT Always Hidden
+    # and STAYED there after the post-move settle. The pre-fix `length <= 1000` cap made
+    # the move no-op silently; this gate fails iff the move no-ops or the icon snaps
+    # back. (The gate is normally enabled default-on + release-blocking via
+    # project_qa_runtime_preflight; this legacy env opt-in is still honored.)
+    @require_hidden_outbound_ah = ENV['SANEBAR_SMOKE_REQUIRE_HIDDEN_OUTBOUND_AH'] == '1'
     @require_all_zones = ENV['SANEBAR_SMOKE_REQUIRE_ALL_ZONES'] == '1'
     @require_candidate = ENV['SANEBAR_SMOKE_REQUIRE_CANDIDATE'] == '1'
     @require_browse_activation_candidate = ENV['SANEBAR_SMOKE_REQUIRE_BROWSE_ACTIVATION_CANDIDATE'] == '1'
@@ -320,6 +328,8 @@ class LiveZoneSmoke
         raise(last_failure || 'No candidate passed move action checks.') if passed_candidates.empty?
       end
     end
+
+    exercise_hidden_state_outbound_always_hidden_gate(zones, passed_candidates) if @require_hidden_outbound_ah
 
     begin
       assert_active_average_budget!
@@ -797,6 +807,25 @@ class LiveZoneSmoke
     'visible' => 'move icon to visible'
   }.freeze
 
+  # Deterministic shared-fixture (SBF) bundle used to self-heal the representative
+  # baseline from any drifted starting layout. The preflight seeds these, but
+  # repeated probe runs can shuffle every movable SBF item into hidden/always
+  # hidden, leaving a zone with zero movable candidates. Rather than abort the
+  # release-blocking gate at its own precondition, reset the SBF icons into a
+  # canonical per-zone layout (using the same move path the smoke already uses)
+  # before checking the precondition.
+  SHARED_FIXTURE_BUNDLE_ID = 'com.sanebar.sharedfixture'
+  # Canonical destination zone for each ordered SBF fixture. This satisfies the
+  # representative minimums exactly: visible>=1, hidden>=1, alwaysHidden>=3.
+  SHARED_FIXTURE_CANONICAL_ZONE_PLAN = %w[
+    visible
+    hidden
+    alwaysHidden
+    alwaysHidden
+    alwaysHidden
+  ].freeze
+  SHARED_FIXTURE_RESET_MAX_PASSES = 3
+
   # The preflight seeds every zone, but later phases can shuffle the fixtures
   # out of one (all real items in it being deny-listed donors). Self-heal by
   # moving a surplus donor into the missing zone before concluding; the hard
@@ -879,6 +908,13 @@ class LiveZoneSmoke
     return zones unless @require_all_zones
     return zones if focused_required_id_mode?
 
+    # Self-heal FIRST: deterministically reset the shared-fixture (SBF) icons into
+    # a canonical per-zone layout regardless of where prior probe runs left them.
+    # This guarantees a movable candidate in visible, hidden, and always-hidden
+    # before the precondition is checked, so a drifted fixture baseline can no
+    # longer abort the release-blocking gate at setup.
+    zones, reset_report = reset_shared_fixture_zone_layout!(zones)
+
     zones = reseed_missing_zone_candidates(zones)
     candidates = candidate_pool(zones)
     missing = REQUIRED_REPRESENTATIVE_ZONES.reject do |zone|
@@ -888,7 +924,7 @@ class LiveZoneSmoke
     if ah_count < 3
       counts = zones.group_by { |item| item[:zone].to_s }.transform_values(&:length)
       candidate_counts = candidates.group_by { |item| item[:zone].to_s }.transform_values(&:length)
-      raise "Runtime smoke requires three representative movable always-hidden candidates for outbound move coverage (raw=#{counts}, candidate=#{candidate_counts})."
+      raise "Runtime smoke requires three representative movable always-hidden candidates for outbound move coverage (raw=#{counts}, candidate=#{candidate_counts}). #{reset_report}"
     end
     if missing.empty?
       summary = REQUIRED_REPRESENTATIVE_ZONES.map do |zone|
@@ -901,7 +937,104 @@ class LiveZoneSmoke
 
     counts = zones.group_by { |item| item[:zone].to_s }.transform_values(&:length)
     candidate_counts = candidates.group_by { |item| item[:zone].to_s }.transform_values(&:length)
-    raise "Runtime smoke requires representative movable candidates in every zone; missing #{missing.join(', ')} (raw=#{counts}, candidate=#{candidate_counts}). Seed visible, hidden, and always-hidden fixture items before release verification."
+    raise "Runtime smoke requires representative movable candidates in every zone; missing #{missing.join(', ')} (raw=#{counts}, candidate=#{candidate_counts}). #{reset_report} Seed visible, hidden, and always-hidden fixture items before release verification."
+  end
+
+  # Deterministically redistribute the shared-fixture (SBF) icons into the
+  # canonical layout (SHARED_FIXTURE_CANONICAL_ZONE_PLAN) from ANY drifted
+  # starting state, reusing the same move_and_verify path the smoke uses for its
+  # real assertions. Idempotent: if a fixture is already in its assigned zone the
+  # move is skipped, so running the smoke twice in a row both establish the
+  # baseline. Returns [zones, report] where report describes what the reset tried
+  # (used in the hard-fail message when seeding genuinely cannot converge, e.g.
+  # the fixture app is not running so there are no SBF icons to move).
+  def reset_shared_fixture_zone_layout!(zones)
+    fixtures = sorted_shared_fixture_candidates(zones)
+    if fixtures.empty?
+      return [zones, 'Shared-fixture reset: no com.sanebar.sharedfixture (SBF) icons present live; the shared-fixture app is not running on the target so the per-zone baseline cannot be seeded.']
+    end
+
+    plan = shared_fixture_zone_plan(fixtures)
+    attempted = []
+    moved = []
+    failed = []
+
+    SHARED_FIXTURE_RESET_MAX_PASSES.times do |pass|
+      remaining = plan.reject do |unique_id, target_zone|
+        live = list_icon_zones.find { |item| item[:unique_id] == unique_id }
+        live && live[:zone].to_s == target_zone
+      end
+      break if remaining.empty?
+
+      remaining.each do |unique_id, target_zone|
+        live_zones = list_icon_zones
+        candidate = live_zones.find { |item| item[:unique_id] == unique_id }
+        next unless candidate # fixture vanished; topology check below reports it
+
+        next if candidate[:zone].to_s == target_zone
+
+        attempted << "#{unique_id}->#{target_zone}"
+        # Outbound moves FROM Always Hidden can start from a drag source the
+        # static safety check flags as notch-unsafe. The product reveal/repair
+        # workflow handles that exactly as the representative matrix does, so mark
+        # the move as a staged Always-Hidden outbound so settle_before_outbound_move
+        # allows it instead of refusing the reset.
+        move_candidate =
+          if candidate[:zone].to_s == 'alwaysHidden' && target_zone != 'alwaysHidden'
+            candidate.merge(staged_always_hidden_outbound: true)
+          else
+            candidate
+          end
+        begin
+          puts "ℹ️ Shared-fixture reset (pass #{pass + 1}): #{unique_id} -> #{target_zone}"
+          move_and_verify(REPRESENTATIVE_ZONE_MOVE_COMMANDS.fetch(target_zone), move_candidate, target_zone)
+          moved << "#{unique_id}->#{target_zone}"
+          zones = list_icon_zones
+        rescue StandardError => e
+          failed << "#{unique_id}->#{target_zone}: #{e.message}"
+          puts "⚠️ Shared-fixture reset move failed for #{unique_id} -> #{target_zone}: #{e.message}"
+          begin
+            zones = list_icon_zones
+          rescue StandardError
+            # Keep the last usable snapshot; the precondition check reports it.
+          end
+        end
+      end
+    end
+
+    final_counts = sorted_shared_fixture_candidates(zones)
+                   .group_by { |item| item[:zone].to_s }
+                   .transform_values(&:length)
+    report = "Shared-fixture reset attempted #{attempted.length} move(s) toward canonical layout " \
+             "(plan=#{plan.map { |id, zone| "#{id.split('.').last}=#{zone}" }.join(',')}; " \
+             "moved=#{moved.length}; final SBF zone counts=#{final_counts}" \
+             "#{failed.empty? ? '' : "; failures=#{failed.join(' | ')}"})."
+    puts "ℹ️ #{report}"
+    [zones, report]
+  rescue StandardError => e
+    # Never let the self-heal itself abort the gate; fall through to the existing
+    # generic reseed + hard precondition, which reports the live snapshot.
+    [zones, "Shared-fixture reset aborted early: #{e.message}."]
+  end
+
+  # SBF fixtures sorted by their stable SBF-A..SBF-E suffix so the canonical zone
+  # assignment is deterministic across runs (SBF-A->visible, SBF-B->hidden,
+  # SBF-C/D/E->alwaysHidden).
+  def sorted_shared_fixture_candidates(zones)
+    zones.select do |item|
+      item[:movable] && item[:bundle].to_s == SHARED_FIXTURE_BUNDLE_ID
+    end.sort_by { |item| item[:unique_id].to_s }
+  end
+
+  # Assign each ordered SBF fixture to its canonical destination zone. If fewer
+  # than 5 SBF icons are live, the last plan entries (extra always-hidden) are
+  # simply omitted; the precondition then still requires the minimums and reports
+  # what was available.
+  def shared_fixture_zone_plan(fixtures)
+    fixtures.each_with_index.each_with_object({}) do |(item, index), plan|
+      target_zone = SHARED_FIXTURE_CANONICAL_ZONE_PLAN[index] || 'alwaysHidden'
+      plan[item[:unique_id]] = target_zone
+    end
   end
 
   def representative_zone_candidates(candidates)
@@ -1101,6 +1234,7 @@ require_relative 'lib/live_zone_smoke_browse_visual'
 require_relative 'lib/live_zone_smoke_screenshots_fullscreen'
 require_relative 'lib/live_zone_smoke_moves'
 require_relative 'lib/live_zone_smoke_resources'
+require_relative 'lib/live_zone_smoke_hidden_outbound_gate'
 
 if __FILE__ == $PROGRAM_NAME
   exit(LiveZoneSmoke.new.run ? 0 : 1)

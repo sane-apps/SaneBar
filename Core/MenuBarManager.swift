@@ -267,6 +267,16 @@ final class MenuBarManager: NSObject, ObservableObject {
         )
     }
 
+    nonisolated static func shouldReanchorPersistedPositionsForStatusItemRecovery(
+        isStartupRecovery: Bool = false,
+        validationContext: MenuBarOperationCoordinator.PositionValidationContext? = nil
+    ) -> Bool {
+        MenuBarStatusItemRecoveryWorkflow.shouldReanchorPersistedPositionsForStatusItemRecovery(
+            isStartupRecovery: isStartupRecovery,
+            validationContext: validationContext
+        )
+    }
+
     init(
         hidingService: HidingService? = nil,
         persistenceService: PersistenceServiceProtocol = PersistenceService.shared,
@@ -368,10 +378,10 @@ final class MenuBarManager: NSObject, ObservableObject {
             AccessibilityService.shared.invalidateMenuBarItemCache(scheduleWarmupAfter: .structuralChange)
             try? await Task.sleep(for: .milliseconds(150))
 
-            await self.geometryResolver.warmSeparatorPositionCache(maxAttempts: 32)
-            await self.geometryResolver.warmAlwaysHiddenSeparatorPositionCache(maxAttempts: 32)
+            await geometryResolver.warmSeparatorPositionCache(maxAttempts: 32)
+            await geometryResolver.warmAlwaysHiddenSeparatorPositionCache(maxAttempts: 32)
 
-            let snapshot = self.currentStatusItemRecoverySnapshot()
+            let snapshot = currentStatusItemRecoverySnapshot()
             if snapshot.separatorAnchorSource == .live, snapshot.mainAnchorSource == .live {
                 logger.info("Warmed status item geometry caches after structural recovery")
             } else {
@@ -379,10 +389,10 @@ final class MenuBarManager: NSObject, ObservableObject {
             }
 
             if restoreHiddenStateAfterWarmup {
-                self.restoreHiddenStateAfterPostRecoveryGeometryWarmupIfNeeded(snapshot: snapshot)
+                restoreHiddenStateAfterPostRecoveryGeometryWarmupIfNeeded(snapshot: snapshot)
             }
 
-            self.appearanceService.refreshAfterStatusItemRecovery()
+            appearanceService.refreshAfterStatusItemRecovery()
         }
     }
 
@@ -646,22 +656,22 @@ final class MenuBarManager: NSObject, ObservableObject {
 
             var attempt = 0
             while attempt < Self.maxVisibilityIntentReplayAttempts ||
-                self.statusItemRecoveryWorkflow.hasPendingWakeVisibleAllowListReplay() {
+                statusItemRecoveryWorkflow.hasPendingWakeVisibleAllowListReplay() {
                 attempt += 1
                 let delayMs = attempt == 1 ? 900 : 500
                 try? await Task.sleep(for: .milliseconds(delayMs))
                 guard !Task.isCancelled else { return }
 
                 let replayReason = "\(replayReasonBase)-attempt-\(attempt)"
-                guard self.shouldRunVisibilityIntentEnforcement(reason: replayReason) else {
+                guard shouldRunVisibilityIntentEnforcement(reason: replayReason) else {
                     continue
                 }
 
                 var shouldRetryVisibilityReplay = false
                 var completedWakeVisibleAllowListRepair = false
                 if shouldReplayAlwaysHidden {
-                    let alwaysHiddenPinsEnforced = await self.alwaysHiddenPinWorkflow.enforce(reason: replayReason, mode: .auditOnly)
-                    shouldRetryVisibilityReplay = !alwaysHiddenPinsEnforced || self.alwaysHiddenAnchorsNeedReplayRetry()
+                    let alwaysHiddenPinsEnforced = await alwaysHiddenPinWorkflow.enforce(reason: replayReason, mode: .auditOnly)
+                    shouldRetryVisibilityReplay = !alwaysHiddenPinsEnforced || alwaysHiddenAnchorsNeedReplayRetry()
                     if shouldRetryVisibilityReplay {
                         logger.warning(
                             "Visibility intent replay waiting for healthy always-hidden anchors (\(replayReason, privacy: .public))"
@@ -669,8 +679,8 @@ final class MenuBarManager: NSObject, ObservableObject {
                     }
                 }
                 if shouldReplayHideAllOther {
-                    let hideAllOtherMode = self.visibilityIntentReplayHideAllOtherMode(reason: replayReason)
-                    let hideAllOtherEnforced = await self.hideAllOtherWorkflow.enforce(
+                    let hideAllOtherMode = visibilityIntentReplayHideAllOtherMode(reason: replayReason)
+                    let hideAllOtherEnforced = await hideAllOtherWorkflow.enforce(
                         reason: replayReason,
                         mode: hideAllOtherMode.mode,
                         physicalMoveOrigin: hideAllOtherMode.physicalMoveOrigin
@@ -682,7 +692,7 @@ final class MenuBarManager: NSObject, ObservableObject {
                         shouldRetryVisibilityReplay = true
                     } else {
                         if hideAllOtherMode.mode == .repairWithPhysicalMoves {
-                            self.pendingRecoveryHideRestore = false
+                            pendingRecoveryHideRestore = false
                             completedWakeVisibleAllowListRepair = true
                         }
                     }
@@ -691,18 +701,18 @@ final class MenuBarManager: NSObject, ObservableObject {
                     continue
                 }
                 if completedWakeVisibleAllowListRepair {
-                    self.statusItemRecoveryWorkflow.clearWakeVisibleAllowListReplayPending()
+                    statusItemRecoveryWorkflow.clearWakeVisibleAllowListReplayPending()
                 }
-                self.schedulePostRecoveryAutoRehideIfNeeded(reason: replayReason)
+                schedulePostRecoveryAutoRehideIfNeeded(reason: replayReason)
                 return
             }
 
             logger.warning(
                 "Visibility intent replay gave up after \(attempt, privacy: .public) attempts (\(replayReasonBase, privacy: .public))"
             )
-            self.statusItemRecoveryWorkflow.clearWakeVisibleAllowListReplayPending(clearDeferredReason: false)
-            self.restorePendingHiddenStateAfterVisibilityReplayFailure(reason: "\(replayReasonBase)-replay-gave-up")
-            self.schedulePostRecoveryAutoRehideIfNeeded(reason: "\(replayReasonBase)-replay-gave-up")
+            statusItemRecoveryWorkflow.clearWakeVisibleAllowListReplayPending(clearDeferredReason: false)
+            restorePendingHiddenStateAfterVisibilityReplayFailure(reason: "\(replayReasonBase)-replay-gave-up")
+            schedulePostRecoveryAutoRehideIfNeeded(reason: "\(replayReasonBase)-replay-gave-up")
         }
     }
 
@@ -831,11 +841,13 @@ final class MenuBarManager: NSObject, ObservableObject {
 
     func recreateStatusItemsFromPersistedLayout(
         reason: String,
-        afterRemovingExistingItems: (() -> Void)? = nil
+        afterRemovingExistingItems: (() -> Void)? = nil,
+        reanchorUnsafePersistedPositions: Bool = true
     ) {
         geometryCache.clearSeparatorGeometry()
         let (newMain, newSeparator) = statusBarController.recreateItemsFromPersistedPositions(
-            afterRemovingExistingItems: afterRemovingExistingItems
+            afterRemovingExistingItems: afterRemovingExistingItems,
+            reanchorUnsafePersistedPositions: reanchorUnsafePersistedPositions
         )
         statusBarController.onItemsRecreated?(newMain, newSeparator)
         logger.info("Recreated status items from persisted layout (\(reason, privacy: .public))")

@@ -1,1 +1,0 @@
-../../../infra/SaneProcess/scripts/set_dmg_icon.swift

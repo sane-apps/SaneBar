@@ -201,6 +201,9 @@
 		DCD7859B590532E39241C485 /* EventTrackerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5368EEC8F1D02FA99E99D307 /* EventTrackerTests.swift */; };
 		E2594790A5B41B76A455E785 /* MenuBarMoveQueueWorkflow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31B07755827183297399B3D0 /* MenuBarMoveQueueWorkflow.swift */; };
 		E325D5FEE89E4778EAFC8E96 /* IconMovingGeometryRegressionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90C4EE4FEBA68DF40BF61AA1 /* IconMovingGeometryRegressionTests.swift */; };
+		AAB1000000000000000000A1 /* AlwaysHiddenSeparatorLivenessTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAB1000000000000000000F1 /* AlwaysHiddenSeparatorLivenessTests.swift */; };
+		AAB1000000000000000000A2 /* BrowsePanelMoveFailureSurfacingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAB1000000000000000000F2 /* BrowsePanelMoveFailureSurfacingTests.swift */; };
+		AAB1000000000000000000A3 /* StatusItemResetGateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAB1000000000000000000F3 /* StatusItemResetGateTests.swift */; };
 		E32863005139F14878CE6E9C /* IconMovingTargetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E872DC366D8EB213F511337 /* IconMovingTargetTests.swift */; };
 		E52CDB987F07A8DF77DDE90D /* MenuBarVisibilityWorkflow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BCB267518C99FC2361A533B /* MenuBarVisibilityWorkflow.swift */; };
 		E54264B26C920E675142DDF5 /* AppleScriptActivationCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5210BD9C73BEBE3AAE8DBDE9 /* AppleScriptActivationCommands.swift */; };
@@ -367,6 +370,9 @@
 		8F6181853E826EB6D984B8A7 /* MenuBarAppearanceSuppressionPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarAppearanceSuppressionPolicy.swift; sourceTree = "<group>"; };
 		90286F48F21E7D9728EBD28C /* GeneralSettingsHidingSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneralSettingsHidingSection.swift; sourceTree = "<group>"; };
 		90C4EE4FEBA68DF40BF61AA1 /* IconMovingGeometryRegressionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconMovingGeometryRegressionTests.swift; sourceTree = "<group>"; };
+		AAB1000000000000000000F1 /* AlwaysHiddenSeparatorLivenessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlwaysHiddenSeparatorLivenessTests.swift; sourceTree = "<group>"; };
+		AAB1000000000000000000F2 /* BrowsePanelMoveFailureSurfacingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowsePanelMoveFailureSurfacingTests.swift; sourceTree = "<group>"; };
+		AAB1000000000000000000F3 /* StatusItemResetGateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusItemResetGateTests.swift; sourceTree = "<group>"; };
 		94B8376513461FDCE0D56D48 /* HidingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HidingService.swift; sourceTree = "<group>"; };
 		9599662C8797778FF22F615B /* RuntimeGuardSettingsSurfaceXCTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuntimeGuardSettingsSurfaceXCTests.swift; sourceTree = "<group>"; };
 		9911A7251AE151FCA164258D /* SearchWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchWindowController.swift; sourceTree = "<group>"; };
@@ -582,6 +588,9 @@
 				B3A01CA95F5F638F8643776B /* HidingServiceTests.swift */,
 				CAA02FC2E1A7F5DD0FD330B5 /* HoverServiceTests.swift */,
 				F54AE3B756A10470B1DA4E12 /* IconHotkeysServiceTests.swift */,
+				AAB1000000000000000000F1 /* AlwaysHiddenSeparatorLivenessTests.swift */,
+				AAB1000000000000000000F2 /* BrowsePanelMoveFailureSurfacingTests.swift */,
+				AAB1000000000000000000F3 /* StatusItemResetGateTests.swift */,
 				90C4EE4FEBA68DF40BF61AA1 /* IconMovingGeometryRegressionTests.swift */,
 				7300E957171CF38369A46BDC /* IconMovingIdentityAndResolutionTests.swift */,
 				D6EB41EC848549F143393B53 /* IconMovingScenarioTests.swift */,
@@ -1036,6 +1045,9 @@
 				959AE6736867A0FC2639D30C /* HoverServiceTests.swift in Sources */,
 				B6A1C5E2259BAA27A624479F /* IconHotkeysServiceTests.swift in Sources */,
 				E325D5FEE89E4778EAFC8E96 /* IconMovingGeometryRegressionTests.swift in Sources */,
+				AAB1000000000000000000A1 /* AlwaysHiddenSeparatorLivenessTests.swift in Sources */,
+				AAB1000000000000000000A2 /* BrowsePanelMoveFailureSurfacingTests.swift in Sources */,
+				AAB1000000000000000000A3 /* StatusItemResetGateTests.swift in Sources */,
 				8BFACDAF46292E09B062A11B /* IconMovingIdentityAndResolutionTests.swift in Sources */,
 				BF56893D73512BB7EA90BB01 /* IconMovingScenarioTests.swift in Sources */,
 				8F99CB43D523B66AFC41EF2A /* IconMovingSeparatorCacheCoherencyTests.swift in Sources */,

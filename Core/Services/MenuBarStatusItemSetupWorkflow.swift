@@ -257,7 +257,13 @@ final class MenuBarStatusItemSetupWorkflow {
             return
 
         case let .keepExpanded(reason):
-            manager.alwaysHiddenPinWorkflow.repairSeparatorPositionIfNeeded(reason: "startup")
+            // Genuine startup recovery: persisted pixel positions may be from a
+            // prior display topology, so reanchoring unsafe explicit positions is
+            // correct here. preserve = false (FM-2 #136/#168).
+            manager.alwaysHiddenPinWorkflow.repairSeparatorPositionIfNeeded(
+                reason: "startup",
+                preserveExplicitPersistedPositions: false
+            )
             switch reason {
             case .autoRehideDisabled:
                 logger.info("Skipping initial hide: auto-rehide disabled")
@@ -272,7 +278,12 @@ final class MenuBarStatusItemSetupWorkflow {
             return
 
         case .performInitialHide:
-            manager.alwaysHiddenPinWorkflow.repairSeparatorPositionIfNeeded(reason: "startup")
+            // Genuine startup recovery: reanchor unsafe explicit positions.
+            // preserve = false (FM-2 #136/#168).
+            manager.alwaysHiddenPinWorkflow.repairSeparatorPositionIfNeeded(
+                reason: "startup",
+                preserveExplicitPersistedPositions: false
+            )
 
         case .captureCurrentDisplayBackup, .recreateFromPersistedLayout, .bumpAutosaveVersion, .stop:
             logger.error("Unexpected startup recovery action \(String(describing: startupAction), privacy: .public) - continuing with initial hide path")

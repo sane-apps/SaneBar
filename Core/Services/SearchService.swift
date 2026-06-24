@@ -116,7 +116,14 @@ final class SearchService: SearchServiceProtocol, @unchecked Sendable {
                 lastAlwaysHiddenOrderWarningAt = now
             }
 
-            MenuBarManager.shared.alwaysHiddenPinWorkflow.repairSeparatorPositionIfNeeded(reason: "classification")
+            // Steady-state classification repair (not startup / display-topology):
+            // only the AH-separator order is wrong, so preserve the user's explicit
+            // persisted main divider rather than reanchoring it toward Control
+            // Center. preserve = true (FM-2 #136/#168).
+            MenuBarManager.shared.alwaysHiddenPinWorkflow.repairSeparatorPositionIfNeeded(
+                reason: "classification",
+                preserveExplicitPersistedPositions: true
+            )
             let repairedSeparatorX = separatorBoundaryXForClassification(allowEstimatedFallback: allowEstimatedFallback) ?? separatorX
             let repairedAlwaysHiddenOriginX = MenuBarManager.shared.geometryResolver.alwaysHiddenSeparatorOriginX()
             let rawRepairedAlwaysHiddenBoundaryX = MenuBarManager.shared.geometryResolver.alwaysHiddenSeparatorBoundaryX()

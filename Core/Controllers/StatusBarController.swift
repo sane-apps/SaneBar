@@ -92,6 +92,7 @@ final class StatusBarController: StatusBarControllerProtocol {
         .removalAllowed,
         .terminationOnRemoval,
     ]
+
     // MARK: - Initialization
 
     init() {
@@ -169,10 +170,26 @@ final class StatusBarController: StatusBarControllerProtocol {
     }
 
     /// Checks whether a status item window appears in the menu bar area.
+    ///
+    /// `NSWindow.screen` returns nil whenever the window's frame does not intersect
+    /// a screen rect — routine for a genuinely-hidden separator pushed off the left
+    /// edge and for items on an external display during topology churn. The old
+    /// single-screen fallback (`resolvedReferenceScreen`) could pick the WRONG
+    /// screen (e.g. built-in) so a window living live on the external display's
+    /// band failed validation, and recovery looped reporting
+    /// `separatorStatusItemWindowValid: false` without ever upgrading anchors to
+    /// live (#155/#157, worst on external monitors). Resolve against every screen's
+    /// band so a live frame is accepted regardless of which display owns it; an
+    /// off-screen frame still matches no band and stays invalid.
     static func validateItemPosition(_ item: NSStatusItem) -> Bool {
-        let window = item.button?.window
-        let screenFrame = window?.screen?.frame ?? StatusBarPositionStore.resolvedReferenceScreen()?.frame
-        return isStatusItemWindowFrameValid(windowFrame: window?.frame, screenFrame: screenFrame)
+        guard let windowFrame = item.button?.window?.frame else { return false }
+        let attachedScreenFrame = item.button?.window?.screen?.frame
+        let resolvedScreenFrame = MenuBarMoveGeometryPolicy.resolvedScreenFrameForStatusItemWindow(
+            windowFrame: windowFrame,
+            attachedScreenFrame: attachedScreenFrame,
+            candidateScreenFrames: NSScreen.screens.map(\.frame)
+        )
+        return isStatusItemWindowFrameValid(windowFrame: windowFrame, screenFrame: resolvedScreenFrame)
     }
 
     /// Startup is only healthy when both visible SaneBar status items are attached
@@ -187,7 +204,8 @@ final class StatusBarController: StatusBarControllerProtocol {
     /// current-width backup so the new namespace falls back to stricter safe anchors.
     func recreateItemsWithBumpedVersion(
         referenceScreen: NSScreen? = nil,
-        allowCurrentDisplayBackup: Bool = true
+        allowCurrentDisplayBackup: Bool = true,
+        reanchorUnsafePersistedPositions: Bool = true
     ) -> (main: NSStatusItem, separator: NSStatusItem) {
         let oldVersion = Self.autosaveVersion
         let hadAlwaysHiddenSeparator = alwaysHiddenSeparatorItem != nil
@@ -210,14 +228,22 @@ final class StatusBarController: StatusBarControllerProtocol {
             StatusBarPositionStore.resolvedReferenceScreen()
         let currentWidth = resolvedReferenceScreen.map { Double($0.frame.width) }
         let currentScreenHasTopSafeAreaInset = StatusBarPositionStore.screenHasTopSafeAreaInset(resolvedReferenceScreen)
-        let reanchoredCurrentPair = currentWidth.flatMap { width in
-            StatusBarPositionStore.reanchoredPreferredPositionsTowardControlCenter(
-                mainPosition: StatusBarPositionDefaultsStore.resolvedPreferredPosition(forAutosaveName: Self.mainAutosaveName),
-                separatorPosition: StatusBarPositionDefaultsStore.resolvedPreferredPosition(forAutosaveName: Self.separatorAutosaveName),
-                screenWidth: width,
-                screenHasTopSafeAreaInset: currentScreenHasTopSafeAreaInset
-            )
-        }
+        let fm2BumpCalibratedWidth = UserDefaults.standard.double(forKey: StatusBarPositionStore.screenWidthKey)
+        // FM-2 (#136/#168): capture the persisted divider BEFORE the namespace bump
+        // removes the old keys, so a wake / Space-change validation can replay the
+        // user's EXPLICIT divider into the fresh namespace instead of reanchoring it
+        // toward Control Center (the 900 -> 144 laundering caught by the wake gate).
+        // When `reanchorUnsafePersistedPositions` is false the helper returns the
+        // explicit pair as-is; when true it reanchors an unsafe pair as before.
+        let originalPersistedMain = StatusBarPositionDefaultsStore.resolvedPreferredPosition(forAutosaveName: Self.mainAutosaveName)
+        let originalPersistedSeparator = StatusBarPositionDefaultsStore.resolvedPreferredPosition(forAutosaveName: Self.separatorAutosaveName)
+        let bumpedNamespacePositions = StatusBarPositionRecoveryStore.bumpedNamespaceRecoveryPositions(
+            originalMain: originalPersistedMain,
+            originalSeparator: originalPersistedSeparator,
+            screenWidth: currentWidth,
+            screenHasTopSafeAreaInset: currentScreenHasTopSafeAreaInset,
+            reanchorUnsafePersistedPositions: reanchorUnsafePersistedPositions
+        )
 
         UserDefaults.standard.set(nextVersion, forKey: Self.autosaveVersionKey)
         if recycledNamespace {
@@ -244,31 +270,54 @@ final class StatusBarController: StatusBarControllerProtocol {
             StatusBarPositionStore.restoreCurrentDisplayPositionBackupIfAvailable(referenceScreen: resolvedReferenceScreen)
         var shouldFlushCurrentDisplayBackupAfterRecreate = restoredCurrentDisplayBackup
         if !restoredCurrentDisplayBackup {
-            if let reanchoredCurrentPair {
-                StatusBarPositionDefaultsStore.setPreferredPosition(reanchoredCurrentPair.main, forAutosaveName: Self.mainAutosaveName)
-                StatusBarPositionDefaultsStore.setPreferredPosition(reanchoredCurrentPair.separator, forAutosaveName: Self.separatorAutosaveName)
-                if let currentWidth {
-                    StatusBarPositionStore.saveDisplayPositionBackupIfNeeded(
-                        for: currentWidth,
-                        mainPosition: reanchoredCurrentPair.main,
-                        separatorPosition: reanchoredCurrentPair.separator,
-                        referenceScreen: resolvedReferenceScreen
-                    )
+            if let bumpedNamespacePositions {
+                StatusBarPositionDefaultsStore.setPreferredPosition(bumpedNamespacePositions.main, forAutosaveName: Self.mainAutosaveName)
+                StatusBarPositionDefaultsStore.setPreferredPosition(bumpedNamespacePositions.separator, forAutosaveName: Self.separatorAutosaveName)
+                if reanchorUnsafePersistedPositions {
+                    if let currentWidth {
+                        StatusBarPositionStore.saveDisplayPositionBackupIfNeeded(
+                            for: currentWidth,
+                            mainPosition: bumpedNamespacePositions.main,
+                            separatorPosition: bumpedNamespacePositions.separator,
+                            referenceScreen: resolvedReferenceScreen
+                        )
+                    }
+                    shouldFlushCurrentDisplayBackupAfterRecreate = true
+                    logger.info("Recreated status items with autosave version \(nextVersion) using reanchored persisted positions")
+                } else {
+                    // FM-2 (#136/#168): explicit-divider preserve path (wake / Space /
+                    // manual restore). Do NOT save a display backup or flush — the
+                    // explicit far divider is intentionally not launch-safe, and a
+                    // stale launch-safe backup flush would overwrite it after recreate.
+                    logger.info("Recreated status items with autosave version \(nextVersion) preserving the explicit persisted divider (FM-2 wake/Space path)")
                 }
-                shouldFlushCurrentDisplayBackupAfterRecreate = true
-                logger.info("Recreated status items with autosave version \(nextVersion) using reanchored persisted positions")
-            } else {
+            } else if reanchorUnsafePersistedPositions {
                 if StatusBarPositionStore.applyLaunchSafeRecoveryPositionsForCurrentDisplay(referenceScreen: resolvedReferenceScreen) {
                     shouldFlushCurrentDisplayBackupAfterRecreate = true
                     logger.info("Recreated status items with autosave version \(nextVersion) using launch-safe recovery positions")
                 } else {
                     StatusBarPositionRecoveryStore.seedPositionsIfNeeded()
                 }
+            } else {
+                // Preserve path with no valid explicit pair to replay (positions
+                // missing/corrupt): seed ordinals rather than reanchoring or applying
+                // launch-safe recovery, both of which would move the divider.
+                StatusBarPositionRecoveryStore.seedPositionsIfNeeded()
             }
         }
         if hadAlwaysHiddenSeparator {
             StatusBarPositionRecoveryStore.seedAlwaysHiddenSeparatorPositionIfNeeded(referenceScreen: resolvedReferenceScreen)
         }
+
+        // FM-2 (#136/#168) chokepoint: if a same-display reanchor/launch-safe pass
+        // laundered the explicit divider into the fresh namespace, restore it before
+        // the items materialize.
+        StatusBarPositionRecoveryStore.restoreExplicitDividerIfLaunderedOnSameDisplay(
+            capturedMain: originalPersistedMain,
+            capturedSeparator: originalPersistedSeparator,
+            calibratedWidth: fm2BumpCalibratedWidth,
+            referenceScreen: resolvedReferenceScreen
+        )
 
         mainItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         Self.enforceNonRemovableBehavior(for: mainItem, role: "main(recreated)")
@@ -305,8 +354,15 @@ final class StatusBarController: StatusBarControllerProtocol {
     }
 
     func recreateItemsFromPersistedPositions(
-        afterRemovingExistingItems: (() -> Void)? = nil
+        afterRemovingExistingItems: (() -> Void)? = nil,
+        reanchorUnsafePersistedPositions: Bool = true
     ) -> (main: NSStatusItem, separator: NSStatusItem) {
+        // FM-2 (#136/#168) chokepoint capture: snapshot the explicit divider + the
+        // calibrated width BEFORE any recovery (the afterRemovingExistingItems closure
+        // may hard-reset and clear these), so a same-display launder can be undone below.
+        let fm2CapturedMain = StatusBarPositionDefaultsStore.resolvedPreferredPosition(forAutosaveName: Self.mainAutosaveName)
+        let fm2CapturedSeparator = StatusBarPositionDefaultsStore.resolvedPreferredPosition(forAutosaveName: Self.separatorAutosaveName)
+        let fm2CalibratedWidth = UserDefaults.standard.double(forKey: StatusBarPositionStore.screenWidthKey)
         NSStatusBar.system.removeStatusItem(mainItem)
         NSStatusBar.system.removeStatusItem(separatorItem)
         if let ah = alwaysHiddenSeparatorItem {
@@ -319,20 +375,38 @@ final class StatusBarController: StatusBarControllerProtocol {
         // Replaying stale persisted positions after wake/display changes can park
         // the toggle and separator far from Control Center (#136). Clamp unsafe
         // persisted positions toward the safe right zone before macOS replays them.
+        //
+        // FM-2 (#136/#168): on the steady-state wake / Space-change validation
+        // path this clamp would silently overwrite an EXPLICIT user divider toward
+        // Control Center (e.g. 900 -> 144). Callers on that path pass
+        // `reanchorUnsafePersistedPositions: false` so the persisted user layout is
+        // replayed as-is. The reanchor stays on genuine startup / display-topology
+        // recreate paths where positions from a different display are meaningless.
         let resolvedReferenceScreen = StatusBarPositionStore.resolvedReferenceScreen()
-        if let screenWidth = resolvedReferenceScreen.map({ Double($0.frame.width) }),
+        if reanchorUnsafePersistedPositions,
+           let screenWidth = resolvedReferenceScreen.map({ Double($0.frame.width) }),
            let reanchoredPair = StatusBarPositionStore.reanchoredPreferredPositionsTowardControlCenter(
                mainPosition: StatusBarPositionDefaultsStore.resolvedPreferredPosition(forAutosaveName: Self.mainAutosaveName),
                separatorPosition: StatusBarPositionDefaultsStore.resolvedPreferredPosition(forAutosaveName: Self.separatorAutosaveName),
                screenWidth: screenWidth,
                screenHasTopSafeAreaInset: StatusBarPositionStore.screenHasTopSafeAreaInset(resolvedReferenceScreen)
-           ) {
+           )
+        {
             StatusBarPositionDefaultsStore.setPreferredPosition(reanchoredPair.main, forAutosaveName: Self.mainAutosaveName)
             StatusBarPositionDefaultsStore.setPreferredPosition(reanchoredPair.separator, forAutosaveName: Self.separatorAutosaveName)
             logger.warning(
                 "Reanchored unsafe persisted positions before replay (main=\(reanchoredPair.main, privacy: .public), separator=\(reanchoredPair.separator, privacy: .public))"
             )
         }
+
+        // FM-2 (#136/#168) chokepoint: undo a same-display launder before items
+        // materialize, so they are created at the restored explicit divider.
+        StatusBarPositionRecoveryStore.restoreExplicitDividerIfLaunderedOnSameDisplay(
+            capturedMain: fm2CapturedMain,
+            capturedSeparator: fm2CapturedSeparator,
+            calibratedWidth: fm2CalibratedWidth,
+            referenceScreen: resolvedReferenceScreen
+        )
 
         mainItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         Self.enforceNonRemovableBehavior(for: mainItem, role: "main(recreated-layout)")

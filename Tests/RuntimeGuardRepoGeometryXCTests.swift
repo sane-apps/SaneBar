@@ -1,6 +1,12 @@
 @testable import SaneBar
 import XCTest
 
+// NOTE: source-fingerprint guards — see docs/TEST_BLINDNESS_AUDIT.md. These assert
+// `source.contains(...)` against product files (STRUCTURE, not runtime). They are
+// "don't delete the fix" tripwires only; the real behavioral coverage for the
+// recovery / FM-2 explicit-divider-survival contract is the FM-1/FM-2 runtime gates
+// plus StatusBarWakeExplicitPositionTests.
+
 @MainActor
 final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
     func testPublicRepoHygieneGuardsLocalAgentState() throws {
@@ -287,7 +293,8 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
         )
         guard let visibilityPhaseRange = recoverySource.range(of: "let visibilityPhase: MenuBarVisibilityPhase"),
               let geometrySnapshotRange = recoverySource.range(of: "let geometrySnapshot = MenuBarRuntimeSnapshot("),
-              let returnedVisibilityRange = recoverySource.range(of: "visibilityPhase: visibilityPhase,") else {
+              let returnedVisibilityRange = recoverySource.range(of: "visibilityPhase: visibilityPhase,")
+        else {
             XCTFail("Could not locate runtime snapshot visibility-phase wiring")
             return
         }
@@ -345,9 +352,9 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
         )
         XCTAssertTrue(
             source.contains("AccessibilityService.shared.invalidateMenuBarItemCache(scheduleWarmupAfter: .structuralChange)") &&
-                source.contains("await self.geometryResolver.warmSeparatorPositionCache(maxAttempts: 32)") &&
-                source.contains("await self.geometryResolver.warmAlwaysHiddenSeparatorPositionCache(maxAttempts: 32)") &&
-                source.contains("let snapshot = self.currentStatusItemRecoverySnapshot()") &&
+                source.contains("await geometryResolver.warmSeparatorPositionCache(maxAttempts: 32)") &&
+                source.contains("await geometryResolver.warmAlwaysHiddenSeparatorPositionCache(maxAttempts: 32)") &&
+                source.contains("let snapshot = currentStatusItemRecoverySnapshot()") &&
                 source.contains("snapshot.separatorAnchorSource == .live, snapshot.mainAnchorSource == .live") &&
                 setupSource.contains("manager.schedulePostRecoveryGeometryWarmup(restoreHiddenStateAfterWarmup: shouldRestoreHidden)") &&
                 setupSource.contains("let visibilityReplayReason = manager.statusItemRecoveryWorkflow.hasPendingWakeVisibleAllowListReplay()") &&
@@ -359,30 +366,30 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
                 replaySource.contains("hasPendingWakeVisibleAllowListReplay") &&
                 source.contains("visibilityIntentReplayTask = Task { @MainActor [weak self] in") &&
                 source.contains("while attempt < Self.maxVisibilityIntentReplayAttempts ||") &&
-                source.contains("self.statusItemRecoveryWorkflow.hasPendingWakeVisibleAllowListReplay()") &&
+                source.contains("statusItemRecoveryWorkflow.hasPendingWakeVisibleAllowListReplay()") &&
                 source.contains("schedulePostRecoveryAutoRehideIfNeeded(reason: \"\\(reason)-no-visibility-intent\")") &&
-                source.contains("await self.alwaysHiddenPinWorkflow.enforce(") &&
+                source.contains("await alwaysHiddenPinWorkflow.enforce(") &&
                 source.contains("mode: .auditOnly") &&
                 source.contains("alwaysHiddenAnchorsNeedReplayRetry()") &&
                 source.contains("let alwaysHiddenBoundaryX = geometryResolver.currentLiveAlwaysHiddenSeparatorBoundaryX()") &&
                 source.contains("let separatorFrame = geometryResolver.currentLiveSeparatorFrame()") &&
                 source.contains("return alwaysHiddenBoundaryX >= separatorFrame.origin.x") &&
                 source.contains("Visibility intent replay waiting for healthy always-hidden anchors") &&
-                source.contains("let hideAllOtherEnforced = await self.hideAllOtherWorkflow.enforce(") &&
+                source.contains("let hideAllOtherEnforced = await hideAllOtherWorkflow.enforce(") &&
                 source.contains("Visibility intent replay waiting for hide-all-other completion") &&
                 source.contains("var completedWakeVisibleAllowListRepair = false") &&
                 source.contains("completedWakeVisibleAllowListRepair = true") &&
                 source.contains("if completedWakeVisibleAllowListRepair {") &&
-                source.contains("self.statusItemRecoveryWorkflow.clearWakeVisibleAllowListReplayPending()") &&
+                source.contains("statusItemRecoveryWorkflow.clearWakeVisibleAllowListReplayPending()") &&
                 source.contains("if hideAllOtherMode.mode == .repairWithPhysicalMoves") &&
                 replaySource.contains("func restoreHiddenStateAfterHealthyValidationIfNeeded(reason: String)") &&
                 replaySource.contains("hidingService.applyCurrentStateToLiveItems()") &&
                 replaySource.contains("hidingService.configureAlwaysHiddenDelimiter(alwaysHiddenSeparatorItem)") &&
                 replaySource.contains("shouldDeferHiddenStateForWakeVisibleAllowList(") &&
                 replaySource.contains("Deferring hidden state after wake until Hide All Other visible allow-list replay completes") &&
-                source.contains("self.schedulePostRecoveryAutoRehideIfNeeded(reason: replayReason)") &&
-                source.contains("self.restorePendingHiddenStateAfterVisibilityReplayFailure(reason: \"\\(replayReasonBase)-replay-gave-up\")") &&
-                source.contains("self.schedulePostRecoveryAutoRehideIfNeeded(reason: \"\\(replayReasonBase)-replay-gave-up\")") &&
+                source.contains("schedulePostRecoveryAutoRehideIfNeeded(reason: replayReason)") &&
+                source.contains("restorePendingHiddenStateAfterVisibilityReplayFailure(reason: \"\\(replayReasonBase)-replay-gave-up\")") &&
+                source.contains("schedulePostRecoveryAutoRehideIfNeeded(reason: \"\\(replayReasonBase)-replay-gave-up\")") &&
                 replaySource.contains("func schedulePostRecoveryAutoRehideIfNeeded(reason: String)") &&
                 replaySource.contains("clearWakeVisibleAllowListReplayPending(clearDeferredReason: false)") &&
                 recoverySource.contains("func clearWakeVisibleAllowListReplayPending(clearDeferredReason: Bool = true)") &&
@@ -395,7 +402,7 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
                 replaySource.contains("shouldReplayWakeVisibleAllowListBeforeAutoRehide(") &&
                 replaySource.contains("schedulePostRecoveryVisibilityIntentReplay(reason: \"healthy-validation-wake-resume\")") &&
                 replaySource.contains("hidingService.scheduleRehide(after: 0.5)") &&
-                source.contains("self.appearanceService.refreshAfterStatusItemRecovery()"),
+                source.contains("appearanceService.refreshAfterStatusItemRecovery()"),
             "Structural recovery should re-warm live core anchors before hidden replay, replay persisted visibility intent, cancel stale wake allow-list replay without unpinning explicit reveals, rearm auto-rehide after recovery movement cancels prior timers, then refresh appearance overlay visibility"
         )
         let replayRetryStart = try XCTUnwrap(source.range(of: "private func alwaysHiddenAnchorsNeedReplayRetry() -> Bool {"))
@@ -465,7 +472,7 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
             recoverySource.contains("clearWakeVisibleAllowListReplayPending(clearDeferredReason: false)") &&
                 recoverySource.contains("guard now <= pendingWakeVisibleAllowListReplayUntil else") &&
                 recoverySource.contains("func pendingWakeVisibleAllowListReplayExpired") &&
-                managerSource.contains("self.statusItemRecoveryWorkflow.clearWakeVisibleAllowListReplayPending(clearDeferredReason: false)"),
+                managerSource.contains("statusItemRecoveryWorkflow.clearWakeVisibleAllowListReplayPending(clearDeferredReason: false)"),
             "Replay TTL expiry should clear only the short-lived replay window, not the customer-visible Health guidance"
         )
     }
@@ -715,13 +722,13 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
         )
 
         XCTAssertTrue(
-                source.contains("var shouldRetryVisibilityReplay = false") &&
+            source.contains("var shouldRetryVisibilityReplay = false") &&
                 source.contains("let shouldReplayHideAllOther = settings.hideAllOtherMenuBarItems") &&
                 source.contains("statusItemRecoveryWorkflow.recoveryDormantUntil") &&
-                source.contains("await self.alwaysHiddenPinWorkflow.enforce(") &&
+                source.contains("await alwaysHiddenPinWorkflow.enforce(") &&
                 source.contains("mode: .auditOnly") &&
-                source.contains("let hideAllOtherEnforced = await self.hideAllOtherWorkflow.enforce(") &&
-                source.contains("let hideAllOtherMode = self.visibilityIntentReplayHideAllOtherMode(reason: replayReason)") &&
+                source.contains("let hideAllOtherEnforced = await hideAllOtherWorkflow.enforce(") &&
+                source.contains("let hideAllOtherMode = visibilityIntentReplayHideAllOtherMode(reason: replayReason)") &&
                 source.contains("physicalMoveOrigin: hideAllOtherMode.physicalMoveOrigin") &&
                 replaySource.contains("let isPostWakeHealthyValidation = isPostWakeVisibleAllowListReplayReason(reason)") &&
                 replaySource.contains("let isImmediateWakeReplay = reason.hasPrefix(\"wake-resume\")") &&
@@ -746,7 +753,7 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
                 source.contains("var completedWakeVisibleAllowListRepair = false") &&
                 source.contains("if completedWakeVisibleAllowListRepair") &&
                 source.contains("Visibility intent replay waiting for hide-all-other completion") &&
-                source.contains("self.restorePendingHiddenStateAfterVisibilityReplayFailure(reason: \"\\(replayReasonBase)-replay-gave-up\")") &&
+                source.contains("restorePendingHiddenStateAfterVisibilityReplayFailure(reason: \"\\(replayReasonBase)-replay-gave-up\")") &&
                 source.contains("if shouldRetryVisibilityReplay") &&
                 source.contains("MenuBarVisibilityPolicy.shouldRunVisibilityIntentEnforcement(") &&
                 !source.contains("snapshot.geometryConfidence == .live || snapshot.geometryConfidence == .cached"),
@@ -876,7 +883,7 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
         )
 
         XCTAssertTrue(
-                !source.contains("guard manager.shouldRunVisibilityIntentEnforcement(reason: \"enableHideAllOther\")") &&
+            !source.contains("guard manager.shouldRunVisibilityIntentEnforcement(reason: \"enableHideAllOther\")") &&
                 source.contains("manager.visibilityWorkflow.showHiddenItemsNow(trigger: .settingsButton)") &&
                 source.contains("refreshKnownClassifiedApps()") &&
                 source.contains("Hide-all-other enabled; live enforcement will wait until menu bar anchors are healthy") &&
@@ -1147,5 +1154,4 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
             "Visible move targeting must stay clamped inside the divider/SaneBar lane (no overshoot into the system area) while leaving reflow slack off the separator"
         )
     }
-
 }
