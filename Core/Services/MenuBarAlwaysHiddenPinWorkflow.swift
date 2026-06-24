@@ -32,7 +32,19 @@ final class MenuBarAlwaysHiddenPinWorkflow {
         )
     }
 
-    func repairSeparatorPositionIfNeeded(reason: String) {
+    /// - Parameter preserveExplicitPersistedPositions: FM-2 (#136/#168). When the
+    ///   misordered-separator hard-recovery branch runs, it falls through to
+    ///   `recoverStartupPositions`. On genuine startup / display-topology recovery
+    ///   the persisted pixel positions are meaningless and reanchoring an unsafe
+    ///   explicit divider toward Control Center is correct (default `false`). On
+    ///   steady-state validation (wake, Space change, manual restore) the persisted
+    ///   value IS the user's explicit divider intent and must survive — callers on
+    ///   those paths pass `true`. The default preserves the prior reanchor behavior
+    ///   so any caller that does not opt in is unaffected.
+    func repairSeparatorPositionIfNeeded(
+        reason: String,
+        preserveExplicitPersistedPositions: Bool = false
+    ) {
         guard manager.settings.alwaysHiddenSectionEnabled else { return }
         guard !manager.isRepairingAlwaysHiddenSeparator else { return }
         guard !SearchWindowController.shared.isMoveInProgress else {
@@ -82,7 +94,7 @@ final class MenuBarAlwaysHiddenPinWorkflow {
         manager.clearCachedSeparatorGeometry()
         AccessibilityService.shared.invalidateMenuBarItemCache()
 
-        let manager = self.manager
+        let manager = manager
         manager.alwaysHiddenSeparatorRepairGeneration += 1
         let repairGeneration = manager.alwaysHiddenSeparatorRepairGeneration
         manager.alwaysHiddenSeparatorRepairFollowUpTask?.cancel()
@@ -136,9 +148,22 @@ final class MenuBarAlwaysHiddenPinWorkflow {
             logger.error(
                 "Always-hidden separator still misordered after repair (ahRight=\(postAHRightX, privacy: .public), sep=\(postSepX, privacy: .public)) - applying hard position recovery"
             )
+            // FM2_TRACE — TEMPORARY DIAGNOSTIC (#136/#168). Remove before ship.
+            // This hard-recovery path now forwards the caller's
+            // preserveExplicitPersistedPositions decision into recoverStartupPositions
+            // so the wake / Space / manual-restore paths no longer reanchor an
+            // explicit divider toward Control Center (the #136/#168 snap-back).
+            os_log(
+                "FM2_TRACE ahPinHardRecovery reason=%{public}@ ENTERING recoverStartupPositions(preserveExplicit=%{public}@)",
+                log: OSLog(subsystem: "com.sanebar.app", category: "FM2_TRACE"),
+                type: .default,
+                reason,
+                preserveExplicitPersistedPositions ? "true" : "false"
+            )
             StatusBarPositionRecoveryStore.recoverStartupPositions(
                 alwaysHiddenEnabled: true,
-                referenceScreen: manager.currentRecoveryReferenceScreen()
+                referenceScreen: manager.currentRecoveryReferenceScreen(),
+                preserveExplicitPersistedPositions: preserveExplicitPersistedPositions
             )
             manager.clearCachedSeparatorGeometry()
             manager.statusBarController.ensureAlwaysHiddenSeparator(enabled: false)
@@ -179,17 +204,16 @@ final class MenuBarAlwaysHiddenPinWorkflow {
 
     @discardableResult
     func pin(bundleID: String, menuExtraId: String? = nil, statusItemIndex: Int? = nil) -> Bool {
-        let rawId: String
-        if let menuExtraId {
+        let rawId: String = if let menuExtraId {
             if menuExtraId.hasPrefix("com.apple.menuextra.") {
-                rawId = menuExtraId
+                menuExtraId
             } else {
-                rawId = "\(bundleID)::axid:\(menuExtraId)"
+                "\(bundleID)::axid:\(menuExtraId)"
             }
         } else if let statusItemIndex {
-            rawId = "\(bundleID)::statusItem:\(statusItemIndex)"
+            "\(bundleID)::statusItem:\(statusItemIndex)"
         } else {
-            rawId = bundleID
+            bundleID
         }
 
         let id = rawId.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -330,7 +354,7 @@ final class MenuBarAlwaysHiddenPinWorkflow {
             return
         }
         manager.alwaysHiddenPinEnforcementTask?.cancel()
-        let manager = self.manager
+        let manager = manager
         manager.alwaysHiddenPinEnforcementTask = Task { @MainActor [weak manager] in
             guard let manager else { return }
             try? await Task.sleep(for: delay)

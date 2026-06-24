@@ -68,15 +68,15 @@ final class MenuBarStatusItemRecoveryWorkflow {
     ) -> TimeInterval {
         switch context {
         case .startupFollowUp:
-            return recoveryCount == 0 ? 1.5 : 2.0
+            recoveryCount == 0 ? 1.5 : 2.0
         case .activeSpaceChanged:
-            return recoveryCount == 0 ? 2.0 : 2.5
+            recoveryCount == 0 ? 2.0 : 2.5
         case .manualLayoutRestore:
-            return recoveryCount == 0 ? 0.35 : 0.75
+            recoveryCount == 0 ? 0.35 : 0.75
         case .screenParametersChanged:
-            return recoveryCount == 0 ? 2.0 : 2.5
+            recoveryCount == 0 ? 2.0 : 2.5
         case .wakeResume:
-            return recoveryCount == 0 ? 2.0 : 2.5
+            recoveryCount == 0 ? 2.0 : 2.5
         }
     }
 
@@ -85,9 +85,9 @@ final class MenuBarStatusItemRecoveryWorkflow {
     ) -> TimeInterval {
         switch context {
         case .startupFollowUp, .screenParametersChanged, .activeSpaceChanged, .wakeResume:
-            return 0.5
+            0.5
         case .manualLayoutRestore:
-            return 0.25
+            0.25
         }
     }
 
@@ -96,9 +96,9 @@ final class MenuBarStatusItemRecoveryWorkflow {
     ) -> Int {
         switch context {
         case .startupFollowUp, .screenParametersChanged, .activeSpaceChanged, .wakeResume:
-            return 6
+            6
         case .manualLayoutRestore:
-            return 4
+            4
         }
     }
 
@@ -117,19 +117,56 @@ final class MenuBarStatusItemRecoveryWorkflow {
 
     nonisolated static func shouldResetPersistentStateForStatusItemRecovery(
         reason: MenuBarOperationCoordinator.StartupRecoveryReason?,
-        isStartupRecovery _: Bool = false,
-        validationContext _: MenuBarOperationCoordinator.PositionValidationContext? = nil
+        isStartupRecovery: Bool = false,
+        validationContext: MenuBarOperationCoordinator.PositionValidationContext? = nil
     ) -> Bool {
         switch reason {
-        case .invalidStatusItems, .missingCoordinates, .invalidGeometry:
-            // Bad data (missing coordinates, invalid items/geometry) during any recovery context
-            // (startup, wake, screen change, manual arrange) forces hard reset to current live
-            // left-edge anchor instead of replaying stale persisted layout. This fixes dynamic
-            // item jumps (#147) and post-Spotlight/arrange reordering (#150, #142).
+        case .invalidStatusItems:
+            // Structurally invalid items (missing/duplicate windows) are never a
+            // legitimate user layout — always rebuild from a safe baseline (#147,
+            // #152 protections intact).
             true
+        case .missingCoordinates, .invalidGeometry:
+            // Transient stale/missing live coordinates and soft geometry drift can
+            // fire during ordinary steady-state validation (Space change, wake, app
+            // activation) on macOS 26/27. Resetting + reanchoring there silently
+            // overwrites an EXPLICIT user divider toward Control Center (#136/#168),
+            // violating invariant #5. Only force a destructive reset for genuine
+            // startup / display-topology contexts; ordinary validation instead
+            // repairs from the persisted user layout (non-destructive).
+            isStartupRecovery
+                || isStartupOrDisplayTopologyContext(validationContext)
         case nil:
             false
         }
+    }
+
+    private nonisolated static func isStartupOrDisplayTopologyContext(
+        _ context: MenuBarOperationCoordinator.PositionValidationContext?
+    ) -> Bool {
+        switch context {
+        case .startupFollowUp, .screenParametersChanged:
+            true
+        case .activeSpaceChanged, .wakeResume, .manualLayoutRestore, .none:
+            false
+        }
+    }
+
+    /// FM-2 (#136/#168) provenance gate for the non-destructive recovery branch.
+    ///
+    /// Reanchoring persisted preferred positions toward Control Center clamps any
+    /// position past the launch-safe limit (e.g. an explicit 900 down to 144). That
+    /// is correct ONLY when the persisted pixel positions are meaningless — genuine
+    /// startup or a display-topology change. On ordinary steady-state validation
+    /// (wake, Space change, app activation, manual layout restore) the persisted
+    /// value IS the user's explicit divider intent and must be replayed as-is.
+    /// This mirrors `shouldResetPersistentStateForStatusItemRecovery`'s topology
+    /// gate so the reanchor and the reset share one provenance contract.
+    nonisolated static func shouldReanchorPersistedPositionsForStatusItemRecovery(
+        isStartupRecovery: Bool = false,
+        validationContext: MenuBarOperationCoordinator.PositionValidationContext? = nil
+    ) -> Bool {
+        isStartupRecovery || isStartupOrDisplayTopologyContext(validationContext)
     }
 
     func currentRuntimeSnapshot(
@@ -413,7 +450,8 @@ final class MenuBarStatusItemRecoveryWorkflow {
                   let mainX = snapshot.mainX,
                   separatorX.isFinite,
                   mainX.isFinite,
-                  separatorX < mainX else {
+                  separatorX < mainX
+            else {
                 return false
             }
             return true
@@ -494,22 +532,37 @@ final class MenuBarStatusItemRecoveryWorkflow {
                 isStartupRecovery: trigger.hasPrefix("startup-"),
                 validationContext: validationContext
             )
+            // FM-2 (#136/#168): outside genuine startup / display-topology recovery
+            // the explicit persisted divider must survive. Preserve it on the
+            // steady-state wake / Space-change validation path so neither
+            // recoverStartupPositions nor the recreate-from-persisted reanchor
+            // launders an explicit position toward Control Center.
+            let preserveExplicitPositions = !shouldResetPersistentState
+                && !MenuBarManager.shouldReanchorPersistedPositionsForStatusItemRecovery(
+                    isStartupRecovery: trigger.hasPrefix("startup-"),
+                    validationContext: validationContext
+                )
             if !shouldResetPersistentState {
                 StatusBarPositionRecoveryStore.recoverStartupPositions(
                     alwaysHiddenEnabled: manager.currentEffectiveAlwaysHiddenSectionEnabled(),
-                    referenceScreen: manager.currentRecoveryReferenceScreen()
+                    referenceScreen: manager.currentRecoveryReferenceScreen(),
+                    preserveExplicitPersistedPositions: preserveExplicitPositions
                 )
             }
             manager.clearCachedSeparatorGeometry()
-            manager.recreateStatusItemsFromPersistedLayout(reason: trigger) {
-                if shouldResetPersistentState {
-                    StatusBarPositionRecoveryStore.resetPersistentStatusItemState(
-                        alwaysHiddenEnabled: self.manager.currentEffectiveAlwaysHiddenSectionEnabled(),
-                        referenceScreen: self.manager.currentRecoveryReferenceScreen(),
-                        freshAutosaveNamespace: true
-                    )
-                }
-            }
+            manager.recreateStatusItemsFromPersistedLayout(
+                reason: trigger,
+                afterRemovingExistingItems: {
+                    if shouldResetPersistentState {
+                        StatusBarPositionRecoveryStore.resetPersistentStatusItemState(
+                            alwaysHiddenEnabled: self.manager.currentEffectiveAlwaysHiddenSectionEnabled(),
+                            referenceScreen: self.manager.currentRecoveryReferenceScreen(),
+                            freshAutosaveNamespace: true
+                        )
+                    }
+                },
+                reanchorUnsafePersistedPositions: !preserveExplicitPositions
+            )
             if let validationContext {
                 schedulePositionValidation(context: validationContext, recoveryCount: recoveryCount + 1)
             }
@@ -544,10 +597,10 @@ final class MenuBarStatusItemRecoveryWorkflow {
             manager.positionValidationGeneration += 1
             defer { manager.isExecutingStatusItemRecovery = false }
             manager.clearCachedSeparatorGeometry()
-            let (newMain, newSep) = manager.statusBarController.recreateItemsWithBumpedVersion(
-                referenceScreen: manager.currentRecoveryReferenceScreen(),
-                allowCurrentDisplayBackup: false
-            )
+            // FM-2 (#136/#168): reuse the shared provenance gate so the namespace
+            // bump preserves the explicit divider on wake/Space and only reanchors on
+            // genuine startup/display-topology recovery (don't fork the contract).
+            let (newMain, newSep) = manager.statusBarController.recreateItemsWithBumpedVersion(referenceScreen: manager.currentRecoveryReferenceScreen(), allowCurrentDisplayBackup: false, reanchorUnsafePersistedPositions: MenuBarManager.shouldReanchorPersistedPositionsForStatusItemRecovery(isStartupRecovery: trigger.hasPrefix("startup-"), validationContext: validationContext))
             manager.statusBarController.onItemsRecreated?(newMain, newSep)
             if let validationContext {
                 schedulePositionValidation(context: validationContext, recoveryCount: recoveryCount + 1)
@@ -610,14 +663,14 @@ final class MenuBarStatusItemRecoveryWorkflow {
             let maxAttempts = MenuBarManager.statusItemValidationMaxAttempts(context: context)
 
             try? await Task.sleep(for: initialDelayDuration)
-            guard self.manager.positionValidationGeneration == validationGeneration else {
+            guard manager.positionValidationGeneration == validationGeneration else {
                 logger.debug("Skipping stale status item validation task for \(context.rawValue, privacy: .public)")
                 return
             }
 
-            if let dormantUntil = self.recoveryDormantUntil {
+            if let dormantUntil = recoveryDormantUntil {
                 if context == .manualLayoutRestore || Date() >= dormantUntil {
-                    self.clearRecoveryDormancy()
+                    clearRecoveryDormancy()
                 } else {
                     logger.warning(
                         "Status item validation dormant (visibility flap) — skipping \(context.rawValue, privacy: .public)"
@@ -630,21 +683,21 @@ final class MenuBarStatusItemRecoveryWorkflow {
             var lastAlwaysHiddenNeedsRepair = false
 
             for attempt in 1 ... maxAttempts {
-                guard self.manager.positionValidationGeneration == validationGeneration else {
+                guard manager.positionValidationGeneration == validationGeneration else {
                     logger.debug("Aborting stale status item validation retry for \(context.rawValue, privacy: .public)")
                     return
                 }
 
-                let snapshot = self.currentStatusItemRecoverySnapshot()
+                let snapshot = currentStatusItemRecoverySnapshot()
                 let recoveryReason = MenuBarOperationCoordinator.positionValidationRecoveryReason(snapshot: snapshot)
-                let alwaysHiddenNeedsRepair = self.stableSnapshotNeedsAlwaysHiddenRepair(snapshot)
+                let alwaysHiddenNeedsRepair = stableSnapshotNeedsAlwaysHiddenRepair(snapshot)
 
-                self.visibilityFlapDetector.record(itemsHealthy: recoveryReason == nil, at: Date())
-                if self.visibilityFlapDetector.isFlapping(now: Date()) {
-                    self.recoveryDormantUntil = Date().addingTimeInterval(
+                visibilityFlapDetector.record(itemsHealthy: recoveryReason == nil, at: Date())
+                if visibilityFlapDetector.isFlapping(now: Date()) {
+                    recoveryDormantUntil = Date().addingTimeInterval(
                         MenuBarVisibilityFlapDetector.defaultDormancySeconds
                     )
-                    self.manager.pendingRecoveryHideRestore = false
+                    manager.pendingRecoveryHideRestore = false
                     logger.error(
                         "macOS appears to be flapping status-item visibility — standing down recovery for \(Int(MenuBarVisibilityFlapDetector.defaultDormancySeconds), privacy: .public)s. If SaneBar's icons are missing, check System Settings > Menu Bar > Allow in Menu Bar for SaneBar."
                     )
@@ -655,14 +708,14 @@ final class MenuBarStatusItemRecoveryWorkflow {
                 lastAlwaysHiddenNeedsRepair = alwaysHiddenNeedsRepair
 
                 if recoveryReason == nil, !alwaysHiddenNeedsRepair {
-                    let capturedBackup = await self.captureCurrentDisplayBackupAfterStableValidation(snapshot: snapshot)
+                    let capturedBackup = await captureCurrentDisplayBackupAfterStableValidation(snapshot: snapshot)
                     if !capturedBackup {
                         logger.warning(
                             "Status item validation reached a healthy layout without a current-width backup for \(context.rawValue, privacy: .public)"
                         )
                     }
-                    self.manager.restoreHiddenStateAfterHealthyValidationIfNeeded(reason: "healthy-validation-\(context.rawValue)")
-                    self.manager.schedulePostRecoveryVisibilityIntentReplay(reason: "healthy-validation-\(context.rawValue)")
+                    manager.restoreHiddenStateAfterHealthyValidationIfNeeded(reason: "healthy-validation-\(context.rawValue)")
+                    manager.schedulePostRecoveryVisibilityIntentReplay(reason: "healthy-validation-\(context.rawValue)")
                     if attempt > 1 {
                         logger.info("Status item position validation recovered after \(attempt, privacy: .public) checks")
                     }
@@ -670,13 +723,26 @@ final class MenuBarStatusItemRecoveryWorkflow {
                 }
 
                 if alwaysHiddenNeedsRepair {
-                    self.logAlwaysHiddenSeparatorRecoveryNeed(
+                    logAlwaysHiddenSeparatorRecoveryNeed(
                         snapshot: snapshot,
                         prefix: "Status item validation"
                     )
-                    self.manager.alwaysHiddenPinWorkflow.repairSeparatorPositionIfNeeded(reason: "position-validation-\(context.rawValue)")
+                    // FM-2 (#136/#168): the AH-pin hard-recovery branch inside
+                    // repairSeparatorPositionIfNeeded falls through to
+                    // recoverStartupPositions. Reuse the first fix's provenance gate
+                    // so this path preserves the explicit persisted divider on
+                    // wake / Space / manual-restore and only reanchors on genuine
+                    // startup / display-topology. preserve = NOT shouldReanchor.
+                    let preserveExplicitPositions = !MenuBarManager
+                        .shouldReanchorPersistedPositionsForStatusItemRecovery(
+                            validationContext: context
+                        )
+                    manager.alwaysHiddenPinWorkflow.repairSeparatorPositionIfNeeded(
+                        reason: "position-validation-\(context.rawValue)",
+                        preserveExplicitPersistedPositions: preserveExplicitPositions
+                    )
                 } else {
-                    self.logStatusItemRecoveryReason(
+                    logStatusItemRecoveryReason(
                         recoveryReason,
                         snapshot: snapshot,
                         prefix: "Status item validation"
@@ -688,7 +754,7 @@ final class MenuBarStatusItemRecoveryWorkflow {
                 }
             }
 
-            guard self.manager.positionValidationGeneration == validationGeneration else {
+            guard manager.positionValidationGeneration == validationGeneration else {
                 logger.debug("Skipping stale recovery escalation for \(context.rawValue, privacy: .public)")
                 return
             }
@@ -702,7 +768,7 @@ final class MenuBarStatusItemRecoveryWorkflow {
                     recoveryCount: recoveryCount,
                     maxRecoveryCount: MenuBarManager.maxStatusItemRecoveryCount
                 )
-                self.executeStatusItemRecoveryAction(
+                executeStatusItemRecoveryAction(
                     action,
                     trigger: "always-hidden-position-validation-\(context.rawValue)",
                     validationContext: context,
@@ -712,7 +778,7 @@ final class MenuBarStatusItemRecoveryWorkflow {
                 return
             }
 
-            let snapshot = lastSnapshot ?? self.currentStatusItemRecoverySnapshot()
+            let snapshot = lastSnapshot ?? currentStatusItemRecoverySnapshot()
             let action = MenuBarOperationCoordinator.statusItemRecoveryAction(
                 snapshot: snapshot,
                 context: .positionValidation(context),
@@ -724,7 +790,7 @@ final class MenuBarStatusItemRecoveryWorkflow {
                 validationContext: context,
                 action: action
             ) {
-                self.manager.markWakeVisibleAllowListReplayPending(
+                manager.markWakeVisibleAllowListReplayPending(
                     reason: "runtime-attachment-loss-\(context.rawValue)"
                 )
             }
@@ -743,7 +809,7 @@ final class MenuBarStatusItemRecoveryWorkflow {
                 )
             }
 
-            self.executeStatusItemRecoveryAction(
+            executeStatusItemRecoveryAction(
                 action,
                 trigger: "position-validation-\(context.rawValue)",
                 validationContext: context,
@@ -752,7 +818,7 @@ final class MenuBarStatusItemRecoveryWorkflow {
             )
 
             if action == .waitForLiveAnchor {
-                self.schedulePositionValidation(context: context, recoveryCount: recoveryCount + 1)
+                schedulePositionValidation(context: context, recoveryCount: recoveryCount + 1)
             }
         }
     }

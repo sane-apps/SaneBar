@@ -1,1 +1,0 @@
-../../../infra/SaneProcess/scripts/sign_update.swift

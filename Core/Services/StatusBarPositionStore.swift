@@ -10,14 +10,27 @@ enum StatusBarPositionStore {
     nonisolated static func autosaveNamesForCleanup(version: Int) -> [String] {
         ["SaneBar_Main_v\(version)", "SaneBar_Separator_v\(version)", "SaneBar_AlwaysHiddenSeparator_v\(version)"]
     }
+
     nonisolated static var autosaveVersion: Int {
         let stored = UserDefaults.standard.integer(forKey: autosaveVersionKey)
         return stored > 0 ? stored : baseAutosaveVersion
     }
-    nonisolated static var mainAutosaveName: String { "SaneBar_Main_v\(autosaveVersion)" }
-    nonisolated static var separatorAutosaveName: String { "SaneBar_Separator_v\(autosaveVersion)" }
-    nonisolated static var alwaysHiddenSeparatorAutosaveName: String { "SaneBar_AlwaysHiddenSeparator_v\(autosaveVersion)" }
-    nonisolated static func spacerAutosaveName(index: Int) -> String { "SaneBar_spacer_\(index)" }
+
+    nonisolated static var mainAutosaveName: String {
+        "SaneBar_Main_v\(autosaveVersion)"
+    }
+
+    nonisolated static var separatorAutosaveName: String {
+        "SaneBar_Separator_v\(autosaveVersion)"
+    }
+
+    nonisolated static var alwaysHiddenSeparatorAutosaveName: String {
+        "SaneBar_AlwaysHiddenSeparator_v\(autosaveVersion)"
+    }
+
+    nonisolated static func spacerAutosaveName(index: Int) -> String {
+        "SaneBar_spacer_\(index)"
+    }
 
     nonisolated static let screenWidthKey = "SaneBar_CalibratedScreenWidth"
     nonisolated static let positionBackupKeyPrefix = "SaneBar_Position_Backup"
@@ -297,7 +310,25 @@ enum StatusBarPositionStore {
         let maxSeparator = max(safeMainLimit + 24.0, screenWidth - 24.0)
         let maxGap = max(24.0, maxSeparator - safeMainLimit)
         let preservedGap = min(max(24.0, separatorPosition - mainPosition), maxGap)
-        return (main: safeMainLimit, separator: safeMainLimit + preservedGap)
+        let fm2Result = (main: safeMainLimit, separator: safeMainLimit + preservedGap)
+        // FM2_TRACE — TEMPORARY DIAGNOSTIC (#136/#168). Remove before ship.
+        // Fires only when a pixel-like position is actually clamped toward Control
+        // Center (e.g. main 900 -> 144). The call stack identifies the writer that
+        // will then persist the clamped pair on the wake / live-geometry path.
+        os_log(
+            "FM2_TRACE reanchorTowardControlCenter mainIn=%{public}f sepIn=%{public}f -> mainOut=%{public}f sepOut=%{public}f width=%{public}f frames=%{public}@",
+            log: OSLog(subsystem: "com.sanebar.app", category: "FM2_TRACE"),
+            // FM2_TRACE TEMPORARY (#136/#168): .default persists to the unified-log
+            // store that `log show` reads; .info does not. Remove before ship.
+            type: .default,
+            mainPosition,
+            separatorPosition,
+            fm2Result.main,
+            fm2Result.separator,
+            screenWidth,
+            Thread.callStackSymbols.dropFirst().prefix(6).joined(separator: " | ")
+        )
+        return fm2Result
     }
 
     nonisolated static func launchSafePreferredSeparatorGap(for screenWidth: Double) -> Double {
@@ -307,7 +338,7 @@ enum StatusBarPositionStore {
         // items wake up hidden. macOS can canonicalize preferred-position
         // values after status item creation, so leave enough extra gap that the
         // live lane remains usable after that rewrite.
-        if screenWidth >= 1_800 {
+        if screenWidth >= 1800 {
             return min(260.0, max(220.0, screenWidth * 0.10))
         }
 
@@ -758,5 +789,4 @@ enum StatusBarPositionStore {
         }
         return false
     }
-
 }

@@ -4,6 +4,11 @@ struct BrowsePanelMoveContext {
     let isAlwaysHiddenEnabled: Bool
     let manager: MenuBarManager
     let setMovingAppID: (String?) -> Void
+    /// Records the app whose move resolved to a non-silent, retryable failure so
+    /// the Second Menu Bar can surface a "couldn't move — try again" affordance
+    /// instead of silently clearing the in-flight indicator. Informational only:
+    /// this never synthesizes input or mutates geometry.
+    var recordFailedMove: (String?) -> Void = { _ in }
 }
 
 enum BrowsePanelMoveQueue {
@@ -14,31 +19,36 @@ enum BrowsePanelMoveQueue {
     ) -> MenuBarZoneMoveRequest? {
         switch (sourceZone, targetZone) {
         case (.visible, .hidden):
-            return .visibleToHidden
+            .visibleToHidden
         case (.hidden, .visible):
-            return .hiddenToVisible
+            .hiddenToVisible
         case (.visible, .alwaysHidden):
-            return isAlwaysHiddenEnabled ? .visibleToAlwaysHidden : nil
+            isAlwaysHiddenEnabled ? .visibleToAlwaysHidden : nil
         case (.hidden, .alwaysHidden):
-            return isAlwaysHiddenEnabled ? .hiddenToAlwaysHidden : nil
+            isAlwaysHiddenEnabled ? .hiddenToAlwaysHidden : nil
         case (.alwaysHidden, .visible):
-            return .alwaysHiddenToVisible
+            .alwaysHiddenToVisible
         case (.alwaysHidden, .hidden):
-            return .alwaysHiddenToHidden
+            .alwaysHiddenToHidden
         case (.visible, .visible), (.hidden, .hidden), (.alwaysHidden, .alwaysHidden):
-            return nil
+            nil
         }
     }
 
     @MainActor
     static func observeMoveResult(
         _ task: Task<Bool, Never>,
-        setMovingAppID: @escaping (String?) -> Void
+        appID: String? = nil,
+        setMovingAppID: @escaping (String?) -> Void,
+        recordFailedMove: @escaping (String?) -> Void = { _ in }
     ) {
         Task { @MainActor in
             let moved = await task.value
             if !moved {
                 setMovingAppID(nil)
+                // Non-silent, retryable failure: surface the failed app so the
+                // UI can offer a retry. Informational only — no synthetic input.
+                recordFailedMove(appID)
             }
         }
     }
@@ -64,7 +74,12 @@ enum BrowsePanelMoveQueue {
               ) else { return false }
 
         context.setMovingAppID(app.uniqueId)
-        observeMoveResult(task, setMovingAppID: context.setMovingAppID)
+        observeMoveResult(
+            task,
+            appID: app.uniqueId,
+            setMovingAppID: context.setMovingAppID,
+            recordFailedMove: context.recordFailedMove
+        )
         return true
     }
 
@@ -90,9 +105,15 @@ enum BrowsePanelMoveQueue {
                 physicalMoveOrigin: .explicitUserAction
             ) else {
                 context.setMovingAppID(nil)
+                context.recordFailedMove(app.uniqueId)
                 return
             }
-            observeMoveResult(task, setMovingAppID: context.setMovingAppID)
+            observeMoveResult(
+                task,
+                appID: app.uniqueId,
+                setMovingAppID: context.setMovingAppID,
+                recordFailedMove: context.recordFailedMove
+            )
         }
         return true
     }
@@ -121,7 +142,12 @@ enum BrowsePanelMoveQueue {
         }
 
         context.setMovingAppID(sourceApp.uniqueId)
-        observeMoveResult(task, setMovingAppID: context.setMovingAppID)
+        observeMoveResult(
+            task,
+            appID: sourceApp.uniqueId,
+            setMovingAppID: context.setMovingAppID,
+            recordFailedMove: context.recordFailedMove
+        )
         return true
     }
 

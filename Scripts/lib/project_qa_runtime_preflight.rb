@@ -187,6 +187,14 @@ class ProjectQA
 
       smoke_env = {
         'SANEBAR_SMOKE_REQUIRE_ALWAYS_HIDDEN' => '1',
+        # FM-1 (#155/#156/#166): drive an outbound Always-Hidden move from a
+        # GENUINELY hidden separator and assert the icon leaves Always Hidden.
+        # DEFAULT-ON and release-blocking: the live_zone_smoke FM-1 gate runs on
+        # every normal runtime smoke / customer_ui_sweep / release_preflight pass
+        # without anyone setting an env flag. To DISABLE for a focused unrelated
+        # run only, export SANEBAR_SMOKE_DISABLE_HIDDEN_OUTBOUND_AH=1; the default
+        # stays ON so a no-op hidden-outbound move keeps the release red.
+        'SANEBAR_SMOKE_REQUIRE_HIDDEN_OUTBOUND_AH' => hidden_outbound_ah_gate_enabled? ? '1' : '0',
         'SANEBAR_SMOKE_REQUIRE_ALL_ZONES' => '1',
         'SANEBAR_SMOKE_REQUIRE_CANDIDATE' => '1',
         'SANEBAR_SMOKE_SKIP_MOVE_CHECKS' => '0',
@@ -434,6 +442,13 @@ class ProjectQA
         'SANEBAR_WAKE_PROBE_ARTIFACT_PATH' => RUNTIME_WAKE_PROBE_ARTIFACT_PATH,
         'SANEBAR_WAKE_PROBE_DYNAMIC_HELPER_IDS' => dynamic_helper_ids.join(','),
         'SANEBAR_WAKE_PROBE_REQUIRED_VISIBLE_IDS' => visible_dynamic_helper_ids.join(','),
+        # FM-2: explicit far-from-Control-Center divider survives wake/validation
+        # churn. DEFAULT-ON and release-blocking — the wake probe runs this case
+        # unless a focused unrelated run opts out with
+        # SANEBAR_WAKE_PROBE_EXPLICIT_DIVIDER_SURVIVAL=0. A failure aborts the
+        # probe (status fail) which becomes a release-blocking @errors entry below.
+        'SANEBAR_WAKE_PROBE_EXPLICIT_DIVIDER_SURVIVAL' =>
+          ENV.fetch('SANEBAR_WAKE_PROBE_EXPLICIT_DIVIDER_SURVIVAL', '1'),
         'SANEBAR_RUNTIME_TARGET_LOCK_BYPASS' => '1'
       }
       wake_probe_env.merge!(runtime_probe_no_keychain_env(target))
@@ -1186,6 +1201,17 @@ class ProjectQA
     smoke_output.include?("Icon 'com.apple.menuextra.") &&
       smoke_output.include?('not found') &&
       smoke_output.include?('activate browse icon failed')
+  end
+
+  # FM-1 hidden-outbound Always-Hidden move gate. Default-ON and release-blocking:
+  # the gate enforces on every normal runtime smoke unless a focused unrelated run
+  # explicitly opts out via SANEBAR_SMOKE_DISABLE_HIDDEN_OUTBOUND_AH=1. The legacy
+  # explicit opt-in (SANEBAR_SMOKE_REQUIRE_HIDDEN_OUTBOUND_AH=1) is still honored
+  # but no longer required; the default now provides the guard.
+  def hidden_outbound_ah_gate_enabled?
+    return false if ENV['SANEBAR_SMOKE_DISABLE_HIDDEN_OUTBOUND_AH'] == '1'
+
+    true
   end
 
   def retryable_stability_suite_failure?(output)
