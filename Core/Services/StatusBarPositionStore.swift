@@ -310,25 +310,7 @@ enum StatusBarPositionStore {
         let maxSeparator = max(safeMainLimit + 24.0, screenWidth - 24.0)
         let maxGap = max(24.0, maxSeparator - safeMainLimit)
         let preservedGap = min(max(24.0, separatorPosition - mainPosition), maxGap)
-        let fm2Result = (main: safeMainLimit, separator: safeMainLimit + preservedGap)
-        // FM2_TRACE — TEMPORARY DIAGNOSTIC (#136/#168). Remove before ship.
-        // Fires only when a pixel-like position is actually clamped toward Control
-        // Center (e.g. main 900 -> 144). The call stack identifies the writer that
-        // will then persist the clamped pair on the wake / live-geometry path.
-        os_log(
-            "FM2_TRACE reanchorTowardControlCenter mainIn=%{public}f sepIn=%{public}f -> mainOut=%{public}f sepOut=%{public}f width=%{public}f frames=%{public}@",
-            log: OSLog(subsystem: "com.sanebar.app", category: "FM2_TRACE"),
-            // FM2_TRACE TEMPORARY (#136/#168): .default persists to the unified-log
-            // store that `log show` reads; .info does not. Remove before ship.
-            type: .default,
-            mainPosition,
-            separatorPosition,
-            fm2Result.main,
-            fm2Result.separator,
-            screenWidth,
-            Thread.callStackSymbols.dropFirst().prefix(6).joined(separator: " | ")
-        )
-        return fm2Result
+        return (main: safeMainLimit, separator: safeMainLimit + preservedGap)
     }
 
     nonisolated static func launchSafePreferredSeparatorGap(for screenWidth: Double) -> Double {

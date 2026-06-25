@@ -271,22 +271,6 @@ enum StatusBarPositionRecoveryStore {
         referenceScreen: NSScreen? = nil,
         preserveExplicitPersistedPositions: Bool = false
     ) {
-        // FM2_TRACE — TEMPORARY DIAGNOSTIC (#136/#168). Remove before ship.
-        // Records the preserve flag and the current persisted main value on entry
-        // so the probe can see whether the ungated (preserve=false) branch — which
-        // falls through to reanchorCurrentDisplayPositionsIfNeeded — was taken on
-        // the wake path. A preserve=false entry here with an explicit main (e.g.
-        // 900) is the smoking gun.
-        os_log(
-            "FM2_TRACE recoverStartupPositions preserveExplicit=%{public}@ persistedMainNow=%{public}@ frames=%{public}@",
-            log: OSLog(subsystem: "com.sanebar.app", category: "FM2_TRACE"),
-            // FM2_TRACE TEMPORARY (#136/#168): .default persists to the unified-log
-            // store that `log show` reads; .info does not. Remove before ship.
-            type: .default,
-            preserveExplicitPersistedPositions ? "true" : "false",
-            StatusBarPositionDefaultsStore.resolvedPreferredPosition(forAutosaveName: StatusBarPositionStore.mainAutosaveName).map { String($0) } ?? "nil",
-            Thread.callStackSymbols.dropFirst().prefix(6).joined(separator: " | ")
-        )
         if preserveExplicitPersistedPositions {
             logger.info("Wake/Space validation recovery: preserving explicit persisted positions (no reanchor toward Control Center)")
             if alwaysHiddenEnabled {
