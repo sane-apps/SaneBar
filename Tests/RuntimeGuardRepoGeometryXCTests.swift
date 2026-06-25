@@ -165,12 +165,16 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
             "Startup path should guard against duplicate app instances"
         )
         XCTAssertTrue(
-            source.contains("static func duplicateLaunchResolution(othersAtLaunch: Int, othersAfterGrace: Int?) -> DuplicateLaunchResolution"),
-            "Duplicate-launch guard should only terminate when another live instance is detected"
+            source.contains("static func duplicateLaunchResolution("),
+            "Duplicate-launch guard should expose the pure resolution decision"
         )
+        // Version-aware resolution: the NEWEST build must win so a Sparkle update
+        // relaunch is never killed by a slow-quitting or wedged older instance
+        // (the "stuck on the old version / updates one-at-a-time" bug). Behavioral
+        // coverage lives in DuplicateLaunchDecisionTests; this is a structure tripwire.
         XCTAssertTrue(
-            source.contains("return othersAfterGrace > 0 ? .terminateCurrent : .noConflict"),
-            "Duplicate-launch resolution should only terminate when another instance remains after grace period"
+            source.contains("currentBuild > maxSurvivingBuild ? .terminateOthers : .terminateCurrent"),
+            "Duplicate-launch resolution must keep the newest build (terminate stale others), not blindly terminate the current launch"
         )
         XCTAssertTrue(
             source.contains("NSApp.terminate(nil)"),
