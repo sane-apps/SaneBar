@@ -1,6 +1,12 @@
 @testable import SaneBar
 import XCTest
 
+// NOTE: source-fingerprint guards — see docs/TEST_BLINDNESS_AUDIT.md. These assert
+// `source.contains(...)` against product files (STRUCTURE, not runtime). They are
+// "don't delete the fix" tripwires only; the real behavioral coverage for the
+// recovery / FM-2 explicit-divider-survival contract is the FM-1/FM-2 runtime gates
+// plus StatusBarWakeExplicitPositionTests.
+
 @MainActor
 final class RuntimeGuardStartupRecoveryXCTests: RuntimeGuardTestCase {
     func testRightClickPathAttemptsAXShowMenuBeforeHardwareFallback() throws {
@@ -99,11 +105,11 @@ final class RuntimeGuardStartupRecoveryXCTests: RuntimeGuardTestCase {
         )
 
         XCTAssertTrue(
-                recoverySource.contains("statusItemValidationMaxAttempts(context: context)") &&
+            recoverySource.contains("statusItemValidationMaxAttempts(context: context)") &&
                 recoverySource.contains("statusItemValidationRetryDelaySeconds(context: context)") &&
-                recoverySource.contains("case .startupFollowUp, .screenParametersChanged, .activeSpaceChanged, .wakeResume:\n            return 6") &&
-                recoverySource.contains("case .startupFollowUp, .screenParametersChanged, .activeSpaceChanged, .wakeResume:\n            return 0.5") &&
-                recoverySource.contains("case .activeSpaceChanged:\n            return recoveryCount == 0 ? 2.0 : 2.5"),
+                recoverySource.contains("case .startupFollowUp, .screenParametersChanged, .activeSpaceChanged, .wakeResume:\n            6") &&
+                recoverySource.contains("case .startupFollowUp, .screenParametersChanged, .activeSpaceChanged, .wakeResume:\n            0.5") &&
+                recoverySource.contains("case .activeSpaceChanged:\n            recoveryCount == 0 ? 2.0 : 2.5"),
             "Startup position validation should retry before escalating to autosave recovery"
         )
         XCTAssertTrue(
@@ -134,8 +140,14 @@ final class RuntimeGuardStartupRecoveryXCTests: RuntimeGuardTestCase {
                 recoverySource.contains("alwaysHiddenMisorderNeedsRecovery(") &&
                 recoverySource.contains("let liveSeparatorFrame = manager.geometryResolver.currentLiveSeparatorFrame()") &&
                 recoverySource.contains("let liveAlwaysHiddenFrame = manager.geometryResolver.currentLiveAlwaysHiddenSeparatorFrame()") &&
-                recoverySource.contains("alwaysHiddenPinWorkflow.repairSeparatorPositionIfNeeded(reason: \"position-validation-\\(context.rawValue)\")"),
-            "Position validation should repair a misordered always-hidden separator only from live separator frames before it blesses the layout as stable"
+                recoverySource.contains("alwaysHiddenPinWorkflow.repairSeparatorPositionIfNeeded(") &&
+                recoverySource.contains("reason: \"position-validation-\\(context.rawValue)\"") &&
+                // FM-2 (#136/#168): the validation loop must forward the provenance
+                // decision so the AH-pin hard-recovery branch preserves the explicit
+                // divider on wake/Space and only reanchors on startup/topology.
+                recoverySource.contains("preserveExplicitPersistedPositions: preserveExplicitPositions") &&
+                recoverySource.contains("!MenuBarManager\n                        .shouldReanchorPersistedPositionsForStatusItemRecovery("),
+            "Position validation should repair a misordered always-hidden separator only from live separator frames before it blesses the layout as stable, forwarding the explicit-position provenance decision"
         )
         XCTAssertTrue(
             recoverySource.contains("captureCurrentDisplayBackupAfterStableValidation(") &&
@@ -214,8 +226,9 @@ final class RuntimeGuardStartupRecoveryXCTests: RuntimeGuardTestCase {
         )
         XCTAssertTrue(
             positionRecoverySource.contains("StatusBarPositionStore.resolvedReferenceScreen(referenceScreen)") &&
-                controllerSource.contains("let screenFrame = window?.screen?.frame ?? StatusBarPositionStore.resolvedReferenceScreen()?.frame"),
-            "Startup validation and backup recovery should route through the shared reference-screen resolver"
+                controllerSource.contains("MenuBarMoveGeometryPolicy.resolvedScreenFrameForStatusItemWindow(") &&
+                controllerSource.contains("candidateScreenFrames:"),
+            "Startup validation must resolve a status-item window's screen against EVERY screen's band (multi-display nil-screen recovery — the #136/#165/#166 external-monitor fix), not a single reference screen"
         )
     }
 
@@ -346,7 +359,7 @@ final class RuntimeGuardStartupRecoveryXCTests: RuntimeGuardTestCase {
         let appearanceSource = try String(contentsOf: appearanceURL, encoding: .utf8)
 
         XCTAssertTrue(
-                observerSource.contains("manager.clearCachedSeparatorGeometryForLifecycleTransition(reason: \"screenParametersChanged\")") &&
+            observerSource.contains("manager.clearCachedSeparatorGeometryForLifecycleTransition(reason: \"screenParametersChanged\")") &&
                 observerSource.contains("manager.cancelVisibilityIntentReplayTask(reason: \"screenParametersChanged\")") &&
                 !observerSource.contains("manager.cancelWakeVisibleAllowListReplay(reason: \"screenParametersChanged\")") &&
                 source.contains("Preserving cached separator geometry during") &&
@@ -386,10 +399,10 @@ final class RuntimeGuardStartupRecoveryXCTests: RuntimeGuardTestCase {
                 !observerSource.contains("manager.schedulePostRecoveryVisibilityIntentReplay(reason: \"screenParametersChanged\")") &&
                 recoverySource.contains("restoreHiddenStateAfterHealthyValidationIfNeeded(reason: \"healthy-validation-\\(context.rawValue)\")") &&
                 recoverySource.contains("schedulePostRecoveryVisibilityIntentReplay(reason: \"healthy-validation-\\(context.rawValue)\")") &&
-                source.contains("self.schedulePostRecoveryAutoRehideIfNeeded(reason: \"\\(replayReasonBase)-replay-gave-up\")") &&
+                source.contains("schedulePostRecoveryAutoRehideIfNeeded(reason: \"\\(replayReasonBase)-replay-gave-up\")") &&
                 !source.contains("settings.layoutMode == .live") &&
                 recoverySource.contains("positionValidationGeneration += 1") &&
-                recoverySource.contains("guard self.manager.positionValidationGeneration == validationGeneration else"),
+                recoverySource.contains("guard manager.positionValidationGeneration == validationGeneration else"),
             "Screen and wake topology changes should invalidate stale validation work while preserving trustworthy hidden-state anchors, rearm auto-rehide after wake movement, then replay visibility intent only after wake-aware validation confirms healthy anchors"
         )
         XCTAssertTrue(
@@ -403,7 +416,7 @@ final class RuntimeGuardStartupRecoveryXCTests: RuntimeGuardTestCase {
         let wakeProbeURL = projectRootURL().appendingPathComponent("Scripts/wake_layout_probe.rb")
         let wakeProbeSource = try String(contentsOf: wakeProbeURL, encoding: .utf8)
         XCTAssertTrue(
-                wakeProbeSource.contains("SNAPSHOT_SETTLE_TIMEOUT_SECONDS") &&
+            wakeProbeSource.contains("SNAPSHOT_SETTLE_TIMEOUT_SECONDS") &&
                 wakeProbeSource.contains("SNAPSHOT_SETTLE_TIMEOUT_SECONDS = 18.0") &&
                 wakeProbeSource.contains("HIDDEN_BASELINE_TIMEOUT_SECONDS") &&
                 wakeProbeSource.contains("expected_state: 'hidden'") &&
@@ -438,7 +451,7 @@ final class RuntimeGuardStartupRecoveryXCTests: RuntimeGuardTestCase {
                 recoverySource.contains("positionValidationGeneration += 1") &&
                 setupSource.contains("let preservedHidingState: HidingState = shouldRestoreHidden ? .hidden : manager.hidingService.state") &&
                 setupSource.contains("deferApplyingState: shouldRestoreHidden") &&
-                source.contains("self.restoreHiddenStateAfterPostRecoveryGeometryWarmupIfNeeded(snapshot: snapshot)") &&
+                source.contains("restoreHiddenStateAfterPostRecoveryGeometryWarmupIfNeeded(snapshot: snapshot)") &&
                 policySource.contains("func restoreHiddenStateAfterPostRecoveryGeometryWarmupIfNeeded(snapshot: MenuBarRuntimeSnapshot)") &&
                 policySource.contains("hidingService.applyCurrentStateToLiveItems()") &&
                 setupSource.contains("Preserved hidden state during status item recovery"),
@@ -725,5 +738,4 @@ final class RuntimeGuardStartupRecoveryXCTests: RuntimeGuardTestCase {
             "Advanced Workflow should not reintroduce the oversized second-menu-bar paragraph that pushed the bottom buttons off-screen"
         )
     }
-
 }

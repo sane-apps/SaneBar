@@ -44,6 +44,17 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
         return othersAfterGrace > 0 ? .terminateCurrent : .noConflict
     }
 
+    /// Pure selection of which already-running instance to bring forward before the
+    /// just-launched duplicate exits. Picking the oldest survivor (lowest pid is a stable,
+    /// dependency-free proxy for "launched first") keeps the choice deterministic when more
+    /// than one prior instance is somehow alive, and excludes the current process so the
+    /// copy that is about to terminate never tries to activate itself.
+    static func activationTargetPID(amongOtherPIDs otherPIDs: [pid_t], currentPID: pid_t) -> pid_t? {
+        otherPIDs
+            .filter { $0 != currentPID }
+            .min()
+    }
+
     nonisolated static func shouldSkipDuplicateTerminationForAutomation(
         environment: [String: String] = ProcessInfo.processInfo.environment,
         arguments: [String] = ProcessInfo.processInfo.arguments
@@ -110,9 +121,9 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
         // Near-instant tooltips (default is ~1000ms)
         UserDefaults.standard.set(100, forKey: "NSInitialToolTipDelay")
         #if !DEBUG
-        if Self.shouldUpdateAppShortcutParameters() {
-            SaneBarAppShortcuts.updateAppShortcutParameters()
-        }
+            if Self.shouldUpdateAppShortcutParameters() {
+                SaneBarAppShortcuts.updateAppShortcutParameters()
+            }
         #endif
 
         // Keep the menu bar process alive across idle periods.
@@ -185,7 +196,7 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
             writeAutomationLifecycleBreadcrumb("applicationShouldTerminate cancel unexpected")
             return .terminateCancel
         }
-        if automationExplicitTerminationRequested && !explicitTerminationRequested {
+        if automationExplicitTerminationRequested, !explicitTerminationRequested {
             requestExplicitTermination(reason: "automation-marker")
         }
 
@@ -270,10 +281,10 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
 
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: Self.duplicateLaunchGraceNanoseconds)
-            let remainingOthers = runningDuplicateInstances(bundleID: bundleID, currentPID: currentPID).count
+            let remainingOthers = runningDuplicateInstances(bundleID: bundleID, currentPID: currentPID)
             let finalResolution = Self.duplicateLaunchResolution(
                 othersAtLaunch: initialOthers.count,
-                othersAfterGrace: remainingOthers
+                othersAfterGrace: remainingOthers.count
             )
 
             switch finalResolution {
@@ -283,11 +294,30 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
                 break
             case .terminateCurrent:
                 appLogger.error(
-                    "Duplicate instance still running after grace period for bundle \(bundleID, privacy: .public). Terminating current launch."
+                    "Duplicate instance still running after grace period for bundle \(bundleID, privacy: .public). Activating existing instance and terminating current launch."
                 )
+                activateSurvivingInstance(among: remainingOthers, currentPID: currentPID)
                 NSApp.terminate(nil)
             }
         }
+    }
+
+    /// Bring the already-running SaneBar instance forward so a customer who double-launched
+    /// (login-item instance + a freshly downloaded copy) sees the app respond instead of the
+    /// new copy silently vanishing. Side-effect-free on the normal single-launch path: this
+    /// only runs inside the `.terminateCurrent` branch, which requires another live instance.
+    @MainActor
+    private func activateSurvivingInstance(among others: [NSRunningApplication], currentPID: pid_t) {
+        let targetPID = Self.activationTargetPID(
+            amongOtherPIDs: others.map(\.processIdentifier),
+            currentPID: currentPID
+        )
+        guard let targetPID,
+              let target = others.first(where: { $0.processIdentifier == targetPID })
+        else {
+            return
+        }
+        target.activate(options: [.activateAllWindows])
     }
 
     func application(_: NSApplication, open urls: [URL]) {
@@ -444,7 +474,8 @@ enum SettingsOpener {
     @MainActor static func captureSnapshotPNG(to path: String) async -> Bool {
         guard let window = settingsWindow,
               window.isVisible,
-              let outputURL = snapshotOutputURL(for: path) else {
+              let outputURL = snapshotOutputURL(for: path)
+        else {
             return false
         }
 
@@ -523,7 +554,8 @@ enum SettingsOpener {
 
     @MainActor private static func captureWindowPNGData(window: NSWindow) async -> Data? {
         guard #available(macOS 14.4, *),
-              let cgImage = await captureWindowImage(window: window) else {
+              let cgImage = await captureWindowImage(window: window)
+        else {
             return nil
         }
 
@@ -540,7 +572,8 @@ enum SettingsOpener {
         let bounds = contentView.bounds.integral
         guard bounds.width > 0,
               bounds.height > 0,
-              let bitmap = contentView.bitmapImageRepForCachingDisplay(in: bounds) else {
+              let bitmap = contentView.bitmapImageRepForCachingDisplay(in: bounds)
+        else {
             return nil
         }
 
@@ -555,31 +588,31 @@ enum SettingsOpener {
             _ = window
             return nil
         #else
-        do {
-            let shareableContent = try await SCShareableContent.currentProcess
-            guard let shareableWindow = shareableContent.windows.first(where: { $0.windowID == CGWindowID(window.windowNumber) }) else {
-                return nil
-            }
+            do {
+                let shareableContent = try await SCShareableContent.currentProcess
+                guard let shareableWindow = shareableContent.windows.first(where: { $0.windowID == CGWindowID(window.windowNumber) }) else {
+                    return nil
+                }
 
-            let filter = SCContentFilter(desktopIndependentWindow: shareableWindow)
-            let config = SCStreamConfiguration()
-            let scale = window.screen?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2
-            config.width = max(1, Int(window.frame.width * scale))
-            config.height = max(1, Int(window.frame.height * scale))
+                let filter = SCContentFilter(desktopIndependentWindow: shareableWindow)
+                let config = SCStreamConfiguration()
+                let scale = window.screen?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2
+                config.width = max(1, Int(window.frame.width * scale))
+                config.height = max(1, Int(window.frame.height * scale))
 
-            return try await withCheckedThrowingContinuation { continuation in
-                SCScreenshotManager.captureImage(contentFilter: filter, configuration: config) { image, error in
-                    if let error {
-                        continuation.resume(throwing: error)
-                    } else {
-                        continuation.resume(returning: image)
+                return try await withCheckedThrowingContinuation { continuation in
+                    SCScreenshotManager.captureImage(contentFilter: filter, configuration: config) { image, error in
+                        if let error {
+                            continuation.resume(throwing: error)
+                        } else {
+                            continuation.resume(returning: image)
+                        }
                     }
                 }
+            } catch {
+                appLogger.error("Failed to capture settings window via ScreenCaptureKit: \(error.localizedDescription, privacy: .public)")
+                return nil
             }
-        } catch {
-            appLogger.error("Failed to capture settings window via ScreenCaptureKit: \(error.localizedDescription, privacy: .public)")
-            return nil
-        }
         #endif
     }
 }

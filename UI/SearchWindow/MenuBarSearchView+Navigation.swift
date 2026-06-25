@@ -125,7 +125,13 @@ extension MenuBarSearchView {
         BrowsePanelMoveContext(
             isAlwaysHiddenEnabled: isAlwaysHiddenEnabled,
             manager: menuBarManager,
-            setMovingAppID: { movingAppId = $0 }
+            setMovingAppID: {
+                movingAppId = $0
+                // A fresh in-flight move clears any stale failure marker so a
+                // retry doesn't keep showing the previous failure affordance.
+                if $0 != nil { lastFailedMoveAppId = nil }
+            },
+            recordFailedMove: { lastFailedMoveAppId = $0 }
         )
     }
 
@@ -219,5 +225,4 @@ extension MenuBarSearchView {
             self.isSearchFieldFocused = true
         }
     }
-
 }

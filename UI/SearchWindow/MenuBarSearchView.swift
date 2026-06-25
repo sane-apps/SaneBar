@@ -43,6 +43,9 @@ struct MenuBarSearchView: View {
     @State private var selectedGroupId: UUID?
     @State private var selectedSmartCategory: AppCategory?
     @State var movingAppId: String?
+    /// Set when a move resolves to a non-silent, retryable failure so the row can
+    /// surface a "couldn't move — try again" affordance instead of going silent.
+    @State var lastFailedMoveAppId: String?
     /// Set after a move completes so the next tab switch does a fresh scan
     @State private var needsPostMoveRefresh = false
     @State private var showingCrowdedVisibleHint = false
@@ -255,7 +258,7 @@ struct MenuBarSearchView: View {
             accentHighlight: accentHighlight,
             onSearchHidden: { searchText = "" },
             onModeSelected: { selectedMode in
-                if selectedMode == .alwaysHidden && !isAlwaysHiddenEnabled {
+                if selectedMode == .alwaysHidden, !isAlwaysHiddenEnabled {
                     proUpsellFeature = .alwaysHidden
                 } else {
                     storedMode = selectedMode.rawValue
@@ -438,8 +441,8 @@ struct MenuBarSearchView: View {
         postMoveRefreshTask = Task {
             try? await Task.sleep(for: .milliseconds(320))
             await MainActor.run {
-                guard self.postMoveRefreshGeneration == generation else { return }
-                self.refreshApps(force: true)
+                guard postMoveRefreshGeneration == generation else { return }
+                refreshApps(force: true)
             }
         }
     }
@@ -499,8 +502,8 @@ struct MenuBarSearchView: View {
 
         refreshTask = Task {
             await MainActor.run {
-                guard self.refreshGeneration == generation else { return }
-                self.isRefreshing = true
+                guard refreshGeneration == generation else { return }
+                isRefreshing = true
             }
 
             if force {
@@ -527,7 +530,7 @@ struct MenuBarSearchView: View {
             }
 
             await MainActor.run {
-                guard self.refreshGeneration == generation else { return }
+                guard refreshGeneration == generation else { return }
                 defer { self.isRefreshing = false }
                 guard !Task.isCancelled else { return }
 
@@ -557,7 +560,6 @@ struct MenuBarSearchView: View {
             }
         }
     }
-
 }
 
 #Preview {

@@ -2467,90 +2467,84 @@ class LiveZoneSmokeTest < Minitest::Test
     refreshed_zones = stale_zones + [
       { zone: 'visible', movable: true, bundle: 'com.pxkan.pipit2', unique_id: 'pipit-id', name: 'Pipit' }
     ]
-    calls = []
+    move_attempts = []
 
-    smoke.define_singleton_method(:move_and_verify) do |_command, _candidate, _expected_zone|
-      calls << :move_and_verify
+    # Even when every reset/reseed move fails, the precondition must still return
+    # the live snapshot (which here already has a visible candidate) rather than
+    # aborting. The deterministic shared-fixture reset runs first and attempts
+    # canonical moves before the generic reseed.
+    smoke.define_singleton_method(:move_and_verify) do |_command, candidate, expected_zone|
+      move_attempts << [candidate[:unique_id], expected_zone]
       raise 'failed to move to Visible from notch-unsafe origin'
-    end
-    smoke.define_singleton_method(:list_icon_zones) do
-      calls << :list_icon_zones
-      refreshed_zones
-    end
-
-    returned = smoke.send(:require_representative_zone_candidates!, stale_zones)
-
-    assert_equal [:move_and_verify, :list_icon_zones], calls
-    assert_same refreshed_zones, returned
-  end
-
-  def test_visible_reseed_skips_notch_unsafe_failed_donor_and_tries_next
-    smoke = build_smoke
-    smoke.instance_variable_set(:@require_all_zones, true)
-    unsafe_donor = { zone: 'hidden', movable: true, bundle: 'com.sanebar.sharedfixture', unique_id: 'fixture-hidden-unsafe', name: 'Unsafe Fixture' }
-    safe_donor = { zone: 'hidden', movable: true, bundle: 'com.example.safe', unique_id: 'hidden-safe', name: 'Safe Hidden' }
-    zones = [
-      unsafe_donor,
-      safe_donor,
-      { zone: 'hidden', movable: true, bundle: 'com.example.hidden.keep', unique_id: 'hidden-keep', name: 'Hidden Keep' },
-      { zone: 'alwaysHidden', movable: true, bundle: 'com.sanebar.sharedfixture', unique_id: 'fixture-ah1', name: 'AH 1' },
-      { zone: 'alwaysHidden', movable: true, bundle: 'com.sanebar.sharedfixture', unique_id: 'fixture-ah2', name: 'AH 2' },
-      { zone: 'alwaysHidden', movable: true, bundle: 'com.sanebar.sharedfixture', unique_id: 'fixture-ah3', name: 'AH 3' }
-    ]
-    refreshed_after_success = [
-      unsafe_donor,
-      safe_donor.merge(zone: 'visible'),
-      zones[2],
-      *zones[3..]
-    ]
-    moved = []
-
-    smoke.define_singleton_method(:move_and_verify) do |_command, candidate, _expected_zone|
-      moved << candidate[:unique_id]
-      raise 'notch-unsafe drag source beforeMidX=642.00' if candidate[:unique_id] == unsafe_donor[:unique_id]
-    end
-    smoke.define_singleton_method(:list_icon_zones) do
-      moved.any? { |id| id != unsafe_donor[:unique_id] } ? refreshed_after_success : zones
-    end
-
-    returned = smoke.send(:require_representative_zone_candidates!, zones)
-
-    assert_equal unsafe_donor[:unique_id], moved.first
-    refute_equal unsafe_donor[:unique_id], moved[1]
-    assert_same refreshed_after_success, returned
-  end
-
-  def test_visible_reseed_preserves_always_hidden_outbound_pool
-    smoke = build_smoke
-    smoke.instance_variable_set(:@require_all_zones, true)
-    hidden_donor = { zone: 'hidden', movable: true, bundle: 'com.example.hidden.spare', unique_id: 'hidden-spare', name: 'Hidden Spare' }
-    zones = [
-      { zone: 'hidden', movable: true, bundle: 'com.example.hidden.keep', unique_id: 'hidden-keep', name: 'Hidden Keep' },
-      hidden_donor,
-      { zone: 'alwaysHidden', movable: true, bundle: 'com.sanebar.sharedfixture', unique_id: 'fixture-ah1', name: 'SaneBarSharedFixture' },
-      { zone: 'alwaysHidden', movable: true, bundle: 'com.sanebar.sharedfixture', unique_id: 'fixture-ah2', name: 'SaneBarSharedFixture' },
-      { zone: 'alwaysHidden', movable: true, bundle: 'com.sanebar.sharedfixture', unique_id: 'fixture-ah3', name: 'SaneBarSharedFixture' },
-      { zone: 'alwaysHidden', movable: true, bundle: 'com.sanebar.sharedfixture', unique_id: 'fixture-ah4', name: 'SaneBarSharedFixture' }
-    ]
-    refreshed_zones = [
-      zones[0],
-      hidden_donor.merge(zone: 'visible')
-    ] + zones[2..]
-    moved = []
-
-    smoke.define_singleton_method(:move_and_verify) do |command, candidate, expected_zone|
-      moved << [command, candidate[:unique_id], expected_zone]
     end
     smoke.define_singleton_method(:list_icon_zones) { refreshed_zones }
 
-    returned = smoke.send(:require_representative_zone_candidates!, zones)
+    returned = smoke.send(:require_representative_zone_candidates!, stale_zones)
 
-    assert_equal 1, moved.length
-    assert_equal 'move icon to visible', moved[0][0]
-    assert_match(/\Ahidden-/, moved[0][1])
-    refute_match(/\Afixture-ah/, moved[0][1])
-    assert_equal 'visible', moved[0][2]
+    # The shared-fixture reset attempts to place an SBF icon into visible.
+    assert(move_attempts.any? { |_id, zone| zone == 'visible' },
+           "expected shared-fixture reset to attempt a visible move, got #{move_attempts.inspect}")
+    assert(move_attempts.all? { |id, _zone| id.start_with?('fixture-') },
+           "reset should only move shared-fixture icons, got #{move_attempts.inspect}")
     assert_same refreshed_zones, returned
+  end
+
+  def test_shared_fixture_reset_seeds_visible_and_hidden_from_all_always_hidden_drift
+    # The exact drift that broke the gate: every movable shared-fixture candidate
+    # ended up in always-hidden, leaving visible/hidden with zero candidates. The
+    # deterministic reset must move shared-fixture icons back into visible and
+    # hidden (using the same move path) and reach the canonical layout from any
+    # drifted starting state, instead of aborting at the precondition.
+    drifted_zones = [
+      { zone: 'alwaysHidden', movable: true, bundle: 'com.sanebar.sharedfixture', unique_id: 'com.sanebar.sharedfixture.SBF-A', name: 'SBF-A' },
+      { zone: 'alwaysHidden', movable: true, bundle: 'com.sanebar.sharedfixture', unique_id: 'com.sanebar.sharedfixture.SBF-B', name: 'SBF-B' },
+      { zone: 'alwaysHidden', movable: true, bundle: 'com.sanebar.sharedfixture', unique_id: 'com.sanebar.sharedfixture.SBF-C', name: 'SBF-C' },
+      { zone: 'alwaysHidden', movable: true, bundle: 'com.sanebar.sharedfixture', unique_id: 'com.sanebar.sharedfixture.SBF-D', name: 'SBF-D' },
+      { zone: 'alwaysHidden', movable: true, bundle: 'com.sanebar.sharedfixture', unique_id: 'com.sanebar.sharedfixture.SBF-E', name: 'SBF-E' }
+    ]
+    smoke = build_smoke
+    smoke.instance_variable_set(:@require_all_zones, true)
+
+    live_zones = drifted_zones.map { |item| item.dup }
+    moved = []
+    smoke.define_singleton_method(:move_and_verify) do |_command, candidate, expected_zone|
+      moved << [candidate[:unique_id], expected_zone]
+      live_zones.find { |item| item[:unique_id] == candidate[:unique_id] }[:zone] = expected_zone
+    end
+    smoke.define_singleton_method(:list_icon_zones) { live_zones }
+
+    smoke.send(:require_representative_zone_candidates!, live_zones)
+
+    final_counts = live_zones.group_by { |item| item[:zone] }.transform_values(&:length)
+    assert_operator final_counts.fetch('visible', 0), :>=, 1, "expected visible candidate after reset, got #{final_counts.inspect}"
+    assert_operator final_counts.fetch('hidden', 0), :>=, 1, "expected hidden candidate after reset, got #{final_counts.inspect}"
+    assert_operator final_counts.fetch('alwaysHidden', 0), :>=, 3, "expected >=3 always-hidden after reset, got #{final_counts.inspect}"
+    assert(moved.any? { |_id, zone| zone == 'visible' })
+    assert(moved.any? { |_id, zone| zone == 'hidden' })
+    assert(moved.all? { |id, _zone| id.start_with?('com.sanebar.sharedfixture') })
+  end
+
+  def test_shared_fixture_reset_is_idempotent_when_layout_already_canonical
+    # Running the smoke twice in a row must both establish the baseline: when the
+    # shared fixtures already sit in the canonical layout the reset issues no
+    # moves (idempotent short-circuit) and the precondition passes.
+    canonical_zones = [
+      { zone: 'visible', movable: true, bundle: 'com.sanebar.sharedfixture', unique_id: 'com.sanebar.sharedfixture.SBF-A', name: 'SBF-A' },
+      { zone: 'hidden', movable: true, bundle: 'com.sanebar.sharedfixture', unique_id: 'com.sanebar.sharedfixture.SBF-B', name: 'SBF-B' },
+      { zone: 'alwaysHidden', movable: true, bundle: 'com.sanebar.sharedfixture', unique_id: 'com.sanebar.sharedfixture.SBF-C', name: 'SBF-C' },
+      { zone: 'alwaysHidden', movable: true, bundle: 'com.sanebar.sharedfixture', unique_id: 'com.sanebar.sharedfixture.SBF-D', name: 'SBF-D' },
+      { zone: 'alwaysHidden', movable: true, bundle: 'com.sanebar.sharedfixture', unique_id: 'com.sanebar.sharedfixture.SBF-E', name: 'SBF-E' }
+    ]
+    smoke = build_smoke
+    smoke.instance_variable_set(:@require_all_zones, true)
+    moved = []
+    smoke.define_singleton_method(:move_and_verify) { |_c, candidate, zone| moved << [candidate[:unique_id], zone] }
+    smoke.define_singleton_method(:list_icon_zones) { canonical_zones }
+
+    returned = smoke.send(:require_representative_zone_candidates!, canonical_zones)
+
+    assert_empty moved, "canonical layout should need no reset moves, got #{moved.inspect}"
+    assert_same canonical_zones, returned
   end
 
   def test_hidden_always_hidden_round_trip_uses_exact_customer_sequence
@@ -2730,5 +2724,166 @@ class LiveZoneSmokeTest < Minitest::Test
     assert_includes detail, 'lastCpu=4.2%'
     assert_includes detail, 'lastRss=88.5MB'
     assert_includes detail, 'currentMatches=none'
+  end
+
+  # --- FM-1 hidden-outbound Always-Hidden gate (#155/#156/#166) ---
+  #
+  # The gate's PRIMARY assertion is a REAL zone delta: after the product outbound move,
+  # the fixture must have LEFT `alwaysHidden`. These cases encode:
+  #   - move succeeds (icon now in expected zone) → gate assertion passes;
+  #   - move no-ops (icon still in alwaysHidden) → gate assertion FAILS;
+  #   - icon vanished after move → gate assertion FAILS.
+  # They are mocked (no live app) and never touch the unsatisfiable length-10000
+  # live-frame proxy that made the old gate blind.
+
+  FM1_GATE_CANDIDATE = {
+    zone: 'alwaysHidden',
+    movable: true,
+    bundle: 'com.sanebar.sharedfixture',
+    unique_id: 'com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-A',
+    name: 'SaneBarSharedFixture'
+  }.freeze
+
+  def build_fm1_smoke(live_zone:)
+    smoke = build_smoke
+    smoke.define_singleton_method(:resolve_live_move_identifier) { |candidate| candidate[:unique_id] }
+    smoke.define_singleton_method(:list_icon_zones) { live_zone.nil? ? [] : [live_zone] }
+    # Breadcrumb is advisory-only; stub it out so these focus on the real zone delta.
+    smoke.define_singleton_method(:maybe_note_contracted_separator_live_frame_breadcrumb) { |_zones| nil }
+    smoke
+  end
+
+  def test_fm1_zone_delta_passes_when_move_left_always_hidden
+    live_zone = FM1_GATE_CANDIDATE.merge(zone: 'visible')
+    smoke = build_fm1_smoke(live_zone: live_zone)
+
+    assert smoke.send(:assert_left_always_hidden_zone_delta!, FM1_GATE_CANDIDATE, 'visible')
+  end
+
+  def test_fm1_zone_delta_fails_when_move_no_ops_and_icon_stays_always_hidden
+    # The #155/#156/#166 bug: the move command returns but the icon never leaves AH.
+    live_zone = FM1_GATE_CANDIDATE.merge(zone: 'alwaysHidden')
+    smoke = build_fm1_smoke(live_zone: live_zone)
+
+    error = assert_raises(RuntimeError) do
+      smoke.send(:assert_left_always_hidden_zone_delta!, FM1_GATE_CANDIDATE, 'visible')
+    end
+
+    assert_match(/FM-1 ROOT CAUSE DETECTED/, error.message)
+    assert_match(/still in alwaysHidden/, error.message)
+  end
+
+  def test_fm1_zone_delta_fails_when_icon_drifts_to_wrong_zone
+    live_zone = FM1_GATE_CANDIDATE.merge(zone: 'hidden')
+    smoke = build_fm1_smoke(live_zone: live_zone)
+
+    error = assert_raises(RuntimeError) do
+      smoke.send(:assert_left_always_hidden_zone_delta!, FM1_GATE_CANDIDATE, 'visible')
+    end
+
+    assert_match(/FM-1 zone-delta assertion drifted/, error.message)
+  end
+
+  def test_fm1_zone_delta_fails_when_icon_missing_after_move
+    smoke = build_fm1_smoke(live_zone: nil)
+
+    error = assert_raises(RuntimeError) do
+      smoke.send(:assert_left_always_hidden_zone_delta!, FM1_GATE_CANDIDATE, 'visible')
+    end
+
+    assert_match(/could not find/, error.message)
+  end
+
+  def test_fm1_gate_requires_shared_fixture_candidate
+    smoke = build_smoke
+    smoke.define_singleton_method(:list_icon_zones) { [] }
+
+    error = assert_raises(RuntimeError) do
+      smoke.send(:exercise_hidden_state_outbound_always_hidden_gate, [], [])
+    end
+
+    assert_match(/requires a deterministic shared-bundle Always-Hidden candidate/, error.message)
+  end
+
+  def test_fm1_gate_raises_when_outbound_move_no_ops
+    # End-to-end-ish: the gate drives the real move via move_and_verify, which raises
+    # if the move command reports failure (the no-op bug). The gate must propagate that
+    # failure rather than passing. Here move_and_verify simulates the AH->Visible no-op.
+    smoke = build_smoke
+    move_calls = []
+    smoke.define_singleton_method(:move_and_verify) do |command, _candidate, expected_zone|
+      move_calls << [command, expected_zone]
+      # Initial stage into Always Hidden succeeds; the outbound AH->Visible no-ops.
+      if command == 'move icon to visible' && expected_zone == 'visible'
+        raise "move icon to visible returned 'false' for #{FM1_GATE_CANDIDATE[:unique_id]}"
+      end
+
+      true
+    end
+    smoke.define_singleton_method(:drive_hidden_state_for_outbound_gate!) do
+      { 'hidingState' => 'hidden', 'alwaysHiddenSeparatorLength' => 10_000 }
+    end
+
+    error = assert_raises(RuntimeError) do
+      smoke.send(:exercise_hidden_state_outbound_always_hidden_gate, [FM1_GATE_CANDIDATE], [FM1_GATE_CANDIDATE])
+    end
+
+    assert_match(/move icon to visible returned 'false'/, error.message)
+    assert_includes move_calls, ['move icon to always hidden', 'alwaysHidden']
+    assert_includes move_calls, ['move icon to visible', 'visible']
+  end
+
+  def test_fm1_gate_passes_when_outbound_moves_land_and_stick
+    smoke = build_smoke
+    # Simulate the live menu bar: the fixture follows whatever zone the last move set.
+    current_zone = { value: 'alwaysHidden' }
+    smoke.define_singleton_method(:move_and_verify) do |_command, candidate, expected_zone|
+      current_zone[:value] = expected_zone
+      true
+    end
+    smoke.define_singleton_method(:drive_hidden_state_for_outbound_gate!) do
+      { 'hidingState' => 'hidden', 'alwaysHiddenSeparatorLength' => 10_000 }
+    end
+    smoke.define_singleton_method(:resolve_live_move_identifier) { |candidate| candidate[:unique_id] }
+    smoke.define_singleton_method(:list_icon_zones) do
+      [FM1_GATE_CANDIDATE.merge(zone: current_zone[:value])]
+    end
+    smoke.define_singleton_method(:maybe_note_contracted_separator_live_frame_breadcrumb) { |_zones| nil }
+
+    assert smoke.send(:exercise_hidden_state_outbound_always_hidden_gate, [FM1_GATE_CANDIDATE], [FM1_GATE_CANDIDATE])
+  end
+
+  def test_fm1_separator_genuinely_hidden_precondition_rejects_revealed_length
+    smoke = build_smoke
+
+    error = assert_raises(RuntimeError) do
+      smoke.send(:assert_separator_genuinely_hidden!, { 'hidingState' => 'shown', 'alwaysHiddenSeparatorLength' => 14 })
+    end
+
+    assert_match(/not genuinely hidden/, error.message)
+  end
+
+  def test_fm1_breadcrumb_is_advisory_only_in_contracted_window
+    # The secondary signal must NEVER fail the gate and must only fire when the
+    # separator is contracted (length <= 14), never from the length-10000 resting state.
+    smoke = build_smoke
+    smoke.define_singleton_method(:layout_snapshot) do
+      { 'alwaysHiddenSeparatorLength' => 12, 'alwaysHiddenSeparatorLiveFrameReadable' => false }
+    end
+
+    # Returns nil (no raise) even when the live frame is not readable.
+    assert_nil smoke.send(:maybe_note_contracted_separator_live_frame_breadcrumb, [])
+  end
+
+  def test_fm1_breadcrumb_skips_when_separator_not_contracted
+    smoke = build_smoke
+    read = []
+    smoke.define_singleton_method(:layout_snapshot) do
+      read << :read
+      { 'alwaysHiddenSeparatorLength' => 10_000, 'alwaysHiddenSeparatorLiveFrameReadable' => false }
+    end
+
+    assert_nil smoke.send(:maybe_note_contracted_separator_live_frame_breadcrumb, [])
+    assert_equal [:read], read
   end
 end

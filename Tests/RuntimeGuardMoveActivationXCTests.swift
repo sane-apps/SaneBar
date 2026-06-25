@@ -185,7 +185,7 @@ final class RuntimeGuardMoveActivationXCTests: RuntimeGuardTestCase {
             "The app should report whether a menu-extra drag source is safe on the current notched or non-notched screen"
         )
         XCTAssertTrue(
-                smokeSource.contains("list icon zone geometry") &&
+            smokeSource.contains("list icon zone geometry") &&
                 smokeSource.contains("drag_source_safety") &&
                 smokeSource.contains("unsafe_always_hidden_drag_source?") &&
                 smokeSource.contains("drag_source_safe?") &&
@@ -203,17 +203,19 @@ final class RuntimeGuardMoveActivationXCTests: RuntimeGuardTestCase {
         let sourceURL = projectRootURL().appendingPathComponent("Scripts/lib/live_zone_smoke_browse_visual.rb")
         let source = try String(contentsOf: sourceURL, encoding: .utf8)
         guard let baselineRange = source.range(of: "def capture_fullscreen_space_transition_zone_baseline!"),
-              let baselineNextRange = source[baselineRange.upperBound...].range(of: "\n  def ") else {
+              let baselineNextRange = source[baselineRange.upperBound...].range(of: "\n  def ")
+        else {
             XCTFail("Expected capture_fullscreen_space_transition_zone_baseline! helper in live zone smoke visual script")
             return
         }
-        let baselineSource = String(source[baselineRange.lowerBound..<baselineNextRange.lowerBound])
+        let baselineSource = String(source[baselineRange.lowerBound ..< baselineNextRange.lowerBound])
         guard let methodRange = source.range(of: "def fullscreen_space_transition_zone_ids"),
-              let nextMethodRange = source[methodRange.upperBound...].range(of: "\n  def ") else {
+              let nextMethodRange = source[methodRange.upperBound...].range(of: "\n  def ")
+        else {
             XCTFail("Expected fullscreen_space_transition_zone_ids helper in live zone smoke visual script")
             return
         }
-        let methodSource = String(source[methodRange.lowerBound..<nextMethodRange.lowerBound])
+        let methodSource = String(source[methodRange.lowerBound ..< nextMethodRange.lowerBound])
 
         XCTAssertFalse(
             baselineSource.contains("reseed_missing_zone_candidates"),
@@ -376,9 +378,10 @@ final class RuntimeGuardMoveActivationXCTests: RuntimeGuardTestCase {
         let source = try String(contentsOf: fileURL, encoding: .utf8)
 
         XCTAssertTrue(
-                source.contains("requiresAlwaysHiddenToHiddenTargets: true") &&
+            source.contains("requiresAlwaysHiddenToHiddenTargets: true") &&
                 source.contains("if requiresAlwaysHiddenToHiddenTargets") &&
-                source.contains("liveTargetsReady = await currentAlwaysHiddenToHiddenTargets() != nil") &&
+                source.contains("let liveTargetsReady: Bool = if requiresAlwaysHiddenToHiddenTargets {") &&
+                source.contains("await currentAlwaysHiddenToHiddenTargets() != nil") &&
                 source.contains("repairStatusItemsForAlwaysHiddenToHiddenTargetsIfNeeded") &&
                 source.contains(".recreateFromPersistedLayout(.invalidStatusItems)") &&
                 source.contains("Always-hidden move geometry is not live after showAll; recreating AH separator before retry") &&

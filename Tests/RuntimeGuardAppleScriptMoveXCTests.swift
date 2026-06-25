@@ -54,8 +54,12 @@ final class RuntimeGuardAppleScriptMoveXCTests: RuntimeGuardTestCase {
             "Classification helper should use the main separator origin for stable hidden/visible partitioning"
         )
         XCTAssertTrue(
-            source.contains("alwaysHiddenPinWorkflow.repairSeparatorPositionIfNeeded(reason: \"classification\")"),
-            "Classification should attempt separator repair when always-hidden ordering is invalid"
+            source.contains("alwaysHiddenPinWorkflow.repairSeparatorPositionIfNeeded(") &&
+                source.contains("reason: \"classification\"") &&
+                // FM-2 (#136/#168): steady-state classification repair preserves the
+                // explicit persisted divider; it must not reanchor toward Control Center.
+                source.contains("preserveExplicitPersistedPositions: true"),
+            "Classification should attempt separator repair when always-hidden ordering is invalid, preserving the explicit persisted divider"
         )
     }
 
@@ -535,5 +539,4 @@ final class RuntimeGuardAppleScriptMoveXCTests: RuntimeGuardTestCase {
             "Only the deadline fallback should use the pre-refresh cache; returning a blank listing hides release-diagnostic failures"
         )
     }
-
 }
