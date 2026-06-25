@@ -209,7 +209,12 @@ class ProjectQA
   RUNTIME_SMOKE_PASSES = 1
   RUNTIME_SMOKE_RETRIES_PER_PASS = 1
   RUNTIME_SMOKE_HEARTBEAT_SECONDS = 8
-  RUNTIME_SMOKE_PASS_TIMEOUT_SECONDS = 420
+  # The default-on FM-1 real-move gate (#155/#156/#166) drives genuine product moves
+  # (stage AH -> move out -> restage -> move out) with post-move settles on top of the
+  # fixture reset and the representative matrix. That real behavioral work is heavier
+  # than the prior proxy checks, so the pass budget was raised from 420s to give the
+  # AH->Visible + AH->Hidden legs room to finish (a real move proven > a fast proxy).
+  RUNTIME_SMOKE_PASS_TIMEOUT_SECONDS = 660
   RUNTIME_SMOKE_FOCUSED_PASS_TIMEOUT_SECONDS = 300
   RUNTIME_SMOKE_REPRESENTATIVE_SETUP_TIMEOUT_SECONDS = 90
   RUNTIME_NATIVE_APPLE_IDS = %w[

@@ -106,9 +106,29 @@ final class MenuBarAlwaysHiddenIconMoveWorkflow {
                 }
             }
 
-            let resolvedTargets = await manager.moveTargetResolver.resolveAlwaysHiddenMoveTargetsWithRetries(
+            var resolvedTargets = await manager.moveTargetResolver.resolveAlwaysHiddenMoveTargetsWithRetries(
                 toAlwaysHidden: toAlwaysHidden
             )
+
+            if resolvedTargets.separatorX == nil {
+                // One bounded repair+retarget pass before aborting: a transient
+                // WindowServer staleness can leave the first resolve empty even
+                // though the AH separator window is live. Reuse the existing
+                // bounded repair primitive (no new recovery path) and re-resolve
+                // once before surfacing the failure (#155/#156/#166).
+                logger.warning("Initial always-hidden move target resolution was empty; running one bounded repair+retarget pass before aborting")
+                let repaired: Bool = if toAlwaysHidden {
+                    await self.repairAlwaysHiddenSeparatorForInboundMoveIfNeeded(request)
+                } else {
+                    await self.repairAlwaysHiddenSeparatorForOutboundMoveIfNeeded(request)
+                }
+                if repaired {
+                    resolvedTargets = await manager.moveTargetResolver.resolveAlwaysHiddenMoveTargetsWithRetries(
+                        toAlwaysHidden: toAlwaysHidden,
+                        maxAttempts: 10
+                    )
+                }
+            }
 
             guard let resolvedSeparatorX = resolvedTargets.separatorX else {
                 logger.error("Cannot resolve separator position for always-hidden move")
@@ -491,13 +511,12 @@ final class MenuBarAlwaysHiddenIconMoveWorkflow {
     ) async -> Bool {
         for repairAttempt in 1 ... 3 {
             let sourceIsOnScreen = sourceFrameIsOnScreen(request)
-            let liveTargetsReady: Bool
-            if requiresAlwaysHiddenToHiddenTargets {
-                liveTargetsReady = await currentAlwaysHiddenToHiddenTargets() != nil
+            let liveTargetsReady: Bool = if requiresAlwaysHiddenToHiddenTargets {
+                await currentAlwaysHiddenToHiddenTargets() != nil
             } else if requiresAlwaysHiddenBoundary {
-                liveTargetsReady = await alwaysHiddenBoundaryIsUsableForInboundMove()
+                await alwaysHiddenBoundaryIsUsableForInboundMove()
             } else {
-                liveTargetsReady = true
+                true
             }
             if sourceIsOnScreen, liveTargetsReady { return true }
 
@@ -528,7 +547,7 @@ final class MenuBarAlwaysHiddenIconMoveWorkflow {
                     continue
                 }
                 if requiresAlwaysHiddenBoundary,
-                   !(await alwaysHiddenBoundaryIsUsableForInboundMove()) {
+                   await !alwaysHiddenBoundaryIsUsableForInboundMove() {
                     logger.warning("Inbound always-hidden boundary stayed unavailable after AH separator repair attempt \(repairAttempt, privacy: .public)")
                     continue
                 }

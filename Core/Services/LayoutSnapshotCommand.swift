@@ -7,13 +7,12 @@ import os.log
 @objc(LayoutSnapshotCommand)
 final class LayoutSnapshotCommand: SaneBarScriptCommand {
     override func performDefaultImplementation() -> Any? {
-        let json: String
-        if Thread.isMainThread {
-            json = MainActor.assumeIsolated {
+        let json: String = if Thread.isMainThread {
+            MainActor.assumeIsolated {
                 Self.collectSnapshotJSONOnMain()
             }
         } else {
-            json = DispatchQueue.main.sync {
+            DispatchQueue.main.sync {
                 MainActor.assumeIsolated {
                     Self.collectSnapshotJSONOnMain()
                 }
@@ -42,21 +41,56 @@ final class LayoutSnapshotCommand: SaneBarScriptCommand {
             alwaysHiddenBoundaryX: rawAlwaysHiddenBoundaryX
         )
 
+        // Root-cause introspection for the runtime regression gates (FM-1).
+        // `alwaysHiddenSeparatorLength` is the NSStatusItem logical length (10000
+        // while genuinely hidden, ~14 while revealed/contracted post-showAll).
+        // `alwaysHiddenSeparatorLiveFrameReadable` is whether
+        // `currentLiveAlwaysHiddenSeparatorFrame()` returns a live frame RIGHT NOW.
+        //
+        // IMPORTANT (empirically verified): the outbound Always-Hidden move path does
+        // NOT depend on this field. It gates on `sourceFrameIsOnScreen(request)` — the
+        // moved icon's OWN AX frame after `showAll()` reveals it — see
+        // `repairAlwaysHiddenSeparatorForOutboundMoveIfNeeded` in
+        // MenuBarAlwaysHiddenIconMoveWorkflow.swift. At genuine-hidden length 10000 the
+        // AH separator window is legitimately OFF-SCREEN, so this field is correctly
+        // false from the hidden resting state while the real move still succeeds. The
+        // earlier claim that the separator "may still sit live in the band at length
+        // 10000" was false (notably on external-monitor topology). Asserting this field
+        // == true from length 10000 is therefore UNSATISFIABLE and BLIND — the FM-1
+        // gate must assert the real zone delta of the move instead, and may read this
+        // field only as an advisory breadcrumb in the CONTRACTED window (length <= 14).
+        // See Scripts/lib/live_zone_smoke_hidden_outbound_gate.rb and
+        // docs/TEST_BLINDNESS_AUDIT.md (#155/#156/#166).
+        let alwaysHiddenSeparatorLength = manager.alwaysHiddenSeparatorItem?.length
+        let alwaysHiddenSeparatorLiveFrameReadable =
+            manager.geometryResolver.currentLiveAlwaysHiddenSeparatorFrame() != nil
+
+        // Root-cause introspection for the FM-2 divider-survival gate. These are
+        // the EXPLICIT persisted preferred positions of the user's divider (main +
+        // separator). Root Cause B silently overwrites these toward Control Center
+        // during ordinary validation churn (#136/#168). The wake-survival gate
+        // reads these before/after a real wake validation pass and asserts they did
+        // not move.
+        let persistedMainPreferredPosition = StatusBarPositionDefaultsStore.resolvedPreferredPosition(
+            forAutosaveName: StatusBarPositionStore.mainAutosaveName
+        )
+        let persistedSeparatorPreferredPosition = StatusBarPositionDefaultsStore.resolvedPreferredPosition(
+            forAutosaveName: StatusBarPositionStore.separatorAutosaveName
+        )
+
         let mainWindow = manager.mainStatusItem?.button?.window
         let separatorWindow = manager.separatorItem?.button?.window
         let screenWidth = mainWindow?.screen?.frame.width ?? NSScreen.main?.frame.width
         let notchRightSafeMinX = mainWindow?.screen?.auxiliaryTopRightArea?.minX
             ?? NSScreen.main?.auxiliaryTopRightArea?.minX
-        let mainScreenFrame = mainWindow?.screen?.frame ?? NSScreen.main?.frame
-        let separatorScreenFrame = separatorWindow?.screen?.frame ?? mainScreenFrame
-        let mainWindowValid = StatusBarController.isStatusItemWindowFrameValid(
-            windowFrame: mainWindow?.frame,
-            screenFrame: mainScreenFrame
-        )
-        let separatorWindowValid = StatusBarController.isStatusItemWindowFrameValid(
-            windowFrame: separatorWindow?.frame,
-            screenFrame: separatorScreenFrame
-        )
+        // Validity uses the multi-display band-aware path (see
+        // StatusBarController.validateItemPosition): on an external monitor
+        // `window.screen` is often nil and the single-screen fallback above can be
+        // the wrong display, so a live external-display window would otherwise
+        // report invalid and strand recovery. validateItemPosition resolves the
+        // window's frame against every screen's band; off-screen frames stay invalid.
+        let mainWindowValid = manager.mainStatusItem.map(StatusBarController.validateItemPosition) ?? false
+        let separatorWindowValid = manager.separatorItem.map(StatusBarController.validateItemPosition) ?? false
         let missionControlSpaces = StatusBarDiagnostics.missionControlSpacesDiagnostic()
         let knownOwnerRefresh = AccessibilityService.shared.knownOwnerRefreshDiagnosticsSnapshot()
         let rightGap = resolvedSnapshotMainRightGap(
@@ -116,6 +150,8 @@ final class LayoutSnapshotCommand: SaneBarScriptCommand {
             "alwaysHiddenSectionEnabledRequested": alwaysHiddenRequested,
             "alwaysHiddenSectionEnabledEffective": alwaysHiddenEffective,
             "alwaysHiddenSeparatorPresent": manager.alwaysHiddenSeparatorItem != nil,
+            // FM-1 root-cause introspection (see above).
+            "alwaysHiddenSeparatorLiveFrameReadable": alwaysHiddenSeparatorLiveFrameReadable,
             "licenseIsPro": licenseIsPro,
             "mainNearControlCenter": mainNearControlCenter,
             // Rehide/debug state to diagnose "stuck expanded" reports quickly.
@@ -154,7 +190,7 @@ final class LayoutSnapshotCommand: SaneBarScriptCommand {
             "missionControlDisplaysHaveSeparateSpaces": missionControlSpaces.displaysHaveSeparateSpaces.map(String.init) ?? "unknown",
             "missionControlSpansDisplaysRaw": missionControlSpaces.spansDisplays.map(String.init) ?? "unknown"
         ]
-        SearchWindowController.shared.browseWindowPositionSnapshot().forEach { key, value in
+        for (key, value) in SearchWindowController.shared.browseWindowPositionSnapshot() {
             payload[key] = value
         }
 
@@ -172,6 +208,9 @@ final class LayoutSnapshotCommand: SaneBarScriptCommand {
         setOptional("screenWidth", screenWidth)
         setOptional("notchRightSafeMinX", notchRightSafeMinX)
         setOptional("mainRightGap", rightGap)
+        setOptional("alwaysHiddenSeparatorLength", alwaysHiddenSeparatorLength)
+        setOptional("persistedMainPreferredPosition", persistedMainPreferredPosition.map { CGFloat($0) })
+        setOptional("persistedSeparatorPreferredPosition", persistedSeparatorPreferredPosition.map { CGFloat($0) })
         payload["geometryAvailable"] = (mainX != nil) || (separatorX != nil) || (separatorRightEdgeX != nil)
         return payload
     }

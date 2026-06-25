@@ -10,14 +10,27 @@ enum StatusBarPositionStore {
     nonisolated static func autosaveNamesForCleanup(version: Int) -> [String] {
         ["SaneBar_Main_v\(version)", "SaneBar_Separator_v\(version)", "SaneBar_AlwaysHiddenSeparator_v\(version)"]
     }
+
     nonisolated static var autosaveVersion: Int {
         let stored = UserDefaults.standard.integer(forKey: autosaveVersionKey)
         return stored > 0 ? stored : baseAutosaveVersion
     }
-    nonisolated static var mainAutosaveName: String { "SaneBar_Main_v\(autosaveVersion)" }
-    nonisolated static var separatorAutosaveName: String { "SaneBar_Separator_v\(autosaveVersion)" }
-    nonisolated static var alwaysHiddenSeparatorAutosaveName: String { "SaneBar_AlwaysHiddenSeparator_v\(autosaveVersion)" }
-    nonisolated static func spacerAutosaveName(index: Int) -> String { "SaneBar_spacer_\(index)" }
+
+    nonisolated static var mainAutosaveName: String {
+        "SaneBar_Main_v\(autosaveVersion)"
+    }
+
+    nonisolated static var separatorAutosaveName: String {
+        "SaneBar_Separator_v\(autosaveVersion)"
+    }
+
+    nonisolated static var alwaysHiddenSeparatorAutosaveName: String {
+        "SaneBar_AlwaysHiddenSeparator_v\(autosaveVersion)"
+    }
+
+    nonisolated static func spacerAutosaveName(index: Int) -> String {
+        "SaneBar_spacer_\(index)"
+    }
 
     nonisolated static let screenWidthKey = "SaneBar_CalibratedScreenWidth"
     nonisolated static let positionBackupKeyPrefix = "SaneBar_Position_Backup"
@@ -307,7 +320,7 @@ enum StatusBarPositionStore {
         // items wake up hidden. macOS can canonicalize preferred-position
         // values after status item creation, so leave enough extra gap that the
         // live lane remains usable after that rewrite.
-        if screenWidth >= 1_800 {
+        if screenWidth >= 1800 {
             return min(260.0, max(220.0, screenWidth * 0.10))
         }
 
@@ -758,5 +771,4 @@ enum StatusBarPositionStore {
         }
         return false
     }
-
 }

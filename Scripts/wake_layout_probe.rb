@@ -200,6 +200,7 @@ class WakeLayoutProbe
     @state_restored = false
     @visible_zone_proofs = []
     @hidden_zone_proofs = []
+    @seeded_explicit_divider_keys = nil
     @direct_launch_pids = []
     @automation_quit_token = nil
     @dynamic_helper_ids = ENV.fetch('SANEBAR_WAKE_PROBE_DYNAMIC_HELPER_IDS', '')
@@ -215,6 +216,7 @@ class WakeLayoutProbe
     backup_state!
     @cases << run_hidden_case
     @cases << run_expanded_case
+    @cases << run_explicit_divider_survival_case if explicit_divider_survival_enabled?
     restore_state!
     @state_restored = true
     write_artifact!(
@@ -276,6 +278,7 @@ class WakeLayoutProbe
   end
   def restore_state!
     quit_app
+    clear_seeded_explicit_divider_defaults!
     if @had_settings_file
       raise "Missing settings backup #{@settings_backup_path}" unless File.exist?(@settings_backup_path)
       FileUtils.mkdir_p(File.dirname(SETTINGS_PATH))
@@ -285,6 +288,20 @@ class WakeLayoutProbe
     end
     launch_app if @was_running
     log('Restored wake probe state')
+  end
+
+  # The FM-2 case seeds explicit preferred-position defaults; remove them on
+  # teardown so the probe leaves no persisted divider behind. The app re-seeds
+  # ordinal defaults on next launch when these are absent.
+  def clear_seeded_explicit_divider_defaults!
+    return unless @seeded_explicit_divider_keys
+
+    @seeded_explicit_divider_keys.each do |key|
+      capture('defaults', 'delete', bundle_identifier, key)
+    end
+    @seeded_explicit_divider_keys = nil
+  rescue StandardError => e
+    log("⚠️ Could not clear seeded explicit divider defaults: #{e.message}")
   end
 
   def run_hidden_case
@@ -368,6 +385,181 @@ class WakeLayoutProbe
       snapshots: snapshots,
       log_scan: log_scan
     }
+  end
+
+  # FM-2 runtime regression gate (#136/#168).
+  #
+  # Root failure mode: an EXPLICIT user divider that is set far from Control Center
+  # gets silently reanchored TOWARD Control Center during ordinary steady-state
+  # validation (wake / Space change / app activation), because the recovery action
+  # selector (`shouldResetPersistentStateForStatusItemRecovery`) was context-blind
+  # and forced a destructive reset for transient `.missingCoordinates` /
+  # `.invalidGeometry` reasons that fire during ordinary validation on macOS 26/27.
+  #
+  # Why the prior probes missed it: every existing wake/layout case asserts
+  # `snapshot_healthy?`, which REQUIRES `mainNearControlCenter == true`. They could
+  # never observe the reanchor because their baseline already had the divider near
+  # Control Center — exactly where the bug would move it. This case instead seeds an
+  # explicit FAR-from-Control-Center divider, drives a real `wakeResume` validation
+  # pass (pmset displaysleepnow + caffeinate), and asserts the persisted divider did
+  # NOT move toward Control Center and did NOT flip `mainNearControlCenter` true.
+  #
+  # Determinism: the explicit divider is written directly to the persisted
+  # preferred-position pair (resolved against the live autosave version), so no
+  # drag / third-party app / Space-switch is needed. The wake cycle is the same
+  # deterministic mechanism the existing wake cases already rely on.
+  def run_explicit_divider_survival_case
+    configure_settings!(auto_rehide: true)
+    seed_explicit_far_divider!
+    launch_app
+    baseline = wait_for_explicit_divider_baseline!
+
+    persisted_main_before = numeric_snapshot_value(baseline, 'persistedMainPreferredPosition')
+    persisted_separator_before = numeric_snapshot_value(baseline, 'persistedSeparatorPreferredPosition')
+    right_gap_before = numeric_snapshot_value(baseline, 'mainRightGap')
+    log(
+      "explicit divider baseline: persistedMain=#{persisted_main_before.inspect} " \
+      "persistedSeparator=#{persisted_separator_before.inspect} mainRightGap=#{right_gap_before.inspect} " \
+      "mainNearControlCenter=#{baseline['mainNearControlCenter']}"
+    )
+    assert_explicit_divider_baseline_is_far!(baseline, persisted_main_before: persisted_main_before)
+
+    case_started_at = Time.now.utc
+    wake_time = trigger_display_sleep_cycle!
+    park_pointer_away_from_menu_bar!(label: 'explicit divider wake')
+
+    snapshots = explicit_divider_snapshots_after_wake(wake_time)
+    snapshots.each do |entry|
+      assert_explicit_divider_survived!(
+        entry[:snapshot],
+        persisted_main_before: persisted_main_before,
+        persisted_separator_before: persisted_separator_before,
+        label: "explicit divider #{entry[:delay]}s"
+      )
+    end
+    log_scan = scan_logs_since(case_started_at)
+
+    quit_app
+
+    {
+      name: 'explicit far-from-control-center divider survives wake validation',
+      baseline: {
+        'persistedMainPreferredPosition' => persisted_main_before,
+        'persistedSeparatorPreferredPosition' => persisted_separator_before,
+        'mainRightGap' => right_gap_before
+      },
+      wake_time: wake_time.iso8601,
+      snapshots: snapshots,
+      log_scan: log_scan
+    }
+  end
+
+  def explicit_divider_survival_enabled?
+    ENV.fetch('SANEBAR_WAKE_PROBE_EXPLICIT_DIVIDER_SURVIVAL', '1') != '0'
+  end
+
+  # The gate is only meaningful if the explicit far divider actually survived cold
+  # launch (a far-but-fittable position must be preserved per invariant #5; only
+  # genuinely off-screen/unfittable positions legitimately reset at startup). If
+  # launch already pulled it near Control Center, the wake assertion would be a
+  # false green — fail loudly instead. This also catches a launch-path regression.
+  EXPLICIT_DIVIDER_BASELINE_MIN_FAR_POSITION = 400
+
+  def assert_explicit_divider_baseline_is_far!(baseline, persisted_main_before:)
+    if truthy?(baseline['mainNearControlCenter'])
+      raise 'FM-2 gate baseline invalid: the explicit far divider was pulled near Control Center at COLD LAUNCH (mainNearControlCenter=true). Either the seed did not take or the launch path reanchored a fittable explicit divider (a launch-path regression of invariant #5).'
+    end
+
+    if persisted_main_before && persisted_main_before < EXPLICIT_DIVIDER_BASELINE_MIN_FAR_POSITION
+      raise "FM-2 gate baseline invalid: seeded explicit divider did not survive cold launch (persistedMain=#{persisted_main_before}, expected >= #{EXPLICIT_DIVIDER_BASELINE_MIN_FAR_POSITION}). The wake-survival assertion would be a false green."
+    end
+  end
+
+  # Seed an explicit pixel divider intentionally LEFT of the launch-safe limit
+  # (genuine far-from-Control-Center user layout). main is the icon distance from
+  # the right edge; separator must sit to the right of main. These values are large
+  # enough that `mainNearControlCenter` is false and any reanchor toward Control
+  # Center is unambiguous.
+  EXPLICIT_FAR_DIVIDER_MAIN_POSITION = 900
+  EXPLICIT_FAR_DIVIDER_SEPARATOR_POSITION = 940
+
+  def seed_explicit_far_divider!
+    quit_app
+    version = resolved_autosave_version
+    main_key = "NSStatusItem Preferred Position SaneBar_Main_v#{version}"
+    separator_key = "NSStatusItem Preferred Position SaneBar_Separator_v#{version}"
+
+    write_default_float(main_key, EXPLICIT_FAR_DIVIDER_MAIN_POSITION)
+    write_default_float(separator_key, EXPLICIT_FAR_DIVIDER_SEPARATOR_POSITION)
+    @seeded_explicit_divider_keys = [main_key, separator_key]
+    log("Seeded explicit far divider: #{main_key}=#{EXPLICIT_FAR_DIVIDER_MAIN_POSITION} #{separator_key}=#{EXPLICIT_FAR_DIVIDER_SEPARATOR_POSITION}")
+  end
+
+  def resolved_autosave_version
+    out, status = capture('defaults', 'read', bundle_identifier, 'SaneBar_AutosaveVersion')
+    return out.strip.to_i if status.success? && out.strip.to_i.positive?
+
+    7
+  end
+
+  def write_default_float(key, value)
+    out, status = capture('defaults', 'write', bundle_identifier, key, '-float', value.to_s)
+    raise "Could not seed default #{key}: #{out}" unless status.success?
+  end
+
+  def wait_for_explicit_divider_baseline!
+    wait_for_snapshot(label: 'explicit divider launch baseline', timeout: HIDDEN_BASELINE_TIMEOUT_SECONDS) do |snapshot|
+      snapshot['geometryAvailable'] &&
+        snapshot.key?('persistedMainPreferredPosition') &&
+        !numeric_snapshot_value(snapshot, 'persistedMainPreferredPosition').nil? &&
+        (!snapshot.key?('startupItemsValid') || truthy?(snapshot['startupItemsValid'])) &&
+        !truthy?(snapshot['possibleSystemMenuBarSuppression'])
+    end
+  end
+
+  def explicit_divider_snapshots_after_wake(wake_time)
+    SNAPSHOT_DELAYS.map do |delay|
+      remaining = (wake_time + delay) - Time.now.utc
+      sleep remaining if remaining.positive?
+      snapshot = wait_for_snapshot(
+        label: "explicit divider #{delay}s",
+        timeout: SNAPSHOT_SETTLE_TIMEOUT_SECONDS,
+        interval: SNAPSHOT_SETTLE_POLL_SECONDS
+      ) do |candidate|
+        candidate['geometryAvailable'] && candidate.key?('persistedMainPreferredPosition')
+      end
+      { delay: delay, snapshot: snapshot }
+    end
+  end
+
+  # Tolerance for legitimate sub-pixel float round-trips. A reanchor toward Control
+  # Center moves the persisted main position by hundreds of points, so a tight
+  # tolerance reliably catches the regression without flaking on noise.
+  EXPLICIT_DIVIDER_PERSIST_TOLERANCE = 8.0
+
+  def assert_explicit_divider_survived!(snapshot, persisted_main_before:, persisted_separator_before:, label:)
+    main_after = numeric_snapshot_value(snapshot, 'persistedMainPreferredPosition')
+    separator_after = numeric_snapshot_value(snapshot, 'persistedSeparatorPreferredPosition')
+
+    if persisted_main_before && main_after
+      drift = (main_after - persisted_main_before).abs
+      if drift > EXPLICIT_DIVIDER_PERSIST_TOLERANCE
+        raise "#{label}: FM-2 ROOT CAUSE DETECTED — explicit persisted divider (main) reanchored by #{drift.round(2)}pt during wake validation (#{persisted_main_before} → #{main_after}). The user's divider was silently overwritten toward Control Center (#136/#168)."
+      end
+    end
+
+    if persisted_separator_before && separator_after
+      drift = (separator_after - persisted_separator_before).abs
+      if drift > EXPLICIT_DIVIDER_PERSIST_TOLERANCE
+        raise "#{label}: FM-2 ROOT CAUSE DETECTED — explicit persisted divider (separator) reanchored by #{drift.round(2)}pt during wake validation (#{persisted_separator_before} → #{separator_after})."
+      end
+    end
+
+    if truthy?(snapshot['mainNearControlCenter'])
+      raise "#{label}: FM-2 ROOT CAUSE DETECTED — divider snapped to Control Center (mainNearControlCenter flipped true) after wake validation, despite an explicit far-from-Control-Center user layout."
+    end
+
+    log("#{label}: explicit divider survived (persistedMain=#{main_after.inspect}, persistedSeparator=#{separator_after.inspect})")
   end
 
   def configure_settings!(auto_rehide:)

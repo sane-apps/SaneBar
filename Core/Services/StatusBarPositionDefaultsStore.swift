@@ -290,5 +290,4 @@ enum StatusBarPositionDefaultsStore {
         )
         return true
     }
-
 }

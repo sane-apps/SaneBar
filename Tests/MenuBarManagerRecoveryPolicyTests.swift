@@ -2,7 +2,6 @@ import Foundation
 @testable import SaneBar
 import Testing
 
-@Suite("MenuBarManager — Recovery Policy")
 struct MenuBarManagerRecoveryPolicyTests {
     // MARK: - AutosaveName Tests
 
@@ -582,9 +581,9 @@ struct MenuBarManagerRecoveryPolicyTests {
         #expect(!MenuBarProfileWorkflow.canCreateLayoutRescueRestorePoint(from: detached))
     }
 
-    @Test("Bad data during any recovery context forces hard reset to live anchor; nil-reason paths preserve persisted state")
+    @Test("Bad data hard-resets only on startup/display-topology; wake/Space/manual preserve the explicit divider (FM-2 #136/#168)")
     func statusItemRecoveryResetDecisionMatrix() {
-        // Bad data cases now reset for wake/screen/manual recovery contexts (fixes #147/#142/#150 dynamic + post-arrange jumps)
+        // Structurally-invalid items always reset. For soft bad data (.missingCoordinates/.invalidGeometry) a destructive reset (which reanchors toward Control Center) is forced ONLY for genuine startup / display-topology; wake / Space / manual recovery preserve the explicit persisted divider (#136/#168), repairing non-destructively.
         #expect(
             MenuBarManager.shouldResetPersistentStateForStatusItemRecovery(
                 reason: .invalidStatusItems,
@@ -592,7 +591,7 @@ struct MenuBarManagerRecoveryPolicyTests {
             )
         )
         #expect(
-            MenuBarManager.shouldResetPersistentStateForStatusItemRecovery(
+            !MenuBarManager.shouldResetPersistentStateForStatusItemRecovery(
                 reason: .missingCoordinates,
                 validationContext: .manualLayoutRestore
             )
@@ -610,7 +609,7 @@ struct MenuBarManagerRecoveryPolicyTests {
             )
         )
         #expect(
-            MenuBarManager.shouldResetPersistentStateForStatusItemRecovery(
+            !MenuBarManager.shouldResetPersistentStateForStatusItemRecovery(
                 reason: .invalidGeometry,
                 validationContext: .wakeResume
             )
