@@ -27,8 +27,8 @@ struct GeneralSettingsHidingSection: View {
         }
     }
 
-    private var hoverDelayLabel: String {
-        let ms = Int(menuBarManager.settings.hoverDelay * 1000)
+    private func delayLabel(_ seconds: Double) -> String {
+        let ms = Int(seconds * 1000)
         switch ms {
         case 0 ... 150: return "Instant"
         case 151 ... 350: return "Quick"
@@ -76,12 +76,17 @@ struct GeneralSettingsHidingSection: View {
             CompactToggle(label: "Reveal hidden icons on hover", isOn: $menuBarManager.settings.showOnHover)
                 .help("Hover near the menu bar to reveal hidden icons inline. Click the SaneBar icon to open or toggle manually.")
             if menuBarManager.settings.showOnHover {
-                hoverDelayRow
+                revealDelayRow
             }
 
             CompactDivider()
             CompactToggle(label: "Show when scrolling on menu bar", isOn: $menuBarManager.settings.showOnScroll)
             if menuBarManager.settings.showOnScroll {
+                // Shared reveal delay also governs scroll; show it here only when
+                // hover (which already shows it) is off, so it never appears twice.
+                if !menuBarManager.settings.showOnHover {
+                    revealDelayRow
+                }
                 scrollGestureRows
             }
 
@@ -177,14 +182,16 @@ struct GeneralSettingsHidingSection: View {
         }
     }
 
-    private var hoverDelayRow: some View {
+    /// One shared dwell for both hover and scroll reveal — keeps the UI uncluttered
+    /// while still letting users tune how long they must linger before icons reveal.
+    private var revealDelayRow: some View {
         Group {
             CompactDivider()
-            CompactRow("Hover delay") {
+            CompactRow("Reveal delay") {
                 HStack {
-                    Slider(value: $menuBarManager.settings.hoverDelay, in: 0.05 ... 1.0, step: 0.05)
+                    Slider(value: $menuBarManager.settings.hoverDelay, in: 0.05 ... 2.0, step: 0.05)
                         .frame(width: 80)
-                    Text(hoverDelayLabel)
+                    Text(delayLabel(menuBarManager.settings.hoverDelay))
                         .frame(width: 55, alignment: .trailing)
                 }
             }
@@ -225,9 +232,9 @@ struct GeneralSettingsHidingSection: View {
     private func gestureModeHelp(_ mode: SaneBarSettings.GestureMode) -> String {
         switch mode {
         case .showOnly:
-            return "Gestures only reveal hidden icons."
+            "Gestures only reveal hidden icons."
         case .showAndHide:
-            return "Gestures toggle visibility. Scroll up shows icons, scroll down hides them."
+            "Gestures toggle visibility. Scroll up shows icons, scroll down hides them."
         }
     }
 

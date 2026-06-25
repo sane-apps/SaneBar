@@ -111,8 +111,10 @@ final class HoverService: HoverServiceProtocol {
     /// Track whether user is currently ⌘+dragging
     private var isUserDragging = false
 
-    /// Delay before triggering (prevents accidental triggers)
-    var hoverDelay: TimeInterval = 0.25
+    /// Shared dwell before a passive hover OR scroll reveal fires. Defaults to a
+    /// deliberate 2s so incidental cursor passes and quick scrolls don't pop the
+    /// hidden icons open constantly; user-adjustable 0.05…2.0s in settings.
+    var hoverDelay: TimeInterval = 2.0
 
     /// Height of the hover detection zone (typically menu bar height)
     private let detectionZoneHeight: CGFloat = 24
@@ -297,12 +299,14 @@ final class HoverService: HoverServiceProtocol {
             guard now.timeIntervalSince(lastScrollTime) > 0.3 else { return }
             lastScrollTime = now
 
-            cancelHoverTimer() // Deliberate action cancels passive hover timer
-
             // Determine scroll direction (positive = scroll up, negative = scroll down)
             let direction: ScrollDirection = deltaY > 0 ? .up : .down
-            logger.debug("Scroll trigger detected in menu bar: \(deltaY > 0 ? "up" : "down")")
-            onTrigger?(.scroll(direction: direction))
+            logger.debug("Scroll dwell started in menu bar: \(deltaY > 0 ? "up" : "down")")
+            // Passive scroll reveal honors the same dwell delay as hover instead of
+            // firing instantly. A quick incidental two-finger scroll across the menu
+            // bar no longer pops the hidden icons open the moment it happens — the
+            // cursor must stay in the menu bar region for the delay first.
+            scheduleDelayedTrigger(.scroll(direction: direction))
         }
     }
 
@@ -396,7 +400,7 @@ final class HoverService: HoverServiceProtocol {
         let menuBarBottom = menuBarTop - detectionZoneHeight
 
         // In the menu bar strip itself.
-        if point.y >= menuBarBottom && point.y <= menuBarTop {
+        if point.y >= menuBarBottom, point.y <= menuBarTop {
             return true
         }
 
@@ -447,12 +451,21 @@ final class HoverService: HoverServiceProtocol {
     }
 
     private func scheduleHoverTrigger() {
+        scheduleDelayedTrigger(.hover)
+    }
+
+    /// Schedule a passive reveal (hover or scroll) after `hoverDelay`, re-checking
+    /// at fire time that the cursor is still in the menu bar region. Any deliberate
+    /// action or leaving the menu bar cancels it via `cancelHoverTimer`, so a quick
+    /// incidental hover/scroll never pops the hidden icons. Both passive triggers
+    /// share one timer because they cannot be dwelling at the same time.
+    private func scheduleDelayedTrigger(_ trigger: TriggerReason) {
         cancelHoverTimer()
 
         hoverTimer = Timer.scheduledTimer(withTimeInterval: hoverDelay, repeats: false) { [weak self] _ in
             Task { @MainActor in
-                guard let self, self.isMouseInMenuBar else { return }
-                self.onTrigger?(.hover)
+                guard let self, self.isMouseInMenuBar || self.isInMenuBarRegion(NSEvent.mouseLocation) else { return }
+                self.onTrigger?(trigger)
             }
         }
     }

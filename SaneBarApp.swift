@@ -28,6 +28,11 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
         case noConflict
         case waitForHandoff
         case terminateCurrent
+        /// The current launch is a strictly newer build than every surviving
+        /// instance, so the stale copies are terminated and the current one
+        /// stays. This is the update path: a Sparkle relaunch must win over a
+        /// slow-quitting or wedged older instance instead of being killed by it.
+        case terminateOthers
     }
 
     static let duplicateLaunchGraceNanoseconds: UInt64 = 2_000_000_000
@@ -38,10 +43,42 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
     private var keepAliveActivity: NSObjectProtocol?
     private var explicitTerminationRequested = false
 
-    static func duplicateLaunchResolution(othersAtLaunch: Int, othersAfterGrace: Int?) -> DuplicateLaunchResolution {
+    /// Decide what a freshly launched instance should do when other instances of
+    /// the same bundle are alive.
+    ///
+    /// `currentBuild` / `maxSurvivingBuild` are the `CFBundleVersion` integers of
+    /// this process and the newest surviving instance. When both are known and a
+    /// conflict remains after the grace window, the NEWEST build wins: if this
+    /// launch is strictly newer it terminates the stale survivors
+    /// (`.terminateOthers`); otherwise it yields (`.terminateCurrent`). This is
+    /// what makes a Sparkle update relaunch survive a slow-quitting or wedged old
+    /// instance instead of being killed by it — the bug where a customer stayed
+    /// stuck on the previous version and updates appeared to apply one at a time.
+    /// With no version info it preserves the original first-wins behavior.
+    static func duplicateLaunchResolution(
+        othersAtLaunch: Int,
+        othersAfterGrace: Int?,
+        currentBuild: Int? = nil,
+        maxSurvivingBuild: Int? = nil
+    ) -> DuplicateLaunchResolution {
         guard othersAtLaunch > 0 else { return .noConflict }
         guard let othersAfterGrace else { return .waitForHandoff }
-        return othersAfterGrace > 0 ? .terminateCurrent : .noConflict
+        guard othersAfterGrace > 0 else { return .noConflict }
+
+        if let currentBuild, let maxSurvivingBuild {
+            return currentBuild > maxSurvivingBuild ? .terminateOthers : .terminateCurrent
+        }
+        return .terminateCurrent
+    }
+
+    /// Parse a bundle's `CFBundleVersion` into a comparable integer. SaneBar's
+    /// build numbers are monotonic integers (e.g. `2180`, `2181`), so a numeric
+    /// compare is the correct "which build is newer" test. Returns nil when the
+    /// value is missing or non-numeric, which makes the caller fall back to the
+    /// version-blind first-wins path rather than guessing.
+    static func bundleBuildNumber(_ bundle: Bundle?) -> Int? {
+        guard let raw = bundle?.infoDictionary?["CFBundleVersion"] as? String else { return nil }
+        return Int(raw.trimmingCharacters(in: .whitespaces))
     }
 
     /// Pure selection of which already-running instance to bring forward before the
@@ -279,12 +316,17 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
             "Duplicate launch detected for bundle \(bundleID, privacy: .public). Waiting \(Self.duplicateLaunchGraceNanoseconds / 1_000_000_000)s for handoff before termination."
         )
 
+        let currentBuild = Self.bundleBuildNumber(Bundle.main)
+
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: Self.duplicateLaunchGraceNanoseconds)
             let remainingOthers = runningDuplicateInstances(bundleID: bundleID, currentPID: currentPID)
+            let maxSurvivingBuild = Self.maxBuildNumber(among: remainingOthers)
             let finalResolution = Self.duplicateLaunchResolution(
                 othersAtLaunch: initialOthers.count,
-                othersAfterGrace: remainingOthers.count
+                othersAfterGrace: remainingOthers.count,
+                currentBuild: currentBuild,
+                maxSurvivingBuild: maxSurvivingBuild
             )
 
             switch finalResolution {
@@ -292,6 +334,11 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
                 appLogger.info("Duplicate launch handoff resolved; keeping current instance alive.")
             case .waitForHandoff:
                 break
+            case .terminateOthers:
+                appLogger.error(
+                    "This launch (build \(currentBuild ?? -1, privacy: .public)) is newer than the surviving instance(s) (build \(maxSurvivingBuild ?? -1, privacy: .public)) for bundle \(bundleID, privacy: .public). Terminating the stale instance(s) and keeping the update."
+                )
+                terminateStaleInstances(remainingOthers)
             case .terminateCurrent:
                 appLogger.error(
                     "Duplicate instance still running after grace period for bundle \(bundleID, privacy: .public). Activating existing instance and terminating current launch."
@@ -299,6 +346,25 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
                 activateSurvivingInstance(among: remainingOthers, currentPID: currentPID)
                 NSApp.terminate(nil)
             }
+        }
+    }
+
+    /// Highest `CFBundleVersion` among a set of running instances, or nil when
+    /// none expose a numeric build (caller then falls back to first-wins).
+    @MainActor
+    private static func maxBuildNumber(among apps: [NSRunningApplication]) -> Int? {
+        apps.compactMap { bundleBuildNumber(Bundle(url: $0.bundleURL ?? URL(fileURLWithPath: "/"))) }.max()
+    }
+
+    /// Gracefully terminate stale older-build instances so the newer current
+    /// launch becomes the single live instance. `terminate()` posts a normal quit
+    /// (the stale instances are not the keep-alive survivor), leaving the update
+    /// running. Never called against the current process — `runningDuplicateInstances`
+    /// already excludes self.
+    @MainActor
+    private func terminateStaleInstances(_ apps: [NSRunningApplication]) {
+        for app in apps {
+            app.terminate()
         }
     }
 

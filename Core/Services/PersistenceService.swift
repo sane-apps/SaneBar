@@ -13,19 +13,19 @@ protocol PersistenceServiceProtocol: Sendable {
 // MARK: - SaneBarSettings
 
 /// Global app settings
-struct SaneBarSettings: Codable, Sendable, Equatable {
-    enum SpacerStyle: String, Codable, CaseIterable, Sendable {
+struct SaneBarSettings: Codable, Equatable {
+    enum SpacerStyle: String, Codable, CaseIterable {
         case line
         case dot
     }
 
-    enum SpacerWidth: String, Codable, CaseIterable, Sendable {
+    enum SpacerWidth: String, Codable, CaseIterable {
         case compact
         case normal
         case wide
     }
 
-    enum DividerStyle: String, Codable, CaseIterable, Sendable {
+    enum DividerStyle: String, Codable, CaseIterable {
         case slash // / (Default)
         case backslash // \
         case pipe // |
@@ -33,7 +33,7 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
         case dot // •
     }
 
-    enum MenuBarIconStyle: String, Codable, CaseIterable, Sendable {
+    enum MenuBarIconStyle: String, Codable, CaseIterable {
         case filter // line.3.horizontal.decrease (Default)
         case sliders // slider.horizontal.3
         case dots // ellipsis
@@ -56,23 +56,23 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
     }
 
     /// Simplified gesture behavior mode (replaces gestureToggles + useDirectionalScroll)
-    enum GestureMode: String, Codable, CaseIterable, Sendable {
+    enum GestureMode: String, Codable, CaseIterable {
         case showOnly = "Show only"
         case showAndHide = "Show and hide"
     }
 
-    enum LayoutMode: String, Codable, CaseIterable, Sendable {
+    enum LayoutMode: String, Codable, CaseIterable {
         case stability = "Stability"
         case live = "Live"
     }
 
-    enum TriggerAction: String, Codable, CaseIterable, Sendable {
+    enum TriggerAction: String, Codable, CaseIterable {
         case showIcons = "Show Icons"
         case applyProfile = "Apply Profile"
     }
 
     /// User-created icon group for organizing menu bar apps
-    struct IconGroup: Codable, Sendable, Equatable, Identifiable {
+    struct IconGroup: Codable, Equatable, Identifiable {
         var id: UUID = .init()
         var name: String
         var appBundleIds: [String] = []
@@ -209,8 +209,10 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
     /// Show hidden icons when hovering near the menu bar
     var showOnHover: Bool = false
 
-    /// Delay before hover triggers reveal (in seconds)
-    var hoverDelay: TimeInterval = 0.25
+    /// Shared dwell before a passive hover OR scroll reveal fires (seconds).
+    /// Defaults to a deliberate 2s so incidental hover/scroll doesn't pop hidden
+    /// icons open constantly; adjustable 0.05…2.0s in settings.
+    var hoverDelay: TimeInterval = 2.0
 
     /// Show hidden icons when scrolling up in the menu bar
     var showOnScroll: Bool = false
@@ -384,12 +386,12 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
         scheduleWeekdays = try container.decodeIfPresent([Int].self, forKey: .scheduleWeekdays) ?? [2, 3, 4, 5, 6]
         scheduleTriggerAction = try container.decodeIfPresent(TriggerAction.self, forKey: .scheduleTriggerAction) ?? .showIcons
         scheduleTriggerProfileId = try container.decodeIfPresent(UUID.self, forKey: .scheduleTriggerProfileId)
-        scheduleStartHour = min(max(try container.decodeIfPresent(Int.self, forKey: .scheduleStartHour) ?? 9, 0), 23)
-        scheduleStartMinute = min(max(try container.decodeIfPresent(Int.self, forKey: .scheduleStartMinute) ?? 0, 0), 59)
-        scheduleEndHour = min(max(try container.decodeIfPresent(Int.self, forKey: .scheduleEndHour) ?? 17, 0), 23)
-        scheduleEndMinute = min(max(try container.decodeIfPresent(Int.self, forKey: .scheduleEndMinute) ?? 0, 0), 59)
+        scheduleStartHour = try min(max(container.decodeIfPresent(Int.self, forKey: .scheduleStartHour) ?? 9, 0), 23)
+        scheduleStartMinute = try min(max(container.decodeIfPresent(Int.self, forKey: .scheduleStartMinute) ?? 0, 0), 59)
+        scheduleEndHour = try min(max(container.decodeIfPresent(Int.self, forKey: .scheduleEndHour) ?? 17, 0), 23)
+        scheduleEndMinute = try min(max(container.decodeIfPresent(Int.self, forKey: .scheduleEndMinute) ?? 0, 0), 59)
         showOnHover = try container.decodeIfPresent(Bool.self, forKey: .showOnHover) ?? false
-        hoverDelay = try container.decodeIfPresent(TimeInterval.self, forKey: .hoverDelay) ?? 0.25
+        hoverDelay = try container.decodeIfPresent(TimeInterval.self, forKey: .hoverDelay) ?? 2.0
         showOnScroll = try container.decodeIfPresent(Bool.self, forKey: .showOnScroll) ?? false
         // showOnClick removed in v1.0.17 — global click monitor interfered with visible items.
         // Force to false for existing users; decode to discard old value silently.
@@ -459,7 +461,7 @@ struct SaneBarSettings: Codable, Sendable, Equatable {
 // MARK: - KeyboardShortcutData
 
 /// Serializable representation of a keyboard shortcut
-struct KeyboardShortcutData: Codable, Sendable, Hashable {
+struct KeyboardShortcutData: Codable, Hashable {
     var keyCode: UInt16
     var modifiers: UInt
 }

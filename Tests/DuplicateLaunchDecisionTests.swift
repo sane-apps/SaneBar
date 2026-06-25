@@ -15,7 +15,7 @@ struct DuplicateLaunchDecisionTests {
 
     // MARK: - duplicateLaunchResolution
 
-    @Test("Another instance still alive after the grace window → terminate the current launch")
+    @Test("Another instance still alive after the grace window, no version info → terminate the current launch")
     func anotherInstanceAfterGraceTerminatesCurrent() {
         // Snapshot: one other instance was present at launch AND remains after the grace window.
         let resolution = SaneBarAppDelegate.duplicateLaunchResolution(
@@ -23,6 +23,55 @@ struct DuplicateLaunchDecisionTests {
             othersAfterGrace: 1
         )
         #expect(resolution == .terminateCurrent)
+    }
+
+    // MARK: - version-aware resolution (the update / "stuck on old version" fix)
+
+    @Test("This launch is a NEWER build than the survivor → terminate the stale instance, keep the update")
+    func newerBuildTerminatesStaleOthers() {
+        // Sparkle relaunched build 2181 while a wedged 2180 instance is still alive
+        // past the grace window. The new build must win, not be killed.
+        let resolution = SaneBarAppDelegate.duplicateLaunchResolution(
+            othersAtLaunch: 1,
+            othersAfterGrace: 1,
+            currentBuild: 2181,
+            maxSurvivingBuild: 2180
+        )
+        #expect(resolution == .terminateOthers)
+    }
+
+    @Test("This launch is an OLDER build than the survivor → yield to the newer running instance")
+    func olderBuildTerminatesCurrent() {
+        let resolution = SaneBarAppDelegate.duplicateLaunchResolution(
+            othersAtLaunch: 1,
+            othersAfterGrace: 1,
+            currentBuild: 2180,
+            maxSurvivingBuild: 2181
+        )
+        #expect(resolution == .terminateCurrent)
+    }
+
+    @Test("Same build on both sides → yield (keep the already-running instance, first-wins)")
+    func equalBuildKeepsExisting() {
+        let resolution = SaneBarAppDelegate.duplicateLaunchResolution(
+            othersAtLaunch: 1,
+            othersAfterGrace: 1,
+            currentBuild: 2181,
+            maxSurvivingBuild: 2181
+        )
+        #expect(resolution == .terminateCurrent)
+    }
+
+    @Test("Newest wins even against multiple stale survivors (max build is what matters)")
+    func newerBuildBeatsHighestSurvivor() {
+        // Two stale instances (2179 and 2180) linger; current 2181 is newer than the max.
+        let resolution = SaneBarAppDelegate.duplicateLaunchResolution(
+            othersAtLaunch: 2,
+            othersAfterGrace: 2,
+            currentBuild: 2181,
+            maxSurvivingBuild: 2180
+        )
+        #expect(resolution == .terminateOthers)
     }
 
     @Test("No other instance at launch → continue launching (self is the only instance)")
