@@ -10,6 +10,12 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
+## [2.1.81] - 2026-06-25
+
+Your menu bar divider and icon order now stay put through sleep/wake, Space switches, and display changes — no more snapping back toward Control Center. Also fixes moving icons out of Always Hidden, license-key recognition, and unresponsive icon dragging.
+
+---
+
 ## [2.1.80] - 2026-06-23
 
 Improves SaneBar divider/layout stability after app activation, Space changes, wake, and display transitions.
