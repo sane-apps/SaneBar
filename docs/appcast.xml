@@ -6,7 +6,27 @@
                                 
         
                                                                                                                                                                                                                                                                                                                                         
-                                                                                        <item>
+                                                                                                <item>
+            <title>2.1.82</title>
+            <link>https://sanebar.com/download</link>
+            <pubDate>Thu, 25 Jun 2026 17:17:17 -0400</pubDate>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description>
+                <![CDATA[
+                <h2>What's New</h2>
+                <ul>
+                <li>Stops the menu bar revealing on its own: hover and scroll reveal now wait for a deliberate 2-second Reveal delay (adjustable in Settings) instead of popping open the moment your cursor passes by. Also fixes updates not applying cleanly when you are several versions behind: the newest version now always takes over, so you no longer get stuck on an older build.</li>
+                </ul>
+                ]]>
+            </description>
+            <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.82.zip"
+                       sparkle:version="2182"
+                       sparkle:shortVersionString="2.1.82"
+                       length="9726157"
+                       type="application/octet-stream"
+                       sparkle:edSignature="eoJGaj6oxWJKIrCw0GU5WzClCdEvXW4lUR34VjicuWf3b+MqgxCFPcajcNcLstdu0OZKXRpFzd5uSI1iKfaQAQ=="/>
+        </item>
+<item>
             <title>2.1.81</title>
             <link>https://sanebar.com/download</link>
             <pubDate>Thu, 25 Jun 2026 11:08:10 -0400</pubDate>
