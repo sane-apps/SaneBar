@@ -148,18 +148,10 @@ final class MenuBarAlwaysHiddenPinWorkflow {
             logger.error(
                 "Always-hidden separator still misordered after repair (ahRight=\(postAHRightX, privacy: .public), sep=\(postSepX, privacy: .public)) - applying hard position recovery"
             )
-            // FM2_TRACE — TEMPORARY DIAGNOSTIC (#136/#168). Remove before ship.
-            // This hard-recovery path now forwards the caller's
+            // This hard-recovery path forwards the caller's
             // preserveExplicitPersistedPositions decision into recoverStartupPositions
             // so the wake / Space / manual-restore paths no longer reanchor an
             // explicit divider toward Control Center (the #136/#168 snap-back).
-            os_log(
-                "FM2_TRACE ahPinHardRecovery reason=%{public}@ ENTERING recoverStartupPositions(preserveExplicit=%{public}@)",
-                log: OSLog(subsystem: "com.sanebar.app", category: "FM2_TRACE"),
-                type: .default,
-                reason,
-                preserveExplicitPersistedPositions ? "true" : "false"
-            )
             StatusBarPositionRecoveryStore.recoverStartupPositions(
                 alwaysHiddenEnabled: true,
                 referenceScreen: manager.currentRecoveryReferenceScreen(),

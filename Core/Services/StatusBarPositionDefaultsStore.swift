@@ -1,5 +1,4 @@
 import AppKit
-import os.log // FM2_TRACE TEMPORARY DIAGNOSTIC (#136/#168) — remove before ship
 
 enum StatusBarPositionDefaultsStore {
     static func isInvalidPosition(_ value: Any?) -> Bool {
@@ -187,23 +186,6 @@ enum StatusBarPositionDefaultsStore {
 
     nonisolated static func setPreferredPosition(_ value: Double, forAutosaveName autosaveName: String) {
         let appKey = preferredPositionKey(for: autosaveName)
-        // FM2_TRACE — TEMPORARY DIAGNOSTIC (#136/#168). Remove before ship.
-        // Logs EVERY persisted main/separator preferred-position write with the
-        // old value, the new value, and a short call stack so the wake probe can
-        // reveal exactly which path turns an explicit 900 into 144 at wake+5s.
-        let fm2OldValue = numericPositionValue(UserDefaults.standard.object(forKey: appKey))
-        let fm2Frames = Thread.callStackSymbols.dropFirst().prefix(6).joined(separator: " | ")
-        os_log(
-            "FM2_TRACE setPreferredPosition autosave=%{public}@ old=%{public}@ new=%{public}f frames=%{public}@",
-            log: OSLog(subsystem: "com.sanebar.app", category: "FM2_TRACE"),
-            // FM2_TRACE TEMPORARY (#136/#168): .default persists to the unified-log
-            // store that `log show` reads; .info does not. Remove before ship.
-            type: .default,
-            autosaveName,
-            fm2OldValue.map { String($0) } ?? "nil",
-            value,
-            fm2Frames
-        )
         UserDefaults.standard.set(value, forKey: appKey)
         UserDefaults.standard.synchronize()
         setByHostPreferredPosition(value, forAutosaveName: autosaveName)
