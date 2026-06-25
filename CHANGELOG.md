@@ -10,6 +10,12 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
+## [2.1.82] - 2026-06-25
+
+Stops the menu bar revealing on its own: hover and scroll reveal now wait for a deliberate 2-second Reveal delay (adjustable in Settings) instead of popping open the moment your cursor passes by. Also fixes updates not applying cleanly when you are several versions behind: the newest version now always takes over, so you no longer get stuck on an older build.
+
+---
+
 ## [2.1.81] - 2026-06-25
 
 Your menu bar divider and icon order now stay put through sleep/wake, Space switches, and display changes — no more snapping back toward Control Center. Also fixes moving icons out of Always Hidden, license-key recognition, and unresponsive icon dragging.
