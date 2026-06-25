@@ -6,7 +6,27 @@
                                 
         
                                                                                                                                                                                                                                                                                                                                         
-                                                                                <item>
+                                                                                        <item>
+            <title>2.1.81</title>
+            <link>https://sanebar.com/download</link>
+            <pubDate>Thu, 25 Jun 2026 11:08:10 -0400</pubDate>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:criticalUpdate/>            <description>
+                <![CDATA[
+                <h2>What's New</h2>
+                <ul>
+                <li>Your menu bar divider and icon order now stay put through sleep/wake, Space switches, and display changes — no more snapping back toward Control Center. Also fixes moving icons out of Always Hidden, license-key recognition, and unresponsive icon dragging.</li>
+                </ul>
+                ]]>
+            </description>
+            <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.81.zip"
+                       sparkle:version="2181"
+                       sparkle:shortVersionString="2.1.81"
+                       length="9723374"
+                       type="application/octet-stream"
+                       sparkle:edSignature="gOmN9MjbBt7F1Rl7Ghrmq4qXcqKg+uyozKxe+1rKneDNxBdbljvM+4ejjYXJBVCB/iK3XMA/yWqmslK3Qy9WBQ=="/>
+        </item>
+<item>
             <title>2.1.80</title>
             <link>https://sanebar.com/download</link>
             <pubDate>Tue, 23 Jun 2026 15:55:57 -0400</pubDate>
