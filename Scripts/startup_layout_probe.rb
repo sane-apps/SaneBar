@@ -479,7 +479,23 @@ class StartupLayoutProbe
       main_key: backup_main_key,
       separator_key: backup_separator_key
     )
-    raise "Missing current-width backup for dirty reboot probe width #{width_bucket}" unless backup_main && backup_separator
+    unless backup_main && backup_separator
+      # Same as run_poisoned_backup_restore_case: SaneBar intentionally skips
+      # capturing a current-width backup on an external-only / headless display
+      # (a Mac Mini has no built-in screen), so the dirty-reboot recovery case is
+      # N/A there. Stays active on built-in displays where the backup applies.
+      if truthy?(read_layout_snapshot!['isOnExternalMonitor'])
+        log("⏭️ #157 dirty reboot recovery N/A on external-only/headless display " \
+            "(no width backup captured by design). width=#{width_bucket}")
+        return {
+          name: '#157 dirty reboot recovery',
+          status: 'skipped',
+          reason: 'external-only display: SaneBar intentionally skips width-backup capture (no built-in screen)',
+          width_bucket: width_bucket
+        }
+      end
+      raise "Missing current-width backup for dirty reboot probe width #{width_bucket}"
+    end
 
     visibility_keys = current_host_visibility_keys(version)
     original_visibility_values = visibility_keys.to_h { |key| [key, read_current_host_default(key)] }
