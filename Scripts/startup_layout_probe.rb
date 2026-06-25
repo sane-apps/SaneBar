@@ -321,7 +321,27 @@ class StartupLayoutProbe
       main_key: backup_main_key,
       separator_key: backup_separator_key
     )
-    raise "Missing current-width backup for width #{width_bucket}" unless backup_main && backup_separator
+    unless backup_main && backup_separator
+      # SaneBar deliberately does NOT capture a current-width position backup when
+      # the status-item anchors can't go live — the permanent state on an
+      # external-only / headless display (e.g. a Mac Mini, which has no built-in
+      # screen). With no backup written there is nothing to poison-and-restore, so
+      # this case is N/A there. It stays fully active on built-in displays where
+      # the backup feature applies, so a genuine missing-backup regression on a
+      # real customer machine still fails. Env-N/A vs real failure (punch-list #12).
+      snapshot = read_layout_snapshot!
+      if truthy?(snapshot['isOnExternalMonitor'])
+        log("⏭️ current-width backup restore N/A on external-only/headless display " \
+            "(SaneBar skips width-backup capture by design — 2.1.80 anchor-safety). width=#{width_bucket}")
+        return {
+          name: 'current-width backup restore',
+          status: 'skipped',
+          reason: 'external-only display: SaneBar intentionally skips width-backup capture (no built-in screen)',
+          width_bucket: width_bucket
+        }
+      end
+      raise "Missing current-width backup for width #{width_bucket}"
+    end
 
     quit_app
     write_numeric_default(main_key, 0)
