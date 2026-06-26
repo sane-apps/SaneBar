@@ -6,7 +6,27 @@
                                 
         
                                                                                                                                                                                                                                                                                                                                         
-                                                                                                <item>
+                                                                                                        <item>
+            <title>2.1.83</title>
+            <link>https://sanebar.com/download</link>
+            <pubDate>Fri, 26 Jun 2026 18:34:19 -0400</pubDate>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description>
+                <![CDATA[
+                <h2>What's New</h2>
+                <ul>
+                <li>Moving icons between Hidden, Visible, and Always Hidden is reliable again, and the right-click move menu now shows the correct options for each icon zone. SaneBar also recovers the menu-bar separator if macOS parks it off-screen, so your moves always take effect.</li>
+                </ul>
+                ]]>
+            </description>
+            <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.83.zip"
+                       sparkle:version="2183"
+                       sparkle:shortVersionString="2.1.83"
+                       length="9729236"
+                       type="application/octet-stream"
+                       sparkle:edSignature="G/Ra0QSBu/EhLtCuhtpCcM6HmYcX8hMwae6ecgAPOW5YTXEVYAxHVPFOlV8yuaFpl+m+G3H06GfUkBtUTcjkDA=="/>
+        </item>
+<item>
             <title>2.1.82</title>
             <link>https://sanebar.com/download</link>
             <pubDate>Thu, 25 Jun 2026 17:17:17 -0400</pubDate>
