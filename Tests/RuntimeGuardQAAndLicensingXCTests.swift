@@ -144,11 +144,16 @@ final class RuntimeGuardQAAndLicensingXCTests: RuntimeGuardTestCase {
             "Project QA runtime smoke should build a deterministic Lungo-style helper fixture and require wake proof for that exact hidden ID"
         )
         XCTAssertTrue(
-            source.contains("'SANEBAR_SMOKE_REQUIRE_CANDIDATE' => '1'") &&
+            source.contains("def representative_move_matrix_release_gate_enabled?") &&
+                source.contains("ENV['SANEBAR_SMOKE_REQUIRE_MOVE_MATRIX'] == '1'") &&
+                source.contains("require_move_matrix = representative_move_matrix_release_gate_enabled?") &&
+                source.contains("'SANEBAR_SMOKE_REQUIRE_CANDIDATE' => require_move_matrix ? '1' : '0'") &&
+                source.contains("'SANEBAR_SMOKE_REQUIRE_ALL_ZONES' => require_move_matrix ? '1' : '0'") &&
+                source.contains("'SANEBAR_SMOKE_SKIP_MOVE_CHECKS' => require_move_matrix ? '0' : '1'") &&
                 source.contains("'SANEBAR_SMOKE_WATCH_RESOURCES' => '1'") &&
                 source.contains("'SANEBAR_SMOKE_MAX_CPU_PERCENT' => RUNTIME_SMOKE_MAX_CPU_PERCENT.to_s") &&
                 source.contains("'SANEBAR_SMOKE_MAX_RSS_MB' => RUNTIME_SMOKE_MAX_RSS_MB.to_s"),
-            "Project QA runtime smoke should require at least one movable candidate and force the resource watchdog on with explicit CPU and RSS thresholds"
+            "Project QA runtime smoke should gate the AppleScript move-matrix/candidate requirement behind the opt-in SANEBAR_SMOKE_REQUIRE_MOVE_MATRIX (default off: AppleScript moves are not the UI path; real coverage is the Swift suite + on-device IRL) while still forcing the resource watchdog on with explicit CPU and RSS thresholds"
         )
         XCTAssertTrue(
             source.contains("'SANEBAR_SMOKE_LAUNCH_IDLE_CPU_AVG_MAX' => RUNTIME_SMOKE_LAUNCH_IDLE_CPU_AVG_MAX.to_s") &&
@@ -216,13 +221,14 @@ final class RuntimeGuardQAAndLicensingXCTests: RuntimeGuardTestCase {
             "Project QA runtime smoke should always prove shared-bundle exact-ID movement with the deterministic fixture"
         )
         XCTAssertTrue(
-            source.contains("native_apple_ids = runtime_smoke_available_required_candidate_ids(") &&
+            source.contains("native_apple_ids = representative_move_matrix_release_gate_enabled? ? runtime_smoke_available_required_candidate_ids(") &&
                 source.contains("required_ids: RUNTIME_NATIVE_APPLE_IDS") &&
                 source.contains("lane_name: 'native-apple exact-id'") &&
-                source.contains("host_exact_id_ids = runtime_smoke_available_required_candidate_ids(") &&
+                source.contains("host_exact_id_ids = representative_move_matrix_release_gate_enabled? ? runtime_smoke_available_required_candidate_ids(") &&
                 source.contains("required_ids: RUNTIME_HOST_EXACT_ID_SENTINEL_IDS") &&
-                source.contains("lane_name: 'host exact-id'"),
-            "Project QA runtime smoke should also run dedicated focused passes for native Apple items and the host exact-id sentinel when those IDs exist"
+                source.contains("lane_name: 'host exact-id'") &&
+                source.contains("host exact-id move smoke skipped (move-matrix disabled"),
+            "Project QA runtime smoke should keep the native-Apple and host exact-id focused passes available but gated behind the opt-in move-matrix flag (default off; AppleScript moves are not the UI path)"
         )
         XCTAssertTrue(
             source.contains("runtime_smoke_no_candidate_fixture_policy?(smoke_out)") &&
