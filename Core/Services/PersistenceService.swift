@@ -479,15 +479,18 @@ final class PersistenceService: PersistenceServiceProtocol, @unchecked Sendable 
     private let fileManager: FileManager
     private let keychain: KeychainServiceProtocol
     private let appSupportDirectoryOverride: URL?
+    private let userDefaults: UserDefaults
 
     init(
         fileManager: FileManager = FileManager.default,
         keychain: KeychainServiceProtocol = KeychainService.shared,
-        appSupportDirectoryOverride: URL? = nil
+        appSupportDirectoryOverride: URL? = nil,
+        userDefaults: UserDefaults = .standard
     ) {
         self.fileManager = fileManager
         self.keychain = keychain
         self.appSupportDirectoryOverride = appSupportDirectoryOverride
+        self.userDefaults = userDefaults
     }
 
     private var appSupportDirectory: URL {
@@ -571,6 +574,21 @@ final class PersistenceService: PersistenceServiceProtocol, @unchecked Sendable 
             settings.requireAuthToShowHiddenIcons = legacy
             shouldRewriteJSON = true
             try? keychain.delete(LegacyKeychainKeys.requireAuthToShowHiddenIcons)
+        }
+
+        // Reveal-dwell migration (#160/#161/#165): the "menu bar pops open on its
+        // own / icons won't stay hidden" reports trace to the old 0.25s hover/scroll
+        // reveal delay firing on incidental cursor movement. The default is now 2.0s,
+        // but existing installs keep their persisted 0.25s, so the dwell fix never
+        // reached them. Bump the stale old default once; a user who later chooses a
+        // fast delay keeps it (one-time flag).
+        let revealDwellMigrationKey = "SaneBar_didMigrateRevealDwell_v1"
+        if !userDefaults.bool(forKey: revealDwellMigrationKey) {
+            if settings.hoverDelay == 0.25 {
+                settings.hoverDelay = 2.0
+                shouldRewriteJSON = true
+            }
+            userDefaults.set(true, forKey: revealDwellMigrationKey)
         }
 
         if shouldRewriteJSON {

@@ -295,4 +295,61 @@ final class PersistenceAuthMigrationTests: XCTestCase {
         XCTAssertEqual(loaded.layoutRescueRestorePoint?.spacerPositions[0], 480)
         XCTAssertEqual(loaded.layoutRescueRestorePoint?.displayBackups.first?.widthBucket, 1512)
     }
+
+    // MARK: - Reveal-dwell migration (#160/#161/#165)
+
+    func testStaleHoverDelayMigratesToDwellDefaultOnce() throws {
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let suiteName = "test.reveal.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let persistence = PersistenceService(
+            fileManager: FileManager.default,
+            appSupportDirectoryOverride: tempDir,
+            userDefaults: defaults
+        )
+
+        // Existing install carrying the old fast 0.25s reveal delay.
+        let legacyJSON = """
+        { "autoRehide": true, "showOnHover": true, "hoverDelay": 0.25 }
+        """
+        let settingsURL = tempDir.appendingPathComponent("settings.json")
+        try legacyJSON.data(using: .utf8)?.write(to: settingsURL, options: .atomic)
+
+        let loaded = try persistence.loadSettings()
+        XCTAssertEqual(loaded.hoverDelay, 2.0, "Stale 0.25s reveal delay should migrate to the 2.0s dwell default")
+
+        // One-time: a user who deliberately re-lowers the delay keeps it.
+        var relowered = loaded
+        relowered.hoverDelay = 0.25
+        try persistence.saveSettings(relowered)
+        XCTAssertEqual(try persistence.loadSettings().hoverDelay, 0.25, "A user-chosen fast delay must survive after the one-time migration")
+    }
+
+    func testIntentionalNonDefaultHoverDelayIsNotMigrated() throws {
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let suiteName = "test.reveal.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let persistence = PersistenceService(
+            fileManager: FileManager.default,
+            appSupportDirectoryOverride: tempDir,
+            userDefaults: defaults
+        )
+
+        let json = """
+        { "autoRehide": true, "showOnHover": true, "hoverDelay": 0.5 }
+        """
+        try json.data(using: .utf8)?.write(to: tempDir.appendingPathComponent("settings.json"), options: .atomic)
+
+        XCTAssertEqual(try persistence.loadSettings().hoverDelay, 0.5, "A non-default delay reflects a user choice and must not be migrated")
+    }
 }
