@@ -545,6 +545,20 @@ class LiveZoneSmoke
   end
 
   def desktop_bounds
+    # Finder's "bounds of window of desktop" can hang indefinitely on some macOS
+    # builds (Stage Manager / Spaces / notch state), blowing APPLESCRIPT_TIMEOUT
+    # and failing the smoke even though SaneBar is healthy. Read the main screen
+    # frame via AppKit instead (instant, notch-safe); fall back to Finder only if
+    # AppKit/JXA is unavailable.
+    jxa = 'ObjC.import("AppKit"); var f = $.NSScreen.mainScreen.frame; ' \
+          '"0 0 " + Math.round(f.size.width) + " " + Math.round(f.size.height)'
+    out, status = capture2e_with_timeout('/usr/bin/osascript', '-l', 'JavaScript', '-e', jxa,
+                                          timeout: APPLESCRIPT_TIMEOUT_SECONDS)
+    if status&.success?
+      values = out.scan(/-?\d+/).map(&:to_i)
+      return values.first(4) if values.length >= 4
+    end
+
     script = 'tell application "Finder" to get bounds of window of desktop'
     out, status = capture2e_with_timeout('/usr/bin/osascript', '-e', script, timeout: APPLESCRIPT_TIMEOUT_SECONDS)
     raise "Could not read desktop bounds for pointer parking: #{out.strip}" unless status&.success?
