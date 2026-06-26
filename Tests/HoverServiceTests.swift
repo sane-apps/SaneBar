@@ -1,18 +1,17 @@
-import Testing
-import Foundation
 import AppKit
+import Foundation
 @testable import SaneBar
+import Testing
 
 // MARK: - HoverServiceTests
 
 @Suite("HoverService Tests")
 @MainActor
 struct HoverServiceTests {
-
     // MARK: - Initialization Tests
 
     @Test("HoverService initializes with hover disabled by default")
-    func testDefaultHoverDisabled() {
+    func defaultHoverDisabled() {
         let service = HoverService()
 
         #expect(service.isEnabled == false, "Hover should be disabled by default")
@@ -20,17 +19,19 @@ struct HoverServiceTests {
         #expect(service.clickEnabled == false, "Click should be disabled by default")
     }
 
-    @Test("HoverService initializes with default delay of 0.25 seconds")
-    func testDefaultHoverDelay() {
+    @Test("HoverService initializes with default reveal delay of 2.0 seconds")
+    func defaultHoverDelay() {
         let service = HoverService()
 
-        #expect(service.hoverDelay == 0.25, "Default hover delay should be 0.25s")
+        // Default reveal dwell was raised 0.25s → 2.0s so incidental hover/scroll
+        // across the menu bar no longer pops hidden icons instantly (#165 cluster).
+        #expect(service.hoverDelay == 2.0, "Default reveal delay should be 2.0s")
     }
 
     // MARK: - Enable/Disable State Machine Tests
 
     @Test("Enabling hover when scroll is disabled should allow start")
-    func testEnableHoverAlone() {
+    func enableHoverAlone() {
         let service = HoverService()
         service.isEnabled = true
 
@@ -43,7 +44,7 @@ struct HoverServiceTests {
     }
 
     @Test("Enabling scroll when hover is disabled should allow start")
-    func testEnableScrollAlone() {
+    func enableScrollAlone() {
         let service = HoverService()
         service.scrollEnabled = true
 
@@ -56,7 +57,7 @@ struct HoverServiceTests {
     }
 
     @Test("Disabling both hover and scroll stops monitoring")
-    func testDisableBothStops() {
+    func disableBothStops() {
         let service = HoverService()
 
         // Enable both
@@ -77,7 +78,7 @@ struct HoverServiceTests {
     }
 
     @Test("Setting isEnabled to same value does not trigger state change")
-    func testNoOpOnSameValue() {
+    func noOpOnSameValue() {
         let service = HoverService()
         var triggerCount = 0
 
@@ -96,7 +97,7 @@ struct HoverServiceTests {
     // MARK: - Callback Configuration Tests
 
     @Test("onTrigger callback is settable and type is preserved")
-    func testOnTriggerCallback() async {
+    func onTriggerCallback() {
         let service = HoverService()
         var receivedReason: HoverService.TriggerReason?
 
@@ -117,7 +118,7 @@ struct HoverServiceTests {
     }
 
     @Test("onLeaveMenuBar callback is settable")
-    func testOnLeaveMenuBarCallback() {
+    func onLeaveMenuBarCallback() {
         let service = HoverService()
         var leaveCallCount = 0
 
@@ -135,7 +136,7 @@ struct HoverServiceTests {
     // MARK: - Hover Delay Configuration Tests
 
     @Test("Hover delay can be set to custom values")
-    func testCustomHoverDelay() {
+    func customHoverDelay() {
         let service = HoverService()
 
         service.hoverDelay = 0.5
@@ -149,7 +150,7 @@ struct HoverServiceTests {
     }
 
     @Test("Hover delay of zero is allowed")
-    func testZeroDelay() {
+    func zeroDelay() {
         let service = HoverService()
         service.hoverDelay = 0.0
 
@@ -159,7 +160,7 @@ struct HoverServiceTests {
     // MARK: - Start/Stop API Tests
 
     @Test("start() does nothing when both hover and scroll are disabled")
-    func testStartWithBothDisabled() {
+    func startWithBothDisabled() {
         let service = HoverService()
 
         // Both disabled by default
@@ -171,7 +172,7 @@ struct HoverServiceTests {
     }
 
     @Test("stop() resets internal mouse state")
-    func testStopResetsState() {
+    func stopResetsState() {
         let service = HoverService()
         service.isEnabled = true
         service.start()
@@ -184,7 +185,7 @@ struct HoverServiceTests {
     }
 
     @Test("Explicit status-item interaction marks mouse as active in menu bar")
-    func testExplicitStatusItemInteractionMarksMenuBarActive() {
+    func explicitStatusItemInteractionMarksMenuBarActive() {
         let service = HoverService()
 
         service.noteExplicitStatusItemInteraction()
@@ -195,7 +196,7 @@ struct HoverServiceTests {
     // MARK: - TriggerReason Enum Tests
 
     @Test("TriggerReason has distinct cases")
-    func testTriggerReasonCases() {
+    func triggerReasonCases() {
         let hoverReason = HoverService.TriggerReason.hover
         let scrollUpReason = HoverService.TriggerReason.scroll(direction: .up)
         let scrollDownReason = HoverService.TriggerReason.scroll(direction: .down)
@@ -214,7 +215,7 @@ struct HoverServiceTests {
     // MARK: - Mock Tests
 
     @Test("HoverServiceProtocolMock tracks start/stop calls")
-    func testMockTracking() {
+    func mockTracking() {
         let mock = HoverServiceProtocolMock()
 
         mock.start()
@@ -226,7 +227,7 @@ struct HoverServiceTests {
     }
 
     @Test("HoverServiceProtocolMock allows setting isEnabled/scrollEnabled")
-    func testMockProperties() {
+    func mockProperties() {
         let mock = HoverServiceProtocolMock()
 
         mock.isEnabled = true
@@ -239,7 +240,7 @@ struct HoverServiceTests {
     // MARK: - Menu Bar Interaction Region Tests
 
     @Test("Menu bar interaction region includes the top menu strip")
-    func testInteractionRegionIncludesMenuStrip() {
+    func interactionRegionIncludesMenuStrip() {
         let screen = CGRect(x: 0, y: 0, width: 1440, height: 900)
         let point = NSPoint(x: 100, y: 890)
 
@@ -254,7 +255,7 @@ struct HoverServiceTests {
     }
 
     @Test("Menu bar interaction region includes the dropdown zone below menu bar")
-    func testInteractionRegionIncludesDropdownZone() {
+    func interactionRegionIncludesDropdownZone() {
         let screen = CGRect(x: 0, y: 0, width: 1440, height: 900)
         let point = NSPoint(x: 100, y: 760) // 140px below menu bar top
 
@@ -269,7 +270,7 @@ struct HoverServiceTests {
     }
 
     @Test("Menu bar interaction region excludes points far below threshold")
-    func testInteractionRegionExcludesFarBelowThreshold() {
+    func interactionRegionExcludesFarBelowThreshold() {
         let screen = CGRect(x: 0, y: 0, width: 1440, height: 900)
         let point = NSPoint(x: 100, y: 640) // 260px below menu bar top
 
@@ -284,7 +285,7 @@ struct HoverServiceTests {
     }
 
     @Test("Menu bar strip helper includes only top strip")
-    func testMenuBarStripHelperIncludesTopStrip() {
+    func menuBarStripHelperIncludesTopStrip() {
         let screen = CGRect(x: 0, y: 0, width: 1440, height: 900)
         let point = NSPoint(x: 100, y: 890)
 
@@ -298,7 +299,7 @@ struct HoverServiceTests {
     }
 
     @Test("Menu bar strip helper excludes dropdown zone below strip")
-    func testMenuBarStripHelperExcludesDropdownZone() {
+    func menuBarStripHelperExcludesDropdownZone() {
         let screen = CGRect(x: 0, y: 0, width: 1440, height: 900)
         let point = NSPoint(x: 100, y: 760) // 140px below menu bar top
 
@@ -312,7 +313,7 @@ struct HoverServiceTests {
     }
 
     @Test("Menu bar interaction region uses the screen containing the pointer")
-    func testInteractionRegionUsesContainingScreen() {
+    func interactionRegionUsesContainingScreen() {
         let builtIn = CGRect(x: 0, y: 0, width: 1512, height: 982)
         let external = CGRect(x: 1512, y: 0, width: 2560, height: 1440)
         let point = NSPoint(x: 1800, y: 1430)
@@ -328,7 +329,7 @@ struct HoverServiceTests {
     }
 
     @Test("Menu bar distance uses the containing screen instead of NSScreen.main assumptions")
-    func testDistanceFromMenuBarTopUsesContainingScreen() {
+    func distanceFromMenuBarTopUsesContainingScreen() {
         let builtIn = CGRect(x: 0, y: 0, width: 1512, height: 982)
         let external = CGRect(x: 1512, y: 0, width: 2560, height: 1440)
         let point = NSPoint(x: 2000, y: 1410)

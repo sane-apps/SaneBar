@@ -1,5 +1,5 @@
-import Foundation
 import CoreGraphics
+import Foundation
 
 enum BrowsePanelMode: String, CaseIterable, Identifiable {
     case hidden
@@ -106,6 +106,48 @@ enum BrowsePanelZoneClassifier {
             separatorX: separatorBoundaryX
         )
     }
+
+    /// Classify an app's zone for the All tab. Prefers the authoritative cached
+    /// classification (the same source as the tab counts and `list icon zones`)
+    /// and only falls back to pin state + separator geometry when the app isn't
+    /// present there. Geometry alone is unreliable while the separator is parked
+    /// off-screen — its boundary degrades to a stale/estimated cache value, which
+    /// misclassifies Hidden items as Always Hidden and makes the right-click menu
+    /// offer impossible moves.
+    static func zoneForAllTab(
+        app: RunningApp,
+        classified: SearchClassifiedApps,
+        pinnedIds: Set<String>,
+        separatorRightEdgeX: CGFloat?,
+        separatorOriginX: CGFloat?,
+        alwaysHiddenBoundaryX: CGFloat?,
+        alwaysHiddenOriginX: CGFloat?
+    ) -> BrowseAppZone {
+        if classified.alwaysHidden.contains(where: { $0.uniqueId == app.uniqueId }) { return .alwaysHidden }
+        if classified.hidden.contains(where: { $0.uniqueId == app.uniqueId }) { return .hidden }
+        if classified.visible.contains(where: { $0.uniqueId == app.uniqueId }) { return .visible }
+
+        if pinnedIds.contains(app.uniqueId) || pinnedIds.contains(app.bundleId) {
+            return .alwaysHidden
+        }
+
+        guard let xPos = app.xPosition else { return .visible }
+        let midX = xPos + ((app.width ?? 22) / 2)
+        let separatorBoundaryX = separatorBoundaryForAllTab(
+            separatorRightEdgeX: separatorRightEdgeX,
+            separatorOriginX: separatorOriginX
+        )
+        let resolvedAlwaysHiddenBoundaryX = alwaysHiddenBoundaryForAllTab(
+            separatorBoundaryX: separatorBoundaryX,
+            alwaysHiddenBoundaryX: alwaysHiddenBoundaryX,
+            alwaysHiddenOriginX: alwaysHiddenOriginX
+        )
+        return classifyAllTabZone(
+            midX: midX,
+            separatorBoundaryX: separatorBoundaryX,
+            alwaysHiddenSeparatorX: resolvedAlwaysHiddenBoundaryX
+        )
+    }
 }
 
 enum BrowsePanelDropResolver {
@@ -126,7 +168,8 @@ enum BrowsePanelDropResolver {
             return (app, .alwaysHidden)
         }
         guard let app = filteredApps.first(where: { $0.uniqueId == sourceID }),
-              let mode else {
+              let mode
+        else {
             return nil
         }
 

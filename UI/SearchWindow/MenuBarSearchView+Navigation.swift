@@ -6,29 +6,18 @@ import SwiftUI
 extension MenuBarSearchView {
     // MARK: - Zone Classification (for All tab context menus)
 
-    /// Classify an app's current zone based on its X position vs separator positions.
+    /// Classify an app's current zone for the All tab. Delegates to
+    /// `BrowsePanelZoneClassifier.zoneForAllTab`, which prefers the authoritative
+    /// cached classification over (off-screen-fragile) separator geometry.
     func appZone(for app: RunningApp) -> AppZone {
-        let pinnedIds = Set(menuBarManager.settings.alwaysHiddenPinnedItemIds)
-        if pinnedIds.contains(app.uniqueId) || pinnedIds.contains(app.bundleId) {
-            return .alwaysHidden
-        }
-
-        guard let xPos = app.xPosition else { return .visible }
-        let midX = xPos + ((app.width ?? 22) / 2)
-        let separatorBoundaryX = BrowsePanelZoneClassifier.separatorBoundaryForAllTab(
+        BrowsePanelZoneClassifier.zoneForAllTab(
+            app: app,
+            classified: service.cachedClassifiedApps(),
+            pinnedIds: Set(menuBarManager.settings.alwaysHiddenPinnedItemIds),
             separatorRightEdgeX: menuBarManager.geometryResolver.separatorRightEdgeX(),
-            separatorOriginX: menuBarManager.geometryResolver.separatorOriginX()
-        )
-        let alwaysHiddenBoundaryX = BrowsePanelZoneClassifier.alwaysHiddenBoundaryForAllTab(
-            separatorBoundaryX: separatorBoundaryX,
+            separatorOriginX: menuBarManager.geometryResolver.separatorOriginX(),
             alwaysHiddenBoundaryX: menuBarManager.geometryResolver.alwaysHiddenSeparatorBoundaryX(),
             alwaysHiddenOriginX: menuBarManager.geometryResolver.alwaysHiddenSeparatorOriginX()
-        )
-
-        return BrowsePanelZoneClassifier.classifyAllTabZone(
-            midX: midX,
-            separatorBoundaryX: separatorBoundaryX,
-            alwaysHiddenSeparatorX: alwaysHiddenBoundaryX
         )
     }
 

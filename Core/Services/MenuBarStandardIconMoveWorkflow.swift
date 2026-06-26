@@ -52,7 +52,8 @@ final class MenuBarStandardIconMoveWorkflow {
 
         logger.debug("========== MOVE ICON START ==========")
         logger.debug("moveIcon: bundleID=\(request.bundleID, privacy: .private), menuExtraId=\(request.menuExtraId ?? "nil", privacy: .private), toHidden=\(request.toHidden, privacy: .public)")
-        logger.debug("Current hidingState: \(String(describing: self.manager.hidingState))")
+        let currentHidingStateForLog = String(describing: manager.hidingState)
+        logger.debug("Current hidingState: \(currentHidingStateForLog)")
 
         let preMoveSeparatorRightEdge = manager.geometryResolver.separatorRightEdgeX()
         if let sepX = preMoveSeparatorRightEdge {
@@ -171,8 +172,40 @@ final class MenuBarStandardIconMoveWorkflow {
                 }
             }
 
+            if separatorX == nil {
+                // The separator's status-item window can sit parked off-screen
+                // (screen == nil) for a few hundred ms after showAll() shrinks its
+                // length, so currentLiveSeparatorFrame() returns nil and the move
+                // would abort + re-hide. The Always-Hidden workflow already recovers
+                // from this by recreating SaneBar's status items; give the standard
+                // (Hidden/Visible) path the same recovery instead of giving up.
+                logger.warning("Move target unresolved (separator window not live) - recreating status items before aborting")
+                await MainActor.run {
+                    manager.executeStatusItemRecoveryAction(
+                        .recreateFromPersistedLayout(.invalidStatusItems),
+                        trigger: "standard-move-separator-recovery"
+                    )
+                    manager.clearCachedSeparatorGeometry()
+                    AccessibilityService.shared.invalidateMenuBarItemCache()
+                }
+                try? await Task.sleep(for: .milliseconds(400))
+                await manager.hidingService.showAll()
+                usedShowAllShield = true
+                try? await Task.sleep(for: .milliseconds(300))
+                await manager.geometryResolver.warmSeparatorPositionCache(maxAttempts: 24)
+                let recovered = await manager.moveTargetResolver.resolveMoveTargetsWithRetries(
+                    toHidden: request.toHidden,
+                    sourceIdentity: sourceIdentity,
+                    separatorOverrideX: request.separatorOverrideX
+                )
+                separatorX = recovered.separatorX
+                visibleBoundaryX = recovered.visibleBoundaryX
+                if separatorX != nil {
+                    logger.info("Recovered live separator after status-item recreation; continuing move")
+                }
+            }
             guard let resolvedSeparatorX = separatorX else {
-                logger.error("Cannot get separator position - ABORTING")
+                logger.error("Cannot get separator position after recovery - ABORTING")
                 await restoreShieldIfNeeded()
                 return false
             }
@@ -181,7 +214,8 @@ final class MenuBarStandardIconMoveWorkflow {
             if !request.toHidden {
                 guard let activeVisibleBoundaryX,
                       activeVisibleBoundaryX.isFinite,
-                      activeVisibleBoundaryX > activeSeparatorX else {
+                      activeVisibleBoundaryX > activeSeparatorX
+                else {
                     logger.error("Missing visible boundary for move-to-visible - ABORTING")
                     await restoreShieldIfNeeded()
                     return false
@@ -332,7 +366,8 @@ final class MenuBarStandardIconMoveWorkflow {
             if !request.toHidden {
                 guard let fallbackVisibleBoundaryX,
                       fallbackVisibleBoundaryX.isFinite,
-                      fallbackVisibleBoundaryX > fallbackSeparatorX else {
+                      fallbackVisibleBoundaryX > fallbackSeparatorX
+                else {
                     logger.error("Shield fallback could not resolve ordered visible boundary - keeping failure")
                     return success
                 }
