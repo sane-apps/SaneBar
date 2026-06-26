@@ -10,6 +10,12 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
+## [2.1.83] - 2026-06-26
+
+Fixes icon moves that still failed after recent updates: moving icons between Hidden/Visible/Always Hidden now works (verified on notched built-in displays), and the right-click move menu now shows the correct options for an icon's actual zone. Adds recovery for the menu-bar separator when macOS parks it off-screen so moves stop silently doing nothing.
+
+---
+
 ## [2.1.82] - 2026-06-25
 
 Stops the menu bar revealing on its own: hover and scroll reveal now wait for a deliberate 2-second Reveal delay (adjustable in Settings) instead of popping open the moment your cursor passes by. Also fixes updates not applying cleanly when you are several versions behind: the newest version now always takes over, so you no longer get stuck on an older build.
