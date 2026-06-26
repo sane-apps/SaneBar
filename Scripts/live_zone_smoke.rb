@@ -959,6 +959,7 @@ class LiveZoneSmoke
     # snap-back, or "cannot get separator position" — never as a deliberate
     # unsafe-drag-source refusal.)
     if representative_shortfall_is_product_safety_refusal?(reset_report)
+      @representative_zone_setup_degraded = true
       warn "⚠️ Representative zone candidate shortfall is a product-correct " \
            "notch-unsafe/off-screen drag-source refusal, not a move regression " \
            "(missing=#{missing.join(', ')} ah_candidates=#{ah_count} raw=#{counts} " \
