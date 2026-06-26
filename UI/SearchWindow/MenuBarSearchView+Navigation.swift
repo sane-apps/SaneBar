@@ -64,7 +64,12 @@ extension MenuBarSearchView {
         }
 
         return {
-            _ = self.queueMove(app, from: sourceZone, to: targetZone)
+            // Use the async (AfterDrop) path so the move never runs the
+            // synchronous prepare (nested RunLoop.current.run) on the main
+            // thread. Context-menu/keyboard moves used to beachball for
+            // seconds during Always-Hidden separator prep; drag-drop already
+            // routed here. (Bug A: menu-bar move beachball.)
+            _ = self.queueMoveAfterDrop(app, from: sourceZone, to: targetZone)
         }
     }
 
@@ -73,7 +78,7 @@ extension MenuBarSearchView {
         let isAH = mode == .alwaysHidden || (mode == .all && appZone(for: app) == .alwaysHidden)
         guard isAH else { return nil }
         return {
-            _ = self.queueMove(app, from: .alwaysHidden, to: .hidden)
+            _ = self.queueMoveAfterDrop(app, from: .alwaysHidden, to: .hidden)
         }
     }
 
@@ -83,7 +88,7 @@ extension MenuBarSearchView {
         let isAH = mode == .alwaysHidden || (mode == .all && appZone(for: app) == .alwaysHidden)
         guard !isAH else { return nil }
         return {
-            _ = self.queueMove(app, from: self.appZone(for: app), to: .alwaysHidden)
+            _ = self.queueMoveAfterDrop(app, from: self.appZone(for: app), to: .alwaysHidden)
         }
     }
 
