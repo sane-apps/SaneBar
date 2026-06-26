@@ -15,6 +15,37 @@ This is the default-OFF exception to Mini-first. Keep Mini-first for
 everything else. Each step below was hard-won during the 2026-06-25 AH-move
 beachball fix; follow it instead of rediscovering.
 
+## 0. Quick start — use the script (don't re-learn the dance)
+
+```bash
+Scripts/air_ir_test.sh setup      # build+sign+deploy, enable local-UI, start logs, PRINT the agent recipe
+Scripts/air_ir_test.sh zones      # ground truth: every icon's real zone (read-only; the source of truth)
+Scripts/air_ir_test.sh logs       # move-relevant lines from the live log
+Scripts/air_ir_test.sh teardown   # stop logs, remove the local-UI bypass, restore hooks
+```
+
+`setup` prints the full computer-use recipe (coordinates + the atomic-batch
+pattern + the 6-direction matrix). Sections 1–7 below are the underlying detail;
+the script encodes them. Corrections learned 2026-06-26 (the script is right,
+some prose below was wrong):
+
+- **`--level debug` log streaming WORKS** for live `log stream` (§3's "debug
+  failed" note was wrong). The script uses debug — richer move/geometry detail
+  (`[INSTR-*]` lines, `moveIcon: toHidden=`, separator frames).
+- **`sane_test.rb --local` already re-signs** with the Developer ID (preserves
+  the Accessibility/TCC grant). The manual codesign + Accessibility toggle in §2
+  is usually no longer needed — only fall back to it if a move shows "Grant Access".
+- **The panel is transient AND ⇧⌘Space TOGGLES it.** Clicking empty desktop does
+  NOT dismiss it (floating panel). Only reliable open-from-unknown-state:
+  `click the red close button (505,65)` → `⇧⌘Space`. Do the whole interaction
+  (open → All → filter → right-click/drag → screenshot) in ONE `computer_batch`.
+- **Stable panel coordinates:** All tab (749,104); Hidden/Visible/AlwaysHidden
+  (533/595/677,104); filter box (685,174); filtered single tile (541,251); red
+  close (505,65). Filter to ONE icon so its tile is always at (541,251).
+- **Ground truth = `Scripts/air_ir_test.sh zones`** (`list icon zones`). The log
+  line "Move complete - direct hide from showAll state" is NOT proof a move
+  worked — it logs even on the abort path. Verify the zone actually changed.
+
 ## 1. Build + install a testable build on the Air
 
 ```bash
