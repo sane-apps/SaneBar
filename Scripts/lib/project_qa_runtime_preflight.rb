@@ -102,8 +102,17 @@ class ProjectQA
       prelaunch_runtime_visible_dynamic_helper_fixture!
       prelaunch_runtime_host_exact_id_fixture!
 
+      # When the runtime smoke runs off-Mini (approved local-UI-on-Air notch
+      # verification), the candidate must be built and installed on THIS host so
+      # the smoke drives the real version. Otherwise SaneMaster routes test_mode
+      # to the Mini and installs there, leaving the Air smoke to run a stale
+      # /Applications build. Disable Mini routing so the build lands locally
+      # where the smoke runs. On the Mini this flag is a no-op.
+      test_mode_env = { 'SANEMASTER_ALLOW_UNSIGNED_FALLBACK' => '0' }
+      test_mode_env['SANEMASTER_DISABLE_MINI_ROUTING'] = '1' unless running_on_mini_host?
+
       launch_out, launch_status = capture2e_with_progress(
-        { 'SANEMASTER_ALLOW_UNSIGNED_FALLBACK' => '0' },
+        test_mode_env,
         SANEMASTER_CLI,
         'test_mode',
         '--release',

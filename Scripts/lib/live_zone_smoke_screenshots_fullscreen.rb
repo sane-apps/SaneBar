@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class LiveZoneSmoke
-  TRANSITION_PROBE_APPLESCRIPT_TIMEOUT_SECONDS = 20
+  TRANSITION_PROBE_APPLESCRIPT_TIMEOUT_SECONDS = 40
 
   private
 
@@ -16,17 +16,48 @@ class LiveZoneSmoke
     nil
   end
 
-  def main_display_top_strip_rect
+  # Finder's "bounds of window of desktop" can hang indefinitely on some macOS
+  # builds (Stage Manager / Spaces / notch state), blowing the AppleScript
+  # timeout. Read the main screen frame via AppKit instead (instant, notch-safe);
+  # fall back to Finder only if AppKit/JXA is unavailable. Returns [x1, y1, x2, y2].
+  def robust_desktop_bounds
+    jxa = 'ObjC.import("AppKit"); var f = $.NSScreen.mainScreen.frame; ' \
+          '"0 0 " + Math.round(f.size.width) + " " + Math.round(f.size.height)'
+    out, status = capture2e_with_timeout('/usr/bin/osascript', '-l', 'JavaScript', '-e', jxa,
+                                          timeout: APPLESCRIPT_TIMEOUT_SECONDS)
+    if status&.success?
+      values = out.scan(/-?\d+/).map(&:to_i)
+      return values.first(4) if values.length >= 4
+    end
+
     script = 'tell application "Finder" to get bounds of window of desktop'
     out, status = capture2e_with_timeout('/usr/bin/osascript', '-e', script, timeout: APPLESCRIPT_TIMEOUT_SECONDS)
-    raise "Could not read desktop bounds for top-strip capture: #{out.strip}" unless status.success?
+    raise "Could not read desktop bounds: #{out.strip}" unless status&.success?
 
     values = out.scan(/-?\d+/).map(&:to_i)
     raise "Unexpected desktop bounds: #{out.inspect}" unless values.length >= 4
 
-    x1, y1, x2, _y2 = values.first(4)
+    values.first(4)
+  end
+
+  # Cold-launching Safari/TextEdit under post-build CPU load can blow the timed
+  # transition-probe AppleScript. Launch the app first (untimed, background) so
+  # the timed script only has to drive an already-running app.
+  def warm_transition_probe_app(app_name)
+    system('/usr/bin/open', '-g', '-a', app_name, out: File::NULL, err: File::NULL)
+    deadline = Time.now + 12
+    until Time.now > deadline
+      out, status = Open3.capture2e('/usr/bin/pgrep', '-x', app_name)
+      break if status.success? && !out.strip.empty?
+
+      sleep 0.3
+    end
+  end
+
+  def main_display_top_strip_rect
+    x1, y1, x2, _y2 = robust_desktop_bounds
     width = x2 - x1
-    raise "Invalid desktop width for top-strip capture: #{out.inspect}" unless width.positive?
+    raise "Invalid desktop width for top-strip capture: #{[x1, y1, x2].inspect}" unless width.positive?
 
     [x1, y1, width, CUSTOMER_VISIBLE_TOP_STRIP_HEIGHT]
   end
@@ -201,8 +232,10 @@ class LiveZoneSmoke
       VISIBLE_TRANSITION_PROBE_HTML_PATH,
       '<!doctype html><title>SaneBar Full Width Probe</title><body style="margin:0;background:#f8f8f8;color:#111;font:18px system-ui;padding:32px">SaneBar full-width transition probe</body>'
     )
+    warm_transition_probe_app('Safari')
+    bounds = robust_desktop_bounds
     script = <<~APPLESCRIPT
-      tell application "Finder" to set screenBounds to bounds of window of desktop
+      set screenBounds to {#{bounds.join(', ')}}
       tell application "Safari"
         activate
         make new document
@@ -241,6 +274,7 @@ class LiveZoneSmoke
       VISIBLE_TRANSITION_PROBE_HTML_PATH,
       '<!doctype html><title>SaneBar Fullscreen Probe</title><body style="margin:0;background:#f8f8f8;color:#111;font:18px system-ui;padding:32px">SaneBar fullscreen transition probe</body>'
     )
+    warm_transition_probe_app('Safari')
     script = <<~APPLESCRIPT
       tell application "Safari"
         activate
@@ -260,8 +294,10 @@ class LiveZoneSmoke
   end
 
   def open_textedit_transition_probe_window
+    warm_transition_probe_app('TextEdit')
+    bounds = robust_desktop_bounds
     script = <<~APPLESCRIPT
-      tell application "Finder" to set screenBounds to bounds of window of desktop
+      set screenBounds to {#{bounds.join(', ')}}
       tell application "TextEdit"
         activate
         make new document with properties {text:"SaneBar fullscreen transition probe"}
