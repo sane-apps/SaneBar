@@ -179,29 +179,46 @@ final class MenuBarStandardIconMoveWorkflow {
                 // would abort + re-hide. The Always-Hidden workflow already recovers
                 // from this by recreating SaneBar's status items; give the standard
                 // (Hidden/Visible) path the same recovery instead of giving up.
-                logger.warning("Move target unresolved (separator window not live) - recreating status items before aborting")
-                await MainActor.run {
-                    manager.executeStatusItemRecoveryAction(
-                        .recreateFromPersistedLayout(.invalidStatusItems),
-                        trigger: "standard-move-separator-recovery"
-                    )
-                    manager.clearCachedSeparatorGeometry()
-                    AccessibilityService.shared.invalidateMenuBarItemCache()
+                //
+                // BUT per docs/GEOMETRY_TRUST_REVIEW: never recreate status items
+                // while macOS is flapping NSStatusItem visibility — recreating then
+                // destroys the saved position (Apple FB9052637) and feeds the
+                // #136/#152 drift. Only attempt the recreate when recovery is NOT
+                // dormant (the flap detector hasn't stood recovery down) and not
+                // already running; otherwise abort cleanly and let the dormancy +
+                // Health-repair hint path own it. Aborting a move is benign (it
+                // simply doesn't take); recreating during a flap is destructive.
+                let recoveryAllowed = await MainActor.run { () -> Bool in
+                    let dormant = (manager.statusItemRecoveryWorkflow.recoveryDormantUntil ?? .distantPast) > Date()
+                    return !dormant && !manager.isExecutingStatusItemRecovery
                 }
-                try? await Task.sleep(for: .milliseconds(400))
-                await manager.hidingService.showAll()
-                usedShowAllShield = true
-                try? await Task.sleep(for: .milliseconds(300))
-                await manager.geometryResolver.warmSeparatorPositionCache(maxAttempts: 24)
-                let recovered = await manager.moveTargetResolver.resolveMoveTargetsWithRetries(
-                    toHidden: request.toHidden,
-                    sourceIdentity: sourceIdentity,
-                    separatorOverrideX: request.separatorOverrideX
-                )
-                separatorX = recovered.separatorX
-                visibleBoundaryX = recovered.visibleBoundaryX
-                if separatorX != nil {
-                    logger.info("Recovered live separator after status-item recreation; continuing move")
+                if recoveryAllowed {
+                    logger.warning("Move target unresolved (separator window not live) - recreating status items before aborting")
+                    await MainActor.run {
+                        manager.executeStatusItemRecoveryAction(
+                            .recreateFromPersistedLayout(.invalidStatusItems),
+                            trigger: "standard-move-separator-recovery"
+                        )
+                        manager.clearCachedSeparatorGeometry()
+                        AccessibilityService.shared.invalidateMenuBarItemCache()
+                    }
+                    try? await Task.sleep(for: .milliseconds(400))
+                    await manager.hidingService.showAll()
+                    usedShowAllShield = true
+                    try? await Task.sleep(for: .milliseconds(300))
+                    await manager.geometryResolver.warmSeparatorPositionCache(maxAttempts: 24)
+                    let recovered = await manager.moveTargetResolver.resolveMoveTargetsWithRetries(
+                        toHidden: request.toHidden,
+                        sourceIdentity: sourceIdentity,
+                        separatorOverrideX: request.separatorOverrideX
+                    )
+                    separatorX = recovered.separatorX
+                    visibleBoundaryX = recovered.visibleBoundaryX
+                    if separatorX != nil {
+                        logger.info("Recovered live separator after status-item recreation; continuing move")
+                    }
+                } else {
+                    logger.warning("Move target unresolved while recovery is dormant/in-flight (OS visibility flap) - aborting cleanly without recreating")
                 }
             }
             guard let resolvedSeparatorX = separatorX else {
