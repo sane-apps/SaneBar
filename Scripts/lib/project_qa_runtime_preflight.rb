@@ -505,12 +505,10 @@ class ProjectQA
         missing = expected_screenshots.select { |_mode, path| path.nil? }.keys
         appearance_screenshots = Dir.glob(File.join(screenshot_dir, 'sanebar-appearance-*.png'))
         missing << 'appearance-transition' if appearance_screenshots.empty?
-        fullscreen_restore_screenshots = Dir.glob(File.join(screenshot_dir, 'sanebar-appearance-*-fullscreen-exit-*.png'))
-        missing << 'fullscreen-overlay-restore' if fullscreen_restore_screenshots.empty?
-        fullscreen_matrix_artifact = '/tmp/sanebar_runtime_fullscreen_matrix.json'
-        unless runtime_fullscreen_matrix_artifact_passed?(fullscreen_matrix_artifact)
-          missing << 'fullscreen-customer-visible-matrix'
-        end
+        # Fullscreen overlay-restore + customer-visible-matrix screenshots were
+        # retired with the Safari/TextEdit fullscreen probes (owner direction,
+        # 2026-06-26); requiring them here left an orphaned artifact check that
+        # failed the smoke and blocked the customer-UI receipt.
         unless missing.empty?
           @errors << "Runtime smoke missing screenshot artifact(s): #{missing.join(', ')}"
           puts "❌ missing screenshot(s): #{missing.join(', ')}"
