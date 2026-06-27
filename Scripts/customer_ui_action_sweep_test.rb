@@ -583,61 +583,6 @@ class CustomerUIActionSweepTest < Minitest::Test
     ENV['HOME'] = old_home
   end
 
-  def test_runtime_state_results_read_artifact_backed_evidence_paths
-    fullscreen_artifact = '/tmp/sanebar_runtime_fullscreen_matrix.json'
-    startup_log = startup_probe_log_path
-    preserve_files(fullscreen_artifact) do
-    Dir.mktmpdir do |evidence_dir|
-    @sweep.instance_variable_set(:@evidence_dir, evidence_dir)
-    File.write(
-      fullscreen_artifact,
-      JSON.pretty_generate(
-        status: 'pass',
-        evidence_types: %w[mini_runtime screenshot log],
-        evidence_paths: ['/tmp/sanebar-top-strip.png'],
-        candidate: runtime_candidate_fixture,
-        completed_scenarios: [
-          'native fullscreen enter and exit',
-          'hidden and visible icon zones persist across fullscreen Space transition',
-          'maximized desktop window below the menu bar',
-          'Dark appearance with Translucent Background enabled',
-          'Reduce Transparency enabled',
-          'customer-visible menu-bar top-strip shade comparison, not only internal overlay snapshots'
-        ]
-      )
-    )
-    @sweep.instance_variable_set(:@action_results, {
-      'startup-wake-appearance-recovery' => {
-        evidence: [
-          { type: 'mini_runtime', detail: "#{startup_log}: Startup layout probe passed", artifacts: [startup_log] },
-          { type: 'mini_runtime', detail: '/tmp/sanebar_runtime_wake_probe.log: Wake layout probe passed', artifacts: ['/tmp/sanebar_runtime_wake_probe.log'] },
-          { type: 'screenshot', detail: 'appearance screenshot', artifacts: ['outputs/customer-ui/appearance.png'] },
-          { type: 'state_receipt', detail: '/tmp/sanebar_runtime.log: Appearance tint pixels ok', artifacts: ['outputs/customer-ui/state.json'] },
-          { type: 'log', detail: 'runtime log', artifacts: ['/tmp/sanebar_runtime.log'] }
-        ]
-      },
-      'appearance-customization-actions' => {
-        evidence: [
-          { type: 'mini_runtime', detail: '/tmp/sanebar_runtime.log: Appearance tint pixels ok', artifacts: ['/tmp/sanebar_runtime.log'] },
-          { type: 'screenshot', detail: 'appearance screenshot', artifacts: ['outputs/customer-ui/appearance.png'] },
-          { type: 'state_receipt', detail: '/tmp/sanebar_runtime.log: Appearance tint pixels ok', artifacts: ['outputs/customer-ui/state.json'] }
-        ]
-      }
-    })
-
-    rows = @sweep.send(:runtime_state_results, { 'manifest_sha256' => 'abc' })
-    transition = rows.find { |row| row[:id] == 'fullscreen_maximize_transition' }
-    durable_fullscreen_artifact = File.join(evidence_dir, 'fullscreen-matrix-sanebar_runtime_fullscreen_matrix.json')
-
-    assert_equal 'passed', transition[:status]
-    assert_includes transition[:evidence_paths], durable_fullscreen_artifact
-    refute_includes transition[:evidence_paths], fullscreen_artifact
-    assert File.file?(durable_fullscreen_artifact)
-    assert_includes transition[:completed_scenarios], 'Reduce Transparency enabled'
-    end
-    end
-  end
-
   def test_runtime_state_results_read_durable_hover_and_license_probe_artifacts
     runtime_dir = CustomerUIActionSweep.const_get(:RUNTIME_PREFLIGHT_DIR)
     hover_json = File.join(runtime_dir, 'sanebar_runtime_hover_rehide.json')
@@ -771,42 +716,17 @@ class CustomerUIActionSweepTest < Minitest::Test
     end
   end
 
-  def test_runtime_state_results_fail_without_named_fullscreen_scenarios
-    fullscreen_artifact = '/tmp/sanebar_runtime_fullscreen_matrix.json'
-    startup_log = startup_probe_log_path
-    preserve_files(fullscreen_artifact) do
-      FileUtils.rm_f(fullscreen_artifact)
-
-    @sweep.instance_variable_set(:@action_results, {
-      'startup-wake-appearance-recovery' => {
-        evidence: [
-          { type: 'mini_runtime', detail: "#{startup_log}: Startup layout probe passed", artifacts: [startup_log] },
-          { type: 'screenshot', detail: 'appearance screenshot', artifacts: ['outputs/customer-ui/appearance.png'] },
-          { type: 'log', detail: 'runtime log', artifacts: ['/tmp/sanebar_runtime.log'] }
-        ]
-      },
-      'appearance-customization-actions' => {
-        evidence: [
-          { type: 'mini_runtime', detail: '/tmp/sanebar_runtime.log: Appearance tint pixels ok', artifacts: ['/tmp/sanebar_runtime.log'] },
-          { type: 'screenshot', detail: 'appearance screenshot', artifacts: ['outputs/customer-ui/appearance.png'] },
-          { type: 'log', detail: 'runtime log', artifacts: ['/tmp/sanebar_runtime.log'] }
-        ]
-      }
-    })
-
-    rows = @sweep.send(:runtime_state_results, { 'manifest_sha256' => 'abc' })
-    transition = rows.find { |row| row[:id] == 'fullscreen_maximize_transition' }
-
-    assert_equal 'failed', transition[:status]
-    assert_empty transition[:completed_scenarios]
-    end
-  end
-
   def test_runtime_state_results_rejects_stale_runtime_artifact_candidate
-    fullscreen_artifact = '/tmp/sanebar_runtime_fullscreen_matrix.json'
-    preserve_files(fullscreen_artifact) do
+    # A runtime artifact whose recorded candidate version does not match the
+    # running build must be rejected (runtime_candidate_matches?), so the row
+    # cannot be passed off the stale evidence. Exercised on a live artifact-backed
+    # row (wake_visible_zone_persistence) after the fullscreen lane was retired.
+    wake_artifact = wake_probe_artifact_path
+    wake_log = wake_probe_log_path
+    preserve_files(wake_artifact, wake_log) do
+      File.write(wake_log, 'Wake layout probe passed')
       File.write(
-        fullscreen_artifact,
+        wake_artifact,
         JSON.pretty_generate(
           status: 'pass',
           candidate: {
@@ -814,16 +734,14 @@ class CustomerUIActionSweepTest < Minitest::Test
             app_version: '2.1.61',
             app_build: '2161'
           },
-          evidence_types: %w[mini_runtime screenshot log],
-          evidence_paths: ['/tmp/sanebar-top-strip.png'],
-          completed_scenarios: [
-            'native fullscreen enter and exit',
-            'hidden and visible icon zones persist across fullscreen Space transition',
-            'maximized desktop window below the menu bar',
-            'Dark appearance with Translucent Background enabled',
-            'Reduce Transparency enabled',
-            'customer-visible menu-bar top-strip shade comparison, not only internal overlay snapshots'
-          ]
+          visible_zone_persistence: {
+            status: 'pass',
+            completed_scenarios: ['fresh authoritative icon-zone snapshot at 15s after wake']
+          },
+          hidden_zone_persistence: {
+            status: 'pass',
+            completed_scenarios: ['hidden required IDs remain hidden and are not moved into Visible or Always Hidden']
+          }
         )
       )
       @sweep.instance_variable_set(:@running_bundle_version, '2.1.62')
@@ -831,25 +749,18 @@ class CustomerUIActionSweepTest < Minitest::Test
       @sweep.instance_variable_set(:@action_results, {
         'startup-wake-appearance-recovery' => {
           evidence: [
-            { type: 'mini_runtime', detail: '/tmp/sanebar_runtime.log: Startup layout probe passed', artifacts: ['/tmp/sanebar_runtime.log'] },
-            { type: 'screenshot', detail: 'appearance screenshot', artifacts: ['outputs/customer-ui/appearance.png'] },
-            { type: 'log', detail: 'runtime log', artifacts: ['/tmp/sanebar_runtime.log'] }
-          ]
-        },
-        'appearance-customization-actions' => {
-          evidence: [
-            { type: 'mini_runtime', detail: '/tmp/sanebar_runtime.log: Appearance tint pixels ok', artifacts: ['/tmp/sanebar_runtime.log'] },
-            { type: 'screenshot', detail: 'appearance screenshot', artifacts: ['outputs/customer-ui/appearance.png'] },
-            { type: 'log', detail: 'runtime log', artifacts: ['/tmp/sanebar_runtime.log'] }
+            { type: 'mini_runtime', detail: '/tmp/sanebar_runtime_wake_probe.log: Wake layout probe passed', artifacts: [wake_log] },
+            { type: 'screenshot', detail: 'wake screenshot', artifacts: ['outputs/customer-ui/wake.png'] },
+            { type: 'log', detail: 'wake log', artifacts: [wake_log] }
           ]
         }
       })
 
       rows = @sweep.send(:runtime_state_results, { 'manifest_sha256' => 'abc' })
-      transition = rows.find { |row| row[:id] == 'fullscreen_maximize_transition' }
+      wake = rows.find { |row| row[:id] == 'wake_visible_zone_persistence' }
 
-      assert_equal 'failed', transition[:status]
-      assert_empty transition[:completed_scenarios]
+      assert_equal 'failed', wake[:status]
+      assert_empty wake[:completed_scenarios]
     end
   end
 

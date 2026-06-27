@@ -77,8 +77,6 @@ These are canonical scripts maintained in `~/SaneApps/infra/SaneProcess/scripts/
 |--------|---------|
 | `grant_permissions.applescript` | Auto-click permission dialogs in test environments |
 | `sanemaster_completions.zsh` | Zsh tab completions for SaneMaster |
-| `set_dmg_icon.swift` | Set custom icon on .dmg files |
-| `sign_update.swift` | Sparkle EdDSA signing utility |
 
 ## Project-Specific Scripts
 
@@ -94,8 +92,6 @@ These are canonical scripts maintained in `~/SaneApps/infra/SaneProcess/scripts/
 | `button_map.rb` | Map all UI controls and their handlers |
 | `marketing_screenshots.rb` | Automated screenshot capture for marketing |
 | `uninstall_sanebar.sh` | Clean uninstall (remove prefs, login items) |
-| `stress_test_menubar.swift` | Stress test with many menu bar items |
-| `overflow_test_menubar.swift` | Test menu bar overflow edge cases |
 
 Run the live browse smoke directly:
 
