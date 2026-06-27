@@ -20,7 +20,12 @@ enum MenuBarDisplayConfiguration {
             .map { screen in
                 let frame = screen.frame
                 let number = (screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.stringValue ?? "?"
-                return "\(number):\(Int(frame.minX)),\(Int(frame.minY)),\(Int(frame.width))x\(Int(frame.height))"
+                // Include backingScaleFactor: a scale-mode switch (e.g. a HiDPI "More
+                // Space" change) that keeps the same logical point frame still alters
+                // menu-bar item geometry, so it must register as a real arrangement
+                // change (avoids the #136 false-equal where it routes wake-resume → no
+                // reanchor). Also strengthens the geometry cache's cross-config guard.
+                return "\(number):\(Int(frame.minX)),\(Int(frame.minY)),\(Int(frame.width))x\(Int(frame.height))@\(screen.backingScaleFactor)"
             }
             .sorted()
             .joined(separator: "|")
