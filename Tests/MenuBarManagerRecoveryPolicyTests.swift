@@ -327,7 +327,7 @@ struct MenuBarManagerRecoveryPolicyTests {
         )
     }
 
-    @Test("Unrecoverable status-item recovery surfaces Health only for explicit repair")
+    @Test("Unrecoverable status-item recovery surfaces Health for startup (#157) or explicit repair, not steady-state")
     func statusItemRecoveryStopHealthFallbackDecision() {
         #expect(
             MenuBarVisibilityPolicy.shouldSurfaceHealthAfterStatusItemRecoveryStop(
@@ -358,11 +358,11 @@ struct MenuBarManagerRecoveryPolicyTests {
             )
         )
         #expect(
-            !MenuBarVisibilityPolicy.shouldSurfaceHealthAfterStatusItemRecoveryStop(
+            MenuBarVisibilityPolicy.shouldSurfaceHealthAfterStatusItemRecoveryStop(
                 recoveryReason: .invalidStatusItems,
                 recoveryCount: 2,
                 validationContext: .startupFollowUp
-            )
+            ) // #157: startup icon-never-came-up must surface Health
         )
     }
 
