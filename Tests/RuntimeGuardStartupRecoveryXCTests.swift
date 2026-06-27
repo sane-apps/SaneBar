@@ -459,19 +459,31 @@ final class RuntimeGuardStartupRecoveryXCTests: RuntimeGuardTestCase {
         )
     }
 
-    func testStoppedBackgroundStatusItemRecoveryDoesNotOpenHealthFallback() throws {
+    func testStatusItemRecoveryStopSurfacesHealthOnlyForStartupOrManualRepair() throws {
+        // Behavioral (not source.contains): steady-state background recovery (wake /
+        // Space / screen-params) must NOT pop Health on its own — that would be a
+        // surprise window during normal use. Only a genuine startup failure (#157 —
+        // the icon never came up) or an explicit manual repair may surface it.
         let recoveryURL = projectRootURL().appendingPathComponent("Core/Services/MenuBarStatusItemRecoveryWorkflow.swift")
         let recoverySource = try String(contentsOf: recoveryURL, encoding: .utf8)
-        let policyURL = projectRootURL().appendingPathComponent("Core/Services/MenuBarVisibilityPolicy.swift")
-        let policySource = try String(contentsOf: policyURL, encoding: .utf8)
-
         XCTAssertTrue(
-            policySource.contains("shouldSurfaceHealthAfterStatusItemRecoveryStop(") &&
-                policySource.contains("validationContext == .manualLayoutRestore") &&
-                recoverySource.contains("surfaceHealthFallbackAfterRecoveryStopIfNeeded(") &&
-                recoverySource.contains("NSApp.setActivationPolicy(.regular)") &&
+            recoverySource.contains("surfaceHealthFallbackAfterRecoveryStopIfNeeded(") &&
                 recoverySource.contains("SettingsOpener.open(tab: .health)"),
-            "Background status-item recovery must not open Settings/Health by itself; only explicit manual repair may surface the Health fallback"
+            "Recovery must still wire the Health fallback up on stop"
+        )
+        for steadyState in [MenuBarOperationCoordinator.PositionValidationContext.wakeResume, .activeSpaceChanged, .screenParametersChanged] {
+            XCTAssertFalse(
+                MenuBarVisibilityPolicy.shouldSurfaceHealthAfterStatusItemRecoveryStop(
+                    recoveryReason: .invalidStatusItems, recoveryCount: 4, validationContext: steadyState
+                ),
+                "Steady-state recovery (\(steadyState.rawValue)) must not open Health by itself"
+            )
+        }
+        XCTAssertTrue(
+            MenuBarVisibilityPolicy.shouldSurfaceHealthAfterStatusItemRecoveryStop(
+                recoveryReason: .invalidStatusItems, recoveryCount: 4, validationContext: .startupFollowUp
+            ),
+            "An icon that never came up at startup (#157) must surface Health"
         )
     }
 
