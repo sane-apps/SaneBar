@@ -471,17 +471,21 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
     /// app: no icon, no window, no way to repair or even export a diagnostic. Always
     /// give them a window — Health when the items aren't live (repair + report live
     /// there), Settings otherwise — so the app is never a dead end.
+    @MainActor
     func applicationShouldHandleReopen(_: NSApplication, hasVisibleWindows: Bool) -> Bool {
-        let itemsValid = MenuBarManager.shared.currentRuntimeSnapshot().startupItemsValid
-        if itemsValid {
-            if !hasVisibleWindows {
-                SettingsOpener.open()
-            }
-        } else {
-            appLogger.error("Reopen while status items are invalid — surfacing Health so the user can recover (#157)")
+        // Gate on the CONFIRMED-off-screen signal, NOT raw startupItemsValid: the latter
+        // is transiently false during ordinary startup/recovery and macOS NSStatusItem
+        // flaps, so gating on it would pop Health (and force a Dock icon via .regular)
+        // unprompted for a perfectly healthy user. likelySystemSuppressedStatusItems
+        // means the icon is genuinely missing — same signal the startup auto-surface gate
+        // uses (shouldSurfaceHealthAfterStatusItemRecoveryStop).
+        if MenuBarManager.shared.currentRuntimeSnapshot().likelySystemSuppressedStatusItems {
+            appLogger.error("Reopen while the status item looks system-suppressed — surfacing Health so the user can recover (#157)")
             NSApp.setActivationPolicy(.regular)
             NSApp.activate(ignoringOtherApps: true)
             SettingsOpener.open(tab: .health)
+        } else if !hasVisibleWindows {
+            SettingsOpener.open()
         }
         return true
     }

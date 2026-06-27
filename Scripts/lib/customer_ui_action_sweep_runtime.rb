@@ -15,6 +15,14 @@ class CustomerUIActionSweep
     'per-sample CPU/RSS/physical footprint trend fields were captured'
   ].freeze
 
+  # Runtime-state rows whose ONLY evidence comes from the AppleScript SBF move-matrix
+  # lane. That lane is opt-in (SANEBAR_SMOKE_REQUIRE_MOVE_MATRIX=1) because the product
+  # correctly refuses unsafe AppleScript drags on notch/off-screen separators — it is not
+  # the real UI path. When the lane is gated off these rows are INFORMATIONAL, not failed
+  # (real move coverage = Swift move-regression suite + on-device IRL). Mirrors the
+  # contract-side `move_runtime_line` and the runtime `move_matrix_required` gating.
+  MOVE_MATRIX_GATED_RUNTIME_STATES = %w[shared_bundle_exact_id_moves].freeze
+
   private
 
   def verify_recent_runtime_smoke
@@ -31,6 +39,12 @@ class CustomerUIActionSweep
     native_log = '/tmp/sanebar_runtime_native_apple_smoke.log'
     host_log = '/tmp/sanebar_runtime_host_exact_id_smoke.log'
     strict_fixture_log = '/tmp/sanebar_runtime_strict_fixture_smoke.log'
+    # Single source of truth for whether AppleScript move/exact-ID evidence is required,
+    # mirroring project_qa_runtime_preflight's representative_move_matrix_release_gate_enabled?.
+    # When off (default) those lanes don't run, so the sweep must not demand their
+    # evidence; real move coverage = Swift move-regression suite + on-device IRL (owner
+    # ruling 2026-06-26: AppleScript moves aren't the real UI path).
+    move_matrix_required = ENV['SANEBAR_SMOKE_REQUIRE_MOVE_MATRIX'] == '1'
     [smoke_log, startup_log, wake_log].each do |path|
       raise "Missing runtime evidence #{path}" unless fresh_release_runtime_evidence?(path)
     end
@@ -38,16 +52,10 @@ class CustomerUIActionSweep
       .select { |path| fresh_release_runtime_evidence?(path) }
     smoke_runtime = verified_runtime_log_body!(smoke_log, label: 'Runtime smoke')
     exact_runtime = exact_logs.map { |path| verified_runtime_log_body!(path, label: 'Exact-ID runtime smoke') }.join("\n")
-    # The exact-ID AppleScript move lanes (strict-fixture / shared-bundle / native /
-    # host) are gated off by default with the move-matrix (SANEBAR_SMOKE_REQUIRE_MOVE_MATRIX,
-    # owner ruling 2026-06-26: AppleScript moves aren't the real UI path — move
-    # coverage is the Swift move-regression suite + on-device IRL). When the lanes are
-    # off they produce no evidence, so requiring it here was inconsistent with the
-    # preflight gating and blocked the customer-UI receipt. Require exact-ID evidence
-    # only when the move-matrix is enabled (matches project_qa_runtime_preflight's
-    # representative_move_matrix_release_gate_enabled?). Any logs that DO exist are
-    # still verified above and folded into the runtime evidence below.
-    if ENV['SANEBAR_SMOKE_REQUIRE_MOVE_MATRIX'] == '1' &&
+    # Require exact-ID evidence only when the move-matrix is enabled (see move_matrix_required
+    # above). Any logs that DO exist are still verified above and folded into the runtime
+    # evidence below.
+    if move_matrix_required &&
        (exact_logs.empty? || !exact_runtime.include?('Live zone smoke passed'))
       raise "Missing exact-ID runtime evidence #{[strict_fixture_log, shared_log, native_log, host_log].join(', ')}"
     end
@@ -66,11 +74,16 @@ class CustomerUIActionSweep
     runtime = [smoke_runtime, safe_read_artifact(startup_log), safe_read_artifact(wake_log), exact_runtime].join("\n")
     required = [
       ['Settings window visual check ok'],
-      ['Hidden/Visible move actions ok'],
-      ['Always Hidden move actions ok'],
       ['Representative zone candidates ok'],
       ['Live zone smoke passed']
     ]
+    # The move-action markers come only from the AppleScript move-matrix lanes, which are
+    # gated off by default — require them only when the move-matrix is enabled (otherwise
+    # the smoke legitimately skips them and move coverage is Swift + IRL).
+    if move_matrix_required
+      required << ['Hidden/Visible move actions ok']
+      required << ['Always Hidden move actions ok']
+    end
     required.each do |markers|
       raise "Runtime smoke missing marker #{markers.join(' or ')}" unless markers.any? { |marker| runtime.include?(marker) }
     end
@@ -84,7 +97,10 @@ class CustomerUIActionSweep
       'Browse mode findIcon activation ok',
       'Browse mode findIcon open/close ok'
     )
-    raise 'Exact-ID smoke did not pass' unless exact_runtime.include?('Candidate set passed') || exact_runtime.include?('Candidate passed')
+    # The exact-ID candidate-move assertion only applies when the move-matrix lanes ran.
+    if move_matrix_required
+      raise 'Exact-ID smoke did not pass' unless exact_runtime.include?('Candidate set passed') || exact_runtime.include?('Candidate passed')
+    end
     if fresh_release_runtime_evidence?(strict_fixture_log)
       strict_fixture = safe_read_artifact(strict_fixture_log)
       raise 'Strict exact-ID fixture smoke did not pass' unless strict_fixture.include?('Candidate set passed') && strict_fixture.include?('Browse mode findIcon activation ok') && strict_fixture.include?('Browse mode secondMenuBar activation ok')
@@ -236,7 +252,8 @@ class CustomerUIActionSweep
       required_scenarios = Array(row['required_scenarios']).map(&:to_s)
       missing_types = required_types - evidence_types
       missing_scenarios = required_scenarios - completed_scenarios
-      informational_reason = runtime_state_informational_reason(row)
+      informational_reason = runtime_state_informational_reason(row) ||
+                             move_matrix_gated_informational_reason(id.to_s)
       failure_reasons = []
       failure_reasons << "missing evidence types: #{missing_types.join(', ')}" unless missing_types.empty?
       failure_reasons << "missing completed scenarios: #{missing_scenarios.join(', ')}" unless missing_scenarios.empty?
@@ -316,6 +333,18 @@ class CustomerUIActionSweep
 
     reason = row['informational_reason'].to_s.strip
     reason.empty? ? nil : reason
+  end
+
+  # Downgrade move-matrix-only runtime states to informational when the opt-in
+  # AppleScript move lane is gated off (the default). Keeps the receipt honest:
+  # the row is reported, labeled why it is not gating, and never blocks release.
+  def move_matrix_gated_informational_reason(id)
+    return nil if ENV['SANEBAR_SMOKE_REQUIRE_MOVE_MATRIX'] == '1'
+    return nil unless MOVE_MATRIX_GATED_RUNTIME_STATES.include?(id.to_s)
+
+    'AppleScript move-matrix lane gated off by default ' \
+      '(set SANEBAR_SMOKE_REQUIRE_MOVE_MATRIX=1 to require); ' \
+      'real move coverage = Swift move-regression suite + on-device IRL'
   end
 
   def runtime_state_artifact(id)
