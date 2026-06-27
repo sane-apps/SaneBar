@@ -35,6 +35,11 @@ final class MenuBarObserverWorkflow {
     private var previousObservedSettings = SaneBarSettings()
     private var displayReconfigurationObserverInstalled = false
     private var displayResumePendingAfterDisable = false
+    /// Display arrangement fingerprint observed at the last screen-parameters
+    /// event. Used to distinguish a genuine display-topology change from the
+    /// spurious `didChangeScreenParametersNotification` macOS posts on a plain
+    /// sleep/wake — see `screenParametersValidationContext` (#136/#153).
+    private var lastObservedDisplayFingerprint = ""
 
     init(manager: MenuBarManager) {
         self.manager = manager
@@ -184,7 +189,24 @@ final class MenuBarObserverWorkflow {
         }
     }
 
+    /// Picks the position-validation context for a screen-parameters
+    /// notification. macOS posts `didChangeScreenParametersNotification` on a
+    /// plain sleep/wake even when the display arrangement is identical; treating
+    /// that as a topology change reanchors (and launders) the user's explicit
+    /// divider toward Control Center (#136/#153). When the display fingerprint is
+    /// unchanged, validate as a non-destructive `.wakeResume` instead — which the
+    /// recovery decision already treats as steady-state (no reanchor/reset),
+    /// while a genuine change keeps `.screenParametersChanged` (topology).
+    nonisolated static func screenParametersValidationContext(
+        displayActuallyChanged: Bool
+    ) -> MenuBarOperationCoordinator.PositionValidationContext {
+        displayActuallyChanged ? .screenParametersChanged : .wakeResume
+    }
+
     private func installScreenAndWakeObservers() {
+        // Seed the baseline so the first screen-parameters event is compared
+        // against the arrangement present when observers came online.
+        lastObservedDisplayFingerprint = MenuBarDisplayConfiguration.currentFingerprint()
         NotificationCenter.default
             .publisher(for: NSApplication.didChangeScreenParametersNotification)
             .receive(on: DispatchQueue.main)
@@ -194,8 +216,24 @@ final class MenuBarObserverWorkflow {
                 manager.cancelVisibilityIntentReplayTask(reason: "screenParametersChanged")
                 logger.debug("Screen parameters changed - refreshed cached separator policy")
                 manager.enforceExternalMonitorVisibilityPolicy(reason: "screenParametersChanged")
+                // `didChangeScreenParametersNotification` also fires on a plain
+                // sleep/wake when the display arrangement is byte-for-byte identical.
+                // Treating that spurious event as a display-topology change authorizes
+                // a destructive reanchor that clamps the user's explicit divider toward
+                // Control Center (#136/#153 — "moves right then back after wake"). Only
+                // validate as a topology change when the fingerprint actually changed;
+                // otherwise validate as a non-destructive wake so the divider survives.
+                let fingerprint = MenuBarDisplayConfiguration.currentFingerprint()
+                let displayActuallyChanged = fingerprint != lastObservedDisplayFingerprint
+                lastObservedDisplayFingerprint = fingerprint
+                let validationContext = Self.screenParametersValidationContext(
+                    displayActuallyChanged: displayActuallyChanged
+                )
+                logger.debug(
+                    "Screen parameters changed - displayActuallyChanged=\(displayActuallyChanged, privacy: .public) → validating as \(validationContext.rawValue, privacy: .public)"
+                )
                 // Replay pinned visibility intent only after validation reports healthy anchors.
-                manager.schedulePositionValidation(context: .screenParametersChanged)
+                manager.schedulePositionValidation(context: validationContext)
             }
             .store(in: &cancellables)
 
@@ -275,7 +313,7 @@ final class MenuBarObserverWorkflow {
         }
     }
 
-    nonisolated private static let displayReconfigurationCallback: CGDisplayReconfigurationCallBack = { display, flags, userInfo in
+    private nonisolated static let displayReconfigurationCallback: CGDisplayReconfigurationCallBack = { display, flags, userInfo in
         guard let userInfo else { return }
         let workflow = Unmanaged<MenuBarObserverWorkflow>.fromOpaque(userInfo).takeUnretainedValue()
         Task { @MainActor [workflow] in
