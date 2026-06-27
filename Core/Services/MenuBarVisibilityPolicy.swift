@@ -170,22 +170,22 @@ enum MenuBarVisibilityPolicy {
     nonisolated static func shouldSurfaceHealthAfterStatusItemRecoveryStop(
         recoveryReason: MenuBarOperationCoordinator.StartupRecoveryReason?,
         recoveryCount: Int,
-        validationContext: MenuBarOperationCoordinator.PositionValidationContext?
+        validationContext: MenuBarOperationCoordinator.PositionValidationContext?,
+        likelySystemSuppressed: Bool = true
     ) -> Bool {
         // Only after recovery has genuinely exhausted its attempts (recoveryCount > 0)
         // with a real failure reason.
         guard recoveryReason != nil, recoveryCount > 0 else { return false }
         switch validationContext {
         case .manualLayoutRestore:
-            // The user explicitly asked to restore layout and it failed.
+            // The user explicitly asked to restore layout and it failed → always show.
             return true
         case .startupFollowUp:
             // The icon never came up at launch — e.g. macOS won't place the status
-            // item (#157). Without surfacing Health the user is left with an
-            // invisible, unreachable app and no way to repair or export a diagnostic.
-            // startup-follow-up recovery runs once per launch, so Health surfaces at
-            // most once and is not a repeating popup.
-            return true
+            // item (#157). Surface Health (once per launch — startup recovery runs
+            // once) ONLY when the item is genuinely off-screen, so a merely-slow
+            // placement that recovered on its own never pops the window unprompted.
+            return likelySystemSuppressed
         case .screenParametersChanged, .activeSpaceChanged, .wakeResume, .none:
             // Steady-state validations fire repeatedly during normal use; surfacing
             // Health here would pop the window unexpectedly. The reopen handler
