@@ -1,6 +1,15 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
+# Runtime logs and settings files this sweep reads contain non-ASCII bytes
+# (the ✅/↳/emoji in our own smoke output). If the caller's locale is not UTF-8
+# (e.g. a bare ssh shell defaulting to US-ASCII), File.read/readlines + String#strip
+# raise Encoding::CompatibilityError and crash the whole sweep. Force UTF-8 here so
+# the sweep can never be screwed up by the caller's locale. See memory:
+# saneprocess-state-encoding-wipe.
+Encoding.default_external = Encoding::UTF_8
+Encoding.default_internal = Encoding::UTF_8
+
 require 'digest'
 require 'fileutils'
 require 'json'
