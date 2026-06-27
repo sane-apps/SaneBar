@@ -38,7 +38,17 @@ class CustomerUIActionSweep
       .select { |path| fresh_release_runtime_evidence?(path) }
     smoke_runtime = verified_runtime_log_body!(smoke_log, label: 'Runtime smoke')
     exact_runtime = exact_logs.map { |path| verified_runtime_log_body!(path, label: 'Exact-ID runtime smoke') }.join("\n")
-    if exact_logs.empty? || !exact_runtime.include?('Live zone smoke passed')
+    # The exact-ID AppleScript move lanes (strict-fixture / shared-bundle / native /
+    # host) are gated off by default with the move-matrix (SANEBAR_SMOKE_REQUIRE_MOVE_MATRIX,
+    # owner ruling 2026-06-26: AppleScript moves aren't the real UI path — move
+    # coverage is the Swift move-regression suite + on-device IRL). When the lanes are
+    # off they produce no evidence, so requiring it here was inconsistent with the
+    # preflight gating and blocked the customer-UI receipt. Require exact-ID evidence
+    # only when the move-matrix is enabled (matches project_qa_runtime_preflight's
+    # representative_move_matrix_release_gate_enabled?). Any logs that DO exist are
+    # still verified above and folded into the runtime evidence below.
+    if ENV['SANEBAR_SMOKE_REQUIRE_MOVE_MATRIX'] == '1' &&
+       (exact_logs.empty? || !exact_runtime.include?('Live zone smoke passed'))
       raise "Missing exact-ID runtime evidence #{[strict_fixture_log, shared_log, native_log, host_log].join(', ')}"
     end
 
