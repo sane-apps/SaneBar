@@ -194,7 +194,7 @@ class ProjectQATest < Minitest::Test
     assert_includes source, "ENV.fetch('SANEBAR_RELEASE_SMOKE_SCREENSHOTS', '1')"
     assert_includes source, "'SANEBAR_SMOKE_REQUIRE_APPEARANCE_TINT_PIXELS' => capture_runtime_smoke_screenshots ? '1' : '0'"
     assert_includes source, "'SANEBAR_SMOKE_REQUIRE_VISIBLE_APPEARANCE_PIXELS' => capture_runtime_smoke_screenshots ? '1' : '0'"
-    assert_includes source, "missing << 'fullscreen-overlay-restore' if fullscreen_restore_screenshots.empty?"
+    # fullscreen-overlay-restore screenshot requirement retired with the fullscreen probes (owner direction 2026-06-26)
     assert_includes source, "runtime_fullscreen_matrix_artifact_passed?"
     assert_includes source, "'app activation keeps dark custom tint visible'"
     assert_includes source, "'hidden and visible icon zones persist across fullscreen Space transition'"
