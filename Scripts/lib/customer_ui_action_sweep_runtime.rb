@@ -689,7 +689,10 @@ class CustomerUIActionSweep
   end
 
   def runtime_log_candidate(body)
-    lines = body.lines.to_h do |line|
+    # Runtime logs are UTF-8 (✅/↳/emoji); if they were read under a US-ASCII
+    # locale, reinterpret the same bytes as UTF-8 so strip/split never raise
+    # Encoding::CompatibilityError. See memory: saneprocess-state-encoding-wipe.
+    lines = body.to_s.dup.force_encoding(Encoding::UTF_8).lines.to_h do |line|
       key, value = line.strip.split('=', 2)
       [key, value]
     end

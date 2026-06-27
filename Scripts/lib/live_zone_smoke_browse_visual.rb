@@ -263,22 +263,16 @@ class LiveZoneSmoke
     assert_appearance_tint_snapshot!(baseline, 'baseline')
     assert_customer_visible_top_strip_tint!('baseline', expected_visible: true)
 
-    open_full_width_transition_probe_window
-    sleep_with_watchdog(0.5)
-    maximized = capture_appearance_overlay_screenshot('maximized-host')
-    raise 'Appearance overlay was not visible over a maximized/full-width host window' unless maximized
-    assert_appearance_tint_snapshot!(maximized, 'maximized-host')
-    assert_customer_visible_top_strip_tint!('maximized-host', expected_visible: true)
-    mark_fullscreen_matrix_scenario('maximized desktop window below the menu bar')
-
-    exercise_app_activation_tint_stability_check
-    exercise_visible_fullscreen_transition_pixel_check
-    assert_required_fullscreen_runtime_settings!
-    write_fullscreen_matrix_artifact!
-
-    puts "✅ Appearance transition visual check ok: #{[baseline, maximized].compact.join(', ')}"
-  ensure
-    close_visible_transition_probe_window_safely(FULLSCREEN_TRANSITION_PROBE_APPS.first)
+    # Owner ruling (2026-06-26): SaneBar's OWN UI appearance (the menu-bar overlay
+    # tint verified by the baseline above + the settings/browse screenshots) stays.
+    # What's removed is the set of probes that LAUNCH Safari and TextEdit and drive
+    # their windows fullscreen/maximized to check SaneBar's overlay over THEM. That
+    # external-app automation is brittle (it hung on Safari today), tests a
+    # long-solved/stable behavior, and is not SaneBar's UI. The fullscreen matrix
+    # (open_full_width/visible transition probes + the fullscreen_maximize_transition
+    # runtime state) is dropped accordingly. Re-add real coverage only if a
+    # regression in overlay-over-fullscreen ever actually recurs.
+    puts "✅ Appearance baseline tint ok (SaneBar menu-bar overlay): #{baseline}"
   end
 
   def exercise_app_activation_tint_stability_check
