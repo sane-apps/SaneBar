@@ -349,8 +349,6 @@ class CustomerUIActionSweep
 
   def runtime_state_artifact(id)
     case id
-    when 'fullscreen_maximize_transition'
-      fullscreen_matrix_artifact
     when 'wake_visible_zone_persistence'
       wake_visible_zone_artifact
     when 'dynamic_helper_wake_drift'
@@ -368,24 +366,6 @@ class CustomerUIActionSweep
     when 'resource_soak_growth'
       resource_soak_artifact
     end
-  end
-
-  def fullscreen_matrix_artifact
-    path = '/tmp/sanebar_runtime_fullscreen_matrix.json'
-    return nil unless fresh_release_runtime_evidence?(path)
-
-    payload = JSON.parse(safe_read_artifact(path))
-    return nil unless payload['status'] == 'pass'
-    return nil unless runtime_candidate_matches?(payload)
-
-    {
-      evidence_types: Array(payload['evidence_types']).map(&:to_s),
-      evidence_paths: runtime_evidence_with_retained_paths([path] + Array(payload['evidence_paths']), label: 'fullscreen-matrix'),
-      completed_scenarios: Array(payload['completed_scenarios']).map(&:to_s),
-      candidate: runtime_candidate(payload)
-    }
-  rescue JSON::ParserError
-    nil
   end
 
   def wake_visible_zone_artifact

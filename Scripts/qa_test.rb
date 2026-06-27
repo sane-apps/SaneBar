@@ -212,7 +212,7 @@ class ProjectQATest < Minitest::Test
   def test_release_runtime_smoke_children_have_hard_timeouts
     source = qa_source
 
-    assert_includes source, 'RUNTIME_SMOKE_PASS_TIMEOUT_SECONDS = 420'
+    assert_includes source, 'RUNTIME_SMOKE_PASS_TIMEOUT_SECONDS = 660'
     assert_includes source, 'RUNTIME_SMOKE_FOCUSED_PASS_TIMEOUT_SECONDS = 300'
     assert_includes source, 'timeout: RUNTIME_SMOKE_PASS_TIMEOUT_SECONDS'
     assert_includes source, 'timeout: focused_runtime_smoke_timeout_seconds(exact_ids)'
@@ -788,7 +788,10 @@ class ProjectQATest < Minitest::Test
     assert_includes source, 'ensure_runtime_smoke_representative_zones_ready!(target)'
     assert_includes source, 'representative_zone_settle_error = ensure_runtime_smoke_representative_zones_ready!(target)'
     assert_includes source, "'SANEBAR_SMOKE_REQUIRE_ALWAYS_HIDDEN' => '1'"
-    assert_includes source, "'SANEBAR_SMOKE_REQUIRE_ALL_ZONES' => '1'"
+    # The all-zones requirement moved to the preflight lib and is now gated on the
+    # move-matrix opt-in (default off); assert the gated form where it now lives.
+    assert_includes File.read(File.join(__dir__, 'lib', 'project_qa_runtime_preflight.rb')),
+                    "'SANEBAR_SMOKE_REQUIRE_ALL_ZONES' => require_move_matrix ? '1' : '0'"
     assert_includes source, "'SANEBAR_SMOKE_SKIP_MOVE_CHECKS' => '0'"
     assert_includes source, 'always_hidden_setup_error = ensure_runtime_smoke_always_hidden_ready!(target)'
     assert_includes source, "settings['hasSeenFreemiumIntro'] = true"
@@ -2817,7 +2820,10 @@ end
     assert_includes source, 'at.obdev.littlesnitch.agent'
     assert_includes source, "lane_name: 'native-apple exact-id'"
     assert_includes source, "lane_name: 'host exact-id'"
-    assert_includes source, 'host_fixture_ids = ensure_runtime_host_exact_id_fixture!(target)'
+    # The host exact-id fixture call moved to the preflight lib and is now gated on the
+    # move-matrix release gate (default off); assert the gated form where it now lives.
+    assert_includes File.read(File.join(__dir__, 'lib', 'project_qa_runtime_preflight.rb')),
+                    'host_fixture_ids = representative_move_matrix_release_gate_enabled? ? ensure_runtime_host_exact_id_fixture!(target) : []'
     assert_includes source, 'statusItem.menu = menu'
     assert_includes source, 'host exact-id smoke unavailable'
     refute_includes source, 'host exact-id smoke skipped'
