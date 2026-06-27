@@ -464,6 +464,28 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
         NSApp.terminate(sender)
     }
 
+    /// SaneBar is a menu-bar (agent) app — the status item is the entry point, so
+    /// relaunching from Finder/Dock normally has nothing to open. But when the
+    /// status item is missing or stuck off-screen (the #157 failure where macOS
+    /// won't place it), doing nothing left the user with an invisible, unreachable
+    /// app: no icon, no window, no way to repair or even export a diagnostic. Always
+    /// give them a window — Health when the items aren't live (repair + report live
+    /// there), Settings otherwise — so the app is never a dead end.
+    func applicationShouldHandleReopen(_: NSApplication, hasVisibleWindows: Bool) -> Bool {
+        let itemsValid = MenuBarManager.shared.currentRuntimeSnapshot().startupItemsValid
+        if itemsValid {
+            if !hasVisibleWindows {
+                SettingsOpener.open()
+            }
+        } else {
+            appLogger.error("Reopen while status items are invalid — surfacing Health so the user can recover (#157)")
+            NSApp.setActivationPolicy(.regular)
+            NSApp.activate(ignoringOtherApps: true)
+            SettingsOpener.open(tab: .health)
+        }
+        return true
+    }
+
     private func handleURL(_ url: URL) {
         guard url.scheme?.lowercased() == "sanebar" else { return }
 

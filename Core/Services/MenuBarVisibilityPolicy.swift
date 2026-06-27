@@ -142,7 +142,7 @@ enum MenuBarVisibilityPolicy {
 
         guard snapshot.structuralState == .ready, snapshot.startupItemsValid else { return false }
 
-        if snapshot.separatorAnchorSource == .live && snapshot.mainAnchorSource == .live {
+        if snapshot.separatorAnchorSource == .live, snapshot.mainAnchorSource == .live {
             return true
         }
 
@@ -154,7 +154,8 @@ enum MenuBarVisibilityPolicy {
         // status item is attached and the collapsed presentation is valid.
         guard snapshot.visibilityPhase == .hidden,
               snapshot.mainAnchorSource == .live,
-              snapshot.separatorAnchorSource == .cached else {
+              snapshot.separatorAnchorSource == .cached
+        else {
             return false
         }
 
@@ -171,9 +172,26 @@ enum MenuBarVisibilityPolicy {
         recoveryCount: Int,
         validationContext: MenuBarOperationCoordinator.PositionValidationContext?
     ) -> Bool {
-        recoveryReason != nil &&
-            recoveryCount > 0 &&
-            validationContext == .manualLayoutRestore
+        // Only after recovery has genuinely exhausted its attempts (recoveryCount > 0)
+        // with a real failure reason.
+        guard recoveryReason != nil, recoveryCount > 0 else { return false }
+        switch validationContext {
+        case .manualLayoutRestore:
+            // The user explicitly asked to restore layout and it failed.
+            return true
+        case .startupFollowUp:
+            // The icon never came up at launch — e.g. macOS won't place the status
+            // item (#157). Without surfacing Health the user is left with an
+            // invisible, unreachable app and no way to repair or export a diagnostic.
+            // startup-follow-up recovery runs once per launch, so Health surfaces at
+            // most once and is not a repeating popup.
+            return true
+        case .screenParametersChanged, .activeSpaceChanged, .wakeResume, .none:
+            // Steady-state validations fire repeatedly during normal use; surfacing
+            // Health here would pop the window unexpectedly. The reopen handler
+            // (applicationShouldHandleReopen) is the recovery path for those.
+            return false
+        }
     }
 
     nonisolated static func maxAllowedStartupRightGap(screenWidth: CGFloat) -> CGFloat {
@@ -349,7 +367,7 @@ extension MenuBarVisibilityPolicy {
     nonisolated static func visibilityIntentReplayMode(
         reason: String,
         geometryConfidence: MenuBarGeometryConfidence,
-        hidingState: HidingState,
+        hidingState _: HidingState,
         hasVisibleAllowList: Bool = false,
         hasPendingWakeVisibleAllowListReplay: Bool = false,
         canRepairHiddenWakeVisibleAllowList: Bool = false
@@ -405,7 +423,8 @@ extension MenuBarVisibilityPolicy {
     ) -> String {
         guard hasPendingWakeVisibleAllowListReplay,
               reason.hasPrefix("healthy-validation-screen-parameters-changed"),
-              !isPostWakeVisibleAllowListReplayReason(reason) else {
+              !isPostWakeVisibleAllowListReplayReason(reason)
+        else {
             return reason
         }
         return "healthy-validation-wake-resume-\(reason)"
@@ -423,7 +442,8 @@ extension MenuBarVisibilityPolicy {
               snapshot.separatorItemVisible != false,
               snapshot.hasAnyScreens,
               snapshot.separatorX != nil,
-              snapshot.mainX != nil else {
+              snapshot.mainX != nil
+        else {
             return false
         }
 
@@ -442,7 +462,8 @@ extension MenuBarVisibilityPolicy {
         hasPendingWakeVisibleAllowListReplay: Bool
     ) -> Bool {
         guard snapshot.structuralState == .ready,
-              snapshot.visibilityPhase != .transitioning else {
+              snapshot.visibilityPhase != .transitioning
+        else {
             return false
         }
 
@@ -633,7 +654,8 @@ extension MenuBarManager {
 
     func markWakeVisibleAllowListReplayPending(reason: String, requiresHiddenState: Bool = true) {
         guard settings.hideAllOtherMenuBarItems,
-              !settings.hideAllOtherVisibleItemIds.isEmpty else {
+              !settings.hideAllOtherVisibleItemIds.isEmpty
+        else {
             return
         }
         guard !requiresHiddenState || hidingService.state == .hidden else {
