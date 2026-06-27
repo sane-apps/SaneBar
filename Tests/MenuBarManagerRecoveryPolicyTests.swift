@@ -418,34 +418,21 @@ struct MenuBarManagerRecoveryPolicyTests {
         )
     }
 
-    @Test("Hidden collapsed separator honors persisted user intent away from Control Center")
-    func hiddenCollapsedSeparatorStructuralHealthUsesPersistedIntent() {
-        #expect(
-            StatusBarDiagnostics.hiddenCollapsedSeparatorIsStructurallyHealthy(.init(
-                hidingState: .hidden,
-                mainWindowValid: true,
-                separatorVisible: true,
-                separatorX: 900,
-                mainX: 980,
-                mainRightGap: 920,
-                screenWidth: 1920,
-                notchRightSafeMinX: nil,
-                persistedMainDistanceFromRight: 910
-            ))
-        )
-        #expect(
-            !StatusBarDiagnostics.hiddenCollapsedSeparatorIsStructurallyHealthy(.init(
-                hidingState: .hidden,
-                mainWindowValid: true,
-                separatorVisible: true,
-                separatorX: 900,
-                mainX: 980,
-                mainRightGap: 920,
-                screenWidth: 1920,
-                notchRightSafeMinX: nil,
-                persistedMainDistanceFromRight: 260
-            ))
-        )
+    @Test("Hidden collapsed separator is structurally healthy regardless of positional drift (#160 churn fix)")
+    func hiddenCollapsedSeparatorStructuralHealthIgnoresDrift() {
+        // Positional drift from persisted intent must NOT make a structurally-sound
+        // hidden separator unhealthy: while hidden, recovery cannot correct the position
+        // (geometry is unreliable), so flagging drift only churns (#160) and blocks the
+        // receipt. Drift is corrected on un-hide. Both small and large drift stay healthy.
+        for persisted in [CGFloat(910), CGFloat(260)] {
+            #expect(
+                StatusBarDiagnostics.hiddenCollapsedSeparatorIsStructurallyHealthy(.init(
+                    hidingState: .hidden, mainWindowValid: true, separatorVisible: true,
+                    separatorX: 900, mainX: 980, mainRightGap: 920, screenWidth: 1920,
+                    notchRightSafeMinX: nil, persistedMainDistanceFromRight: persisted
+                ))
+            )
+        }
     }
 
     @Test("Hidden lifecycle preserves trustworthy cached separator geometry")
