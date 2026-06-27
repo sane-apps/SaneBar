@@ -203,6 +203,27 @@ final class MenuBarObserverWorkflow {
         displayActuallyChanged ? .screenParametersChanged : .wakeResume
     }
 
+    /// Pure decision for a screen-parameters event: given the current display
+    /// fingerprint and the last one observed, returns the validation context and
+    /// the fingerprint to store next.
+    ///
+    /// - A `no-screens` reading (clamshell / all displays asleep) is never a real
+    ///   arrangement change → non-destructive `.wakeResume`, and the stored
+    ///   fingerprint is NOT advanced (so when the same arrangement returns on wake
+    ///   it is still recognized as unchanged and the divider is not reanchored).
+    /// - Otherwise an unchanged fingerprint → `.wakeResume` (spurious wake); a real
+    ///   change → `.screenParametersChanged` (topology, reanchor authorized).
+    nonisolated static func screenParametersValidationDecision(
+        fingerprint: String,
+        lastObservedFingerprint: String
+    ) -> (context: MenuBarOperationCoordinator.PositionValidationContext, newLastObserved: String) {
+        if fingerprint == MenuBarDisplayConfiguration.noScreensFingerprint {
+            return (screenParametersValidationContext(displayActuallyChanged: false), lastObservedFingerprint)
+        }
+        let displayActuallyChanged = fingerprint != lastObservedFingerprint
+        return (screenParametersValidationContext(displayActuallyChanged: displayActuallyChanged), fingerprint)
+    }
+
     private func installScreenAndWakeObservers() {
         // Seed the baseline so the first screen-parameters event is compared
         // against the arrangement present when observers came online.
@@ -220,17 +241,18 @@ final class MenuBarObserverWorkflow {
                 // sleep/wake when the display arrangement is byte-for-byte identical.
                 // Treating that spurious event as a display-topology change authorizes
                 // a destructive reanchor that clamps the user's explicit divider toward
-                // Control Center (#136/#153 — "moves right then back after wake"). Only
-                // validate as a topology change when the fingerprint actually changed;
-                // otherwise validate as a non-destructive wake so the divider survives.
+                // Control Center (#136/#153 — "moves right then back after wake"). Route
+                // it through the pure fingerprint decision: unchanged (or no-screens) →
+                // non-destructive wake; a genuine change → topology validation.
                 let fingerprint = MenuBarDisplayConfiguration.currentFingerprint()
-                let displayActuallyChanged = fingerprint != lastObservedDisplayFingerprint
-                lastObservedDisplayFingerprint = fingerprint
-                let validationContext = Self.screenParametersValidationContext(
-                    displayActuallyChanged: displayActuallyChanged
+                let decision = Self.screenParametersValidationDecision(
+                    fingerprint: fingerprint,
+                    lastObservedFingerprint: lastObservedDisplayFingerprint
                 )
+                lastObservedDisplayFingerprint = decision.newLastObserved
+                let validationContext = decision.context
                 logger.debug(
-                    "Screen parameters changed - displayActuallyChanged=\(displayActuallyChanged, privacy: .public) → validating as \(validationContext.rawValue, privacy: .public)"
+                    "Screen parameters changed - fingerprint=\(fingerprint, privacy: .public) → validating as \(validationContext.rawValue, privacy: .public)"
                 )
                 // Replay pinned visibility intent only after validation reports healthy anchors.
                 manager.schedulePositionValidation(context: validationContext)

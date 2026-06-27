@@ -6,10 +6,16 @@ import CoreGraphics
 /// coordinates to recovery/move code is the root of the arrangement-drift
 /// issue family (#136, #139, #153).
 enum MenuBarDisplayConfiguration {
+    /// Sentinel returned by `currentFingerprint()` when no displays are active
+    /// (e.g. clamshell with the external asleep). Callers must NOT treat a
+    /// transition to/from this as a real arrangement change — there is nothing to
+    /// reanchor against, and doing so feeds the #136/#153 wake-drift family.
+    static let noScreensFingerprint = "no-screens"
+
     @MainActor
     static func currentFingerprint() -> String {
         let screens = NSScreen.screens
-        guard !screens.isEmpty else { return "no-screens" }
+        guard !screens.isEmpty else { return noScreensFingerprint }
         return screens
             .map { screen in
                 let frame = screen.frame
