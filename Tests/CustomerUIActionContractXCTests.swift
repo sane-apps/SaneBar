@@ -42,7 +42,7 @@ final class CustomerUIActionContractXCTests: XCTestCase {
             "UI/Onboarding/WelcomePermissionPage.swift",
             "UI/Onboarding/WelcomePlanPage.swift",
             "UI/Onboarding/WelcomePromisePage.swift",
-            "UI/Onboarding/WelcomeViewPreviews.swift"
+            "UI/Onboarding/WelcomeViewPreviews.swift",
         ]
         .map { try read($0) }
         .joined(separator: "\n")
@@ -52,7 +52,7 @@ final class CustomerUIActionContractXCTests: XCTestCase {
         try [
             "UI/SearchWindow/SecondMenuBarView.swift",
             "UI/SearchWindow/SecondMenuBarSupport.swift",
-            "UI/SearchWindow/SecondMenuBarPanelIconTile.swift"
+            "UI/SearchWindow/SecondMenuBarPanelIconTile.swift",
         ]
         .map { try read($0) }
         .joined(separator: "\n")
@@ -73,7 +73,7 @@ final class CustomerUIActionContractXCTests: XCTestCase {
     }
 
     func testContractEnumeratesAllCustomerFacingActionFamilies() throws {
-        let source = normalizedContract(try contract())
+        let source = try normalizedContract(contract())
         let requiredIDs = [
             "status-item-click-routes",
             "status-menu-command-actions",
@@ -94,7 +94,7 @@ final class CustomerUIActionContractXCTests: XCTestCase {
             "onboarding-basic-pro-permission-actions",
             "license-about-support-actions",
             "pro-basic-gating-actions",
-            "startup-wake-appearance-recovery"
+            "startup-wake-appearance-recovery",
         ]
 
         for id in requiredIDs {
@@ -184,11 +184,13 @@ final class CustomerUIActionContractXCTests: XCTestCase {
     func testRuntimeMatrixCoversCurrentFullscreenAndWakeFieldGaps() throws {
         let contract = try contract()
 
+        // Owner ruling (2026-06-26): the Safari/TextEdit fullscreen/maximize
+        // transition scenarios (Dark+Translucent, Reduce Transparency, top-strip
+        // shade comparison) were removed from the runtime matrix — they drive
+        // external apps to test a long-solved behavior, not SaneBar's own UI.
+        // Wake / zone-persistence / drift coverage below stays.
         for marker in [
             "wake_visible_zone_persistence",
-            "Dark appearance with Translucent Background enabled",
-            "Reduce Transparency enabled",
-            "customer-visible menu-bar top-strip shade comparison, not only internal overlay snapshots",
             "fresh authoritative icon-zone snapshot at 15s after wake",
             "visible required IDs remain visible and are not moved into Hidden or Always Hidden",
             "hidden required IDs remain hidden and are not moved into Visible or Always Hidden",
@@ -199,7 +201,7 @@ final class CustomerUIActionContractXCTests: XCTestCase {
             "hover_auto_rehide",
             "license_clipboard_paste",
             "resource_soak_growth",
-            "adaptive Mini resource check passed for this release build"
+            "adaptive Mini resource check passed for this release build",
         ] {
             XCTAssertTrue(contract.contains(marker), "Runtime matrix must include \(marker)")
         }
@@ -230,7 +232,7 @@ final class CustomerUIActionContractXCTests: XCTestCase {
         )
         XCTAssertTrue(
             source.contains("set settingsWindow to first window whose subrole is \"AXStandardWindow\" and name is \"License\"") &&
-            source.contains("set entryButton to my licenseActionButton(settingsWindow, -1)") &&
+                source.contains("set entryButton to my licenseActionButton(settingsWindow, -1)") &&
                 source.contains("set minX to (item 1 of rootPosition) + ((item 1 of rootSize) * 0.55)") &&
                 source.contains("return item -1 of matches") &&
                 source.contains("clickVisibleLicenseEntryAction(settingsWindow)") &&
@@ -261,7 +263,7 @@ final class CustomerUIActionContractXCTests: XCTestCase {
     }
 
     func testContractTracksBrowseContextOnboardingAndSharedSaneUI() throws {
-        let contract = normalizedContract(try contract())
+        let contract = try normalizedContract(contract())
         let tileSource = try read("UI/SearchWindow/MenuBarAppTile.swift")
         let searchSource = try read("UI/SearchWindow/MenuBarSearchView.swift")
         let browseChromeSource = try read("UI/SearchWindow/BrowsePanelChromeViews.swift")
@@ -305,7 +307,7 @@ final class CustomerUIActionContractXCTests: XCTestCase {
     }
 
     func testEveryReleaseRequiredActionNamesMiniEvidence() throws {
-        let source = normalizedContract(try contract())
+        let source = try normalizedContract(contract())
         let sections = source.components(separatedBy: "\n  - id: ").dropFirst()
         XCTAssertFalse(sections.isEmpty)
 
@@ -325,7 +327,7 @@ final class CustomerUIActionContractXCTests: XCTestCase {
         let data = try Data(contentsOf: receiptURL)
         let json = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
         let actionResults = try XCTUnwrap(json["action_results"] as? [String: Any])
-        let source = normalizedContract(try contract())
+        let source = try normalizedContract(contract())
         let actionIDs = source.components(separatedBy: "\n  - id: ")
             .dropFirst()
             .compactMap { section in section.split(separator: "\n", maxSplits: 1).first.map(String.init) }
@@ -376,7 +378,7 @@ final class CustomerUIActionContractXCTests: XCTestCase {
     }
 
     private func assertStrictMiniEvidenceIsReal(type: String, detail: String, actionID: String) {
-        let strictTypes: Set<String> = ["mini_click", "mini_automation", "mini_ax", "mini_url_route", "mini_runtime"]
+        let strictTypes: Set = ["mini_click", "mini_automation", "mini_ax", "mini_url_route", "mini_runtime"]
         guard strictTypes.contains(type) else { return }
 
         let lowercasedDetail = detail.lowercased()
@@ -396,14 +398,14 @@ final class CustomerUIActionContractXCTests: XCTestCase {
             "\(miniRuntimePreflightPath)/sanebar_runtime_startup_probe.json",
             "\(miniRuntimePreflightPath)/sanebar_runtime_startup_probe.log",
             "\(miniRuntimePreflightPath)/sanebar_runtime_wake_probe.json",
-            "\(miniRuntimePreflightPath)/sanebar_runtime_wake_probe.log"
+            "\(miniRuntimePreflightPath)/sanebar_runtime_wake_probe.log",
         ]
         let allowedPrefixesByType: [String: [String]] = [
             "mini_click": ["/tmp/sanebar_runtime_", "applescript=", "settings_ax_tab_index=", "settings_tab=", "settings_control_hide_new_unlisted_toggle=", "icon_hotkeys_groups_", "url_route=", "runtime_visual="],
             "mini_automation": ["applescript=", "url_route=", "settings_ax_tab_index=", "icon_hotkeys_groups_"],
             "mini_ax": ["settings_ax_tab_index="],
             "mini_url_route": ["url_route="],
-            "mini_runtime": ["/tmp/sanebar_runtime_"] + durableRuntimePreflightPrefixes
+            "mini_runtime": ["/tmp/sanebar_runtime_"] + durableRuntimePreflightPrefixes,
         ]
         let allowedPrefixes = allowedPrefixesByType[type] ?? []
         XCTAssertTrue(
@@ -413,11 +415,11 @@ final class CustomerUIActionContractXCTests: XCTestCase {
     }
 
     private func assertPathBackedEvidenceHasArtifact(_ item: [String: Any], type: String, actionID: String) {
-        let pathBackedTypes: Set<String> = [
+        let pathBackedTypes: Set = [
             "actual_output", "api_response", "automation_transcript", "file_state", "fixture", "log",
             "mini_automation", "mini_ax", "mini_click", "mini_runtime", "mini_screenshots",
             "mini_screenshot", "mini_url_route", "model_response", "screenshot", "state_receipt",
-            "support_report", "visual_screenshot", "visual_smoke"
+            "support_report", "visual_screenshot", "visual_smoke",
         ]
         guard pathBackedTypes.contains(type) else { return }
 
