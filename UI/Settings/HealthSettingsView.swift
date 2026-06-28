@@ -124,6 +124,28 @@ struct HealthSettingsView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
+                if runtimeSnapshot.likelySystemSuppressedStatusItems {
+                    CompactSection("Icon Missing From the Menu Bar?", icon: "exclamationmark.triangle.fill", iconColor: .orange) {
+                        SaneInlineHelp(
+                            "macOS may be hiding SaneBar's icon behind the notch or because the menu bar is full. macOS doesn't let apps force their own icon back on screen, so this is fixed at the system level: open Menu Bar settings to manage what's shown, remove or reorder other menu-bar icons, or move SaneBar's icon to the left of the notch."
+                        )
+                        .padding(.horizontal, 12)
+                        .padding(.top, 4)
+                        HStack {
+                            Button("Open Menu Bar Settings") {
+                                openMenuBarSettings()
+                            }
+                            .buttonStyle(ChromeActionButtonStyle(prominent: true))
+                            .controlSize(.small)
+                            .saneHelp("Opens macOS System Settings so you can manage which icons are allowed in the menu bar.")
+                            .accessibilityLabel("Open macOS Menu Bar settings")
+                            Spacer()
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.bottom, 8)
+                    }
+                }
+
                 CompactSection("Status", icon: "stethoscope", iconColor: .green) {
                     CompactRow("Accessibility") {
                         HStack(spacing: 8) {
@@ -390,6 +412,15 @@ struct HealthSettingsView: View {
 
     private func openAccessibilitySettings() {
         guard let url = URL(string: AccessibilityService.accessibilitySettingsURLString) else { return }
+        NSWorkspace.shared.open(url)
+    }
+
+    private func openMenuBarSettings() {
+        // macOS Tahoe manages menu-bar item visibility under Control Center settings.
+        // If the deep link can't resolve, NSWorkspace still opens System Settings.
+        let url = URL(string: "x-apple.systempreferences:com.apple.ControlCenter-Settings.extension")
+            ?? URL(string: "x-apple.systempreferences:")
+        guard let url else { return }
         NSWorkspace.shared.open(url)
     }
 

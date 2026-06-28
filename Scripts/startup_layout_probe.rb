@@ -1426,7 +1426,14 @@ class StartupLayoutProbe
   def preferred_visible_lane_gap(width)
     return 120.0 unless width.to_f.positive?
 
-    [[width.to_f * 0.09, 180.0].max, 240.0].min
+    # The 180px floor is right for standard/external displays (>= 1900px) but too
+    # strict on the narrow notched built-in MacBook displays (1470/1512/1728px),
+    # where it would force recovery to OVERRIDE the user's saved positions just to
+    # widen the lane. On those, use the proportional 9% target (120px floor) so a
+    # user's legitimately-narrower lane is respected; keep the 180px floor + 240px
+    # cap for wider displays.
+    floor = width.to_f >= 1900.0 ? 180.0 : 120.0
+    [[width.to_f * 0.09, floor].max, 240.0].min
   end
 
   def numeric_default(key)

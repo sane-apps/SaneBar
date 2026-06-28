@@ -228,7 +228,7 @@ struct StatusBarWakeExplicitPositionTests {
     @Test("Namespace bump preserves the explicit divider on the wake/Space/manual path")
     func bumpNamespacePreservesExplicitOnSteadyState() {
         let contexts: [MenuBarOperationCoordinator.PositionValidationContext] = [
-            .wakeResume, .activeSpaceChanged, .manualLayoutRestore,
+            .wakeResume, .activeSpaceChanged, .manualLayoutRestore
         ]
         for context in contexts {
             let reanchor = MenuBarManager.shouldReanchorPersistedPositionsForStatusItemRecovery(
@@ -260,7 +260,7 @@ struct StatusBarWakeExplicitPositionTests {
             screenHasTopSafeAreaInset: false
         )
         let contexts: [MenuBarOperationCoordinator.PositionValidationContext] = [
-            .startupFollowUp, .screenParametersChanged,
+            .startupFollowUp, .screenParametersChanged
         ]
         for context in contexts {
             let reanchor = MenuBarManager.shouldReanchorPersistedPositionsForStatusItemRecovery(
@@ -360,6 +360,101 @@ struct StatusBarWakeExplicitPositionTests {
         #expect(
             StatusBarPositionDefaultsStore.resolvedPreferredPosition(forAutosaveName: StatusBarPositionStore.mainAutosaveName) == safeLimit,
             "On a real display change the divider stays reanchored"
+        )
+    }
+
+    // MARK: - Spurious screen-parameters prevention (#136/#153, upstream of the chokepoint)
+
+    /// The chokepoint above is a POST-HOC restore — it undoes the launder only
+    /// AFTER the destructive reanchor already fired (it cannot prevent the live
+    /// transient the user sees as "moves right then back"). This is the UPSTREAM
+    /// prevention: a `didChangeScreenParametersNotification` whose display
+    /// fingerprint is unchanged (a plain sleep/wake) is routed by the observer to a
+    /// non-destructive `.wakeResume` validation that never reanchors or resets, so
+    /// the explicit divider is never laundered in the first place. A genuine
+    /// fingerprint change keeps `.screenParametersChanged` and still reanchors an
+    /// unsafe persisted position (#152/#157 intact). Drives the real observer
+    /// context selection + the real reanchor/reset decision (no source.contains).
+    @Test("Spurious screen-parameters (unchanged fingerprint) routes to a non-reanchoring context; a real change still reanchors")
+    func spuriousScreenParametersDoesNotReanchor() {
+        // Unchanged fingerprint → non-destructive wake → divider preserved.
+        let spuriousContext = MenuBarObserverWorkflow.screenParametersValidationContext(
+            displayActuallyChanged: false
+        )
+        #expect(spuriousContext == .wakeResume)
+        #expect(
+            !MenuBarManager.shouldReanchorPersistedPositionsForStatusItemRecovery(
+                validationContext: spuriousContext
+            ),
+            "A spurious screen-parameters event on wake must not reanchor the explicit divider (#136/#153)"
+        )
+        #expect(
+            !MenuBarManager.shouldResetPersistentStateForStatusItemRecovery(
+                reason: .invalidGeometry,
+                validationContext: spuriousContext
+            ),
+            "A spurious screen-parameters event must not reset persistent state either"
+        )
+
+        // Real fingerprint change → topology context → reanchor still authorized.
+        let realChangeContext = MenuBarObserverWorkflow.screenParametersValidationContext(
+            displayActuallyChanged: true
+        )
+        #expect(realChangeContext == .screenParametersChanged)
+        #expect(
+            MenuBarManager.shouldReanchorPersistedPositionsForStatusItemRecovery(
+                validationContext: realChangeContext
+            ),
+            "A genuine display-topology change must still reanchor an unsafe persisted position (#152/#157)"
+        )
+        #expect(
+            MenuBarManager.shouldResetPersistentStateForStatusItemRecovery(
+                reason: .invalidGeometry,
+                validationContext: realChangeContext
+            ),
+            "A genuine display-topology change still authorizes a reset for invalid geometry"
+        )
+    }
+
+    /// Pure fingerprint decision driving the observer: covers the three branches
+    /// and the stored-fingerprint advancement. The no-screens branch (clamshell /
+    /// all displays asleep) must stay non-destructive AND must not advance the
+    /// stored fingerprint, so the same arrangement returning on wake is still seen
+    /// as unchanged (otherwise the divider reanchors — the #136/#153 launder).
+    @Test("screenParametersValidationDecision: no-screens & unchanged stay wake-resume; only a real fingerprint change is topology")
+    func screenParametersDecisionCoversNoScreensUnchangedAndChanged() {
+        let arrangementA = "1:0,0,1920x1080"
+        let arrangementB = "1:0,0,1920x1080|2:1920,0,1080x1920"
+
+        // Unchanged fingerprint → wake-resume, stored fingerprint stays.
+        let unchanged = MenuBarObserverWorkflow.screenParametersValidationDecision(
+            fingerprint: arrangementA, lastObservedFingerprint: arrangementA
+        )
+        #expect(unchanged.context == .wakeResume)
+        #expect(unchanged.newLastObserved == arrangementA)
+
+        // Real change → topology, stored fingerprint advances to the new one.
+        let changed = MenuBarObserverWorkflow.screenParametersValidationDecision(
+            fingerprint: arrangementB, lastObservedFingerprint: arrangementA
+        )
+        #expect(changed.context == .screenParametersChanged)
+        #expect(changed.newLastObserved == arrangementB)
+
+        // No screens → wake-resume AND the stored fingerprint is NOT advanced.
+        let noScreens = MenuBarObserverWorkflow.screenParametersValidationDecision(
+            fingerprint: MenuBarDisplayConfiguration.noScreensFingerprint,
+            lastObservedFingerprint: arrangementA
+        )
+        #expect(noScreens.context == .wakeResume)
+        #expect(
+            noScreens.newLastObserved == arrangementA,
+            "no-screens must preserve the last real fingerprint so the same arrangement on wake is still unchanged"
+        )
+        // ...and that non-destructive context must not reanchor.
+        #expect(
+            !MenuBarManager.shouldReanchorPersistedPositionsForStatusItemRecovery(
+                validationContext: noScreens.context
+            )
         )
     }
 }
