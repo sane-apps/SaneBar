@@ -10,9 +10,9 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
-## [2.1.84] - 2026-06-27
+## [2.1.84] - 2026-06-28
 
-Further improves menu-bar divider stability around sleep and wake: addresses a case where the divider could still drift toward Control Center after waking even when your displays had not changed. Also adds a way back in when macOS does not place SaneBar's menu-bar icon at launch — relaunching SaneBar now reliably opens a window so you can reach Settings and the Health screen instead of the app being unreachable.
+Further improves menu-bar divider stability around sleep and wake: closes more of the cases where the divider could drift toward Control Center after waking even when your displays had not changed. Hover reveal is more deliberate too: moving your cursor over SaneBar's own icon no longer reveals hidden icons instantly, it now waits for your Reveal delay like the rest of the menu bar. Also adds a way back in when macOS does not place SaneBar's menu-bar icon at launch: relaunching SaneBar now reliably opens a window so you can reach Settings and the Health screen instead of the app being unreachable.
 
 ---
 
