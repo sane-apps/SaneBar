@@ -2026,56 +2026,9 @@ end
     assert_includes source, 'replay_main_key, replay_separator_key = preferred_position_keys'
   end
 
-  def test_startup_layout_probe_self_seeds_shared_fixture_candidates
+  def test_startup_layout_probe_uses_automation_quit_token_without_no_keychain_hacks
     source = File.read(File.join(__dir__, 'startup_layout_probe.rb'))
 
-    assert_includes source, 'ensure_preferred_always_hidden_replay_candidates!'
-    assert_includes source, "require_relative 'qa'"
-    assert_includes source, ':ensure_runtime_shared_bundle_fixture!'
-    assert_includes source, '::axid:com.sanebar.sharedfixture.'
-    refute_includes source, "item[:unique_id].to_s.include?('::statusItem:') }"
-  end
-
-  def test_startup_layout_probe_prefers_shared_fixture_candidates_before_host_sentinel
-    with_startup_layout_probe do |probe|
-      probe.define_singleton_method(:bundle_identifier) { 'com.sanebar.app' }
-      probe.define_singleton_method(:list_icon_zones) do
-        [
-          {
-            zone: 'hidden',
-            movable: true,
-            bundle: 'com.sanebar.hostsentinel',
-            unique_id: 'com.sanebar.hostsentinel::statusItem:0'
-          },
-          {
-            zone: 'hidden',
-            movable: true,
-            bundle: 'com.sanebar.sharedfixture',
-            unique_id: 'com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-B'
-          },
-          {
-            zone: 'visible',
-            movable: true,
-            bundle: 'com.sanebar.sharedfixture',
-            unique_id: 'com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-A'
-          }
-        ]
-      end
-
-      candidates = probe.send(:preferred_always_hidden_replay_candidates)
-
-      assert_equal [
-        'com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-A',
-        'com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-B'
-      ], candidates.first(2).map { |candidate| candidate[:unique_id] }
-    end
-  end
-
-  def test_startup_layout_probe_requires_real_pro_runtime
-    source = File.read(File.join(__dir__, 'startup_layout_probe.rb'))
-
-    assert_includes source, 'ensure_pro_unlocked_for_always_hidden_moves!'
-    assert_includes source, 'paid license or active Pro trial'
     refute_includes source, "write_string_default('sane.no-keychain.com.sanebar.app.pro_license_key'"
     refute_includes source, "write_string_default('sane.no-keychain.com.sanebar.app.pro_last_validation'"
     refute_includes source, '@probe_forced_no_keychain = true'
@@ -2115,33 +2068,25 @@ end
     assert_includes source, 'completed_scenarios_from_cases'
   end
 
-  def test_startup_layout_probe_covers_always_hidden_dirty_replay_contract
+  def test_startup_layout_probe_covers_dirty_startup_resource_soak_contract
     source = File.read(File.join(__dir__, 'startup_layout_probe.rb'))
 
-    assert_includes source, 'run_always_hidden_dirty_replay_outbound_case'
-    assert_includes source, '#155 dirty startup AH replay allows outbound moves'
-    assert_includes source, '#155 dirty startup does not give up AH replay'
-    assert_includes source, '#155 dirty startup restores pinned icons into Always Hidden before outbound moves'
-    assert_includes source, '#155 pinned icon exits Always Hidden after dirty startup'
-    assert_includes source, '#155 Always Hidden outbound moves leave move state idle'
+    # The dirty-startup resource soak (release-receipt evidence) must stay wired.
+    assert_includes source, 'run_dirty_startup_resource_soak_case'
+    assert_includes source, 'dirty startup remains healthy through passive idle'
+    assert_includes source, 'dirty startup resource soak remains stable'
     assert_includes source, 'SANEBAR_STARTUP_PROBE_RESOURCE_SOAK_AFTER_155'
     assert_includes source, 'run_resource_soak_after_155!'
-    assert_includes source, '#155 dirty startup resource soak remains stable after outbound moves'
-    assert_includes source, '#155 outbound move state remains durable after resource soak'
-    assert_includes source, '#155 hidden-exit remains Hidden after resource soak'
-    assert_includes source, '#155 visible-exit remains Visible after resource soak'
     assert_includes source, 'durable_resource_soak_path'
     assert_includes source, 'ephemeral_artifact_path'
     assert_includes source, 'SANEMASTER_RESOURCE_SOAK_MIN_SECONDS'
-    assert_includes source, 'FileUtils.mkdir_p(File.dirname(path))'
-    assert_includes source, 'preferred_always_hidden_replay_candidates'
-    assert_includes source, "preferred_bundles.include?(item[:bundle].to_s)"
-    assert_includes source, 'sanitized_replay_candidate'
-    assert_includes source, 'sanitized_move_result'
-    assert_includes source, '#155 hidden-exit starts in AH after dirty startup'
-    assert_includes source, '#155 visible-exit starts in AH after dirty startup'
-    assert_includes source, 'move_icon_and_expect!'
-    assert_includes source, 'assert_move_idle!'
+
+    # The brittle AppleScript #155 move-matrix replay was removed (owner ruling: it is a
+    # non-representative code path that hangs/false-fails and blocked releases). Keep it gone —
+    # real move coverage is the Swift move-regression suite + on-device IRL.
+    refute_includes source, 'run_always_hidden_dirty_replay_outbound_case'
+    refute_includes source, 'move_icon_and_expect!'
+    refute_includes source, '#155'
   end
 
   def test_release_preflight_requires_dirty_replay_resource_soak_with_bounded_timeout
