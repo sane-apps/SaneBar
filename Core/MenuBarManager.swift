@@ -556,14 +556,14 @@ final class MenuBarManager: NSObject, ObservableObject {
     @objc(mouseEntered:) func mouseEntered(_ event: NSEvent) {
         guard (event.trackingArea?.userInfo?["role"] as? String) == "mainStatusItem" else { return }
         guard settings.showOnHover else { return }
-
-        Task { @MainActor in
-            _ = await self.visibilityWorkflow.showHiddenItemsNow(trigger: .hover)
-        }
+        // Dwell, don't reveal instantly: a brush past our own icon must not pop the
+        // menu (#160/#161). Rationale in HoverService.beginMainStatusItemHoverDwell.
+        hoverService.beginMainStatusItemHoverDwell()
     }
 
     @objc(mouseExited:) func mouseExited(_ event: NSEvent) {
         guard (event.trackingArea?.userInfo?["role"] as? String) == "mainStatusItem" else { return }
+        hoverService.cancelMainStatusItemHoverDwell()
     }
 
     func updateAppearance() {

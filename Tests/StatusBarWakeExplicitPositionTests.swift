@@ -228,7 +228,7 @@ struct StatusBarWakeExplicitPositionTests {
     @Test("Namespace bump preserves the explicit divider on the wake/Space/manual path")
     func bumpNamespacePreservesExplicitOnSteadyState() {
         let contexts: [MenuBarOperationCoordinator.PositionValidationContext] = [
-            .wakeResume, .activeSpaceChanged, .manualLayoutRestore
+            .wakeResume, .activeSpaceChanged, .manualLayoutRestore,
         ]
         for context in contexts {
             let reanchor = MenuBarManager.shouldReanchorPersistedPositionsForStatusItemRecovery(
@@ -260,7 +260,7 @@ struct StatusBarWakeExplicitPositionTests {
             screenHasTopSafeAreaInset: false
         )
         let contexts: [MenuBarOperationCoordinator.PositionValidationContext] = [
-            .startupFollowUp, .screenParametersChanged
+            .startupFollowUp, .screenParametersChanged,
         ]
         for context in contexts {
             let reanchor = MenuBarManager.shouldReanchorPersistedPositionsForStatusItemRecovery(
@@ -455,6 +455,69 @@ struct StatusBarWakeExplicitPositionTests {
             !MenuBarManager.shouldReanchorPersistedPositionsForStatusItemRecovery(
                 validationContext: noScreens.context
             )
+        )
+    }
+
+    /// #136/#168 channel 2: the CoreGraphics `CGDisplayRegisterReconfigurationCallback`
+    /// path is a SECOND way a spurious wake can reach position validation. The original
+    /// #136 fix only gated the `didChangeScreenParametersNotification` sink, leaving
+    /// this channel emitting an unconditional `.screenParametersChanged` → reanchor.
+    /// A plain sleep/wake on a notched built-in panel posts a reconfiguration callback
+    /// carrying topology flags (mode/scale/main re-init) WITHOUT displayEnabledFlag, so
+    /// it must route to the fingerprint gate — not a wake-resume short-circuit and never
+    /// an unconditional reanchor. This test fails on the pre-fix unconditional path.
+    @Test("CoreGraphics display-reconfiguration: a topology-only wake (no enable) is fingerprint-gated, not an unconditional reanchor (#136/#168 channel 2)")
+    func displayReconfigurationTopologyOnlyWakeIsFingerprintGated() {
+        let setMainFlag = CGDisplayChangeSummaryFlags(rawValue: 1 << 2)
+        let setModeFlag = CGDisplayChangeSummaryFlags(rawValue: 1 << 3)
+        let enabledFlag = CGDisplayChangeSummaryFlags(rawValue: 1 << 8)
+        let desktopShapeFlag = CGDisplayChangeSummaryFlags(rawValue: 1 << 12)
+
+        // Internal-panel mode/scale/main re-init on a plain wake (any topology flag, no
+        // enable, no pending resume) → fingerprint-gated, so an unchanged arrangement is
+        // NOT reanchored toward Control Center.
+        let topologyOnlyCases: [CGDisplayChangeSummaryFlags] = [
+            setModeFlag,
+            desktopShapeFlag,
+            setMainFlag,
+            [setModeFlag, setMainFlag],
+        ]
+        for flags in topologyOnlyCases {
+            #expect(
+                MenuBarObserverWorkflow.displayReconfigurationWakeRouting(
+                    flags: flags, resumePendingAfterDisable: false
+                ) == .fingerprintGated,
+                "A topology-only display-reconfiguration wake must be fingerprint-gated (#136/#168)"
+            )
+        }
+
+        // An explicit enable is a genuine wake-resume (already non-destructive).
+        #expect(
+            MenuBarObserverWorkflow.displayReconfigurationWakeRouting(
+                flags: enabledFlag, resumePendingAfterDisable: false
+            ) == .wakeResume
+        )
+        // A topology change arriving after a prior display-disable is the matching resume.
+        #expect(
+            MenuBarObserverWorkflow.displayReconfigurationWakeRouting(
+                flags: setModeFlag, resumePendingAfterDisable: true
+            ) == .wakeResume
+        )
+
+        // End-to-end chain: a topology-only wake on an UNCHANGED fingerprint must yield a
+        // non-reanchoring context (the divider survives) — the literal #136/#168 symptom.
+        #expect(MenuBarObserverWorkflow.displayReconfigurationWakeRouting(
+            flags: setModeFlag, resumePendingAfterDisable: false
+        ) == .fingerprintGated)
+        let unchanged = MenuBarObserverWorkflow.screenParametersValidationDecision(
+            fingerprint: "1:0,0,1920x1080", lastObservedFingerprint: "1:0,0,1920x1080"
+        )
+        #expect(unchanged.context == .wakeResume)
+        #expect(
+            !MenuBarManager.shouldReanchorPersistedPositionsForStatusItemRecovery(
+                validationContext: unchanged.context
+            ),
+            "Topology-only wake + unchanged fingerprint must not reanchor the explicit divider (#136/#168)"
         )
     }
 }

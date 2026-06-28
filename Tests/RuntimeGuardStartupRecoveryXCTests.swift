@@ -363,7 +363,16 @@ final class RuntimeGuardStartupRecoveryXCTests: RuntimeGuardTestCase {
                 observerSource.contains("manager.cancelVisibilityIntentReplayTask(reason: \"screenParametersChanged\")") &&
                 !observerSource.contains("manager.cancelWakeVisibleAllowListReplay(reason: \"screenParametersChanged\")") &&
                 source.contains("Preserving cached separator geometry during") &&
-                observerSource.contains("manager.schedulePositionValidation(context: .screenParametersChanged)") &&
+                // #136/#168: BOTH screen-parameter channels (the notification sink and
+                // the CoreGraphics reconfiguration callback) must route through the pure
+                // fingerprint decision, never an unconditional `.screenParametersChanged`
+                // reanchor. The CGDisplay path classifies via displayReconfigurationWakeRouting
+                // and schedules the gated decision.context; the literal unconditional
+                // schedule must NOT exist on either path.
+                observerSource.contains("displayReconfigurationWakeRouting(") &&
+                observerSource.contains("screenParametersValidationDecision(") &&
+                observerSource.contains("manager.schedulePositionValidation(context: decision.context)") &&
+                !observerSource.contains("manager.schedulePositionValidation(context: .screenParametersChanged)") &&
                 observerSource.contains("NSWorkspace.willSleepNotification") &&
                 observerSource.contains("NSWorkspace.screensDidSleepNotification") &&
                 observerSource.contains("NSWorkspace.activeSpaceDidChangeNotification") &&

@@ -19,6 +19,13 @@ protocol HoverServiceProtocol {
     func noteExplicitStatusItemInteraction()
     func start()
     func stop()
+    /// Begin a passive hover dwell for the always-visible main status item. The
+    /// global mouse monitor cannot see the cursor pass over our own status-item
+    /// button, so the button's tracking area drives reveal through this — honoring
+    /// the same Reveal-delay dwell as the strip-hover path (#160/#161).
+    func beginMainStatusItemHoverDwell()
+    /// Cancel an in-flight main status-item hover dwell (cursor left the icon).
+    func cancelMainStatusItemHoverDwell()
 }
 
 // MARK: - HoverService
@@ -448,6 +455,27 @@ final class HoverService: HoverServiceProtocol {
     private func distanceFromMenuBarTop(_ point: NSPoint) -> CGFloat {
         Self.distanceFromMenuBarTop(point, screenFrames: NSScreen.screens.map(\.frame))
             ?? .greatestFiniteMagnitude
+    }
+
+    /// Begin a passive hover dwell for the always-visible main status item.
+    ///
+    /// The global mouse monitor never sees the cursor pass over our OWN status-item
+    /// button — those events are delivered to the button, not to other apps — so the
+    /// button installs an `NSTrackingArea` whose `mouseEntered:` calls this. It routes
+    /// through the same `hoverDelay` dwell + in-region re-check as the strip-hover
+    /// path, so a cursor merely brushing the SaneBar icon no longer reveals the hidden
+    /// items instantly (#160/#161 — "the menu keeps popping open every few minutes").
+    /// The caller gates on `showOnHover`; here we additionally respect `isSuspended`
+    /// (e.g. while the Find Icon window is open).
+    func beginMainStatusItemHoverDwell() {
+        guard !isSuspended else { return }
+        scheduleDelayedTrigger(.hover)
+    }
+
+    /// Cancel an in-flight main status-item hover dwell — the cursor left the icon
+    /// (`mouseExited:`) before the dwell elapsed, so no reveal should fire.
+    func cancelMainStatusItemHoverDwell() {
+        cancelHoverTimer()
     }
 
     private func scheduleHoverTrigger() {

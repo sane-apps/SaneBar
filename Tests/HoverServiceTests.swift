@@ -341,4 +341,45 @@ struct HoverServiceTests {
 
         #expect(distance == 30)
     }
+
+    // MARK: - Main status-item hover dwell (#160/#161)
+
+    /// The always-visible main icon installs its own NSTrackingArea because the global
+    /// mouse monitor never sees the cursor over our own status-item button. That path
+    /// must DWELL like the strip-hover path, not reveal instantly — otherwise a cursor
+    /// brushing the SaneBar icon pops the hidden icons "every few minutes" (#160/#161).
+    /// This fails on the pre-fix path, which called showHiddenItemsNow synchronously.
+    @Test("Main status-item hover schedules a dwell instead of revealing instantly (#160/#161)")
+    func mainStatusItemHoverDwellsInsteadOfRevealingInstantly() {
+        let service = HoverService()
+        service.isEnabled = true
+        var fired = 0
+        service.onTrigger = { _ in fired += 1 }
+
+        service.beginMainStatusItemHoverDwell()
+
+        #expect(
+            fired == 0,
+            "Icon hover must not reveal instantly; it must wait for the Reveal delay (#160/#161)"
+        )
+
+        // Leaving the icon before the dwell elapses cancels the pending reveal.
+        service.cancelMainStatusItemHoverDwell()
+        #expect(fired == 0)
+    }
+
+    /// While suspended (e.g. the Find Icon window is open) an icon hover must not even
+    /// arm a reveal — the old immediate path ignored isSuspended entirely.
+    @Test("Suspended hover service ignores main status-item hover")
+    func suspendedIgnoresMainStatusItemHover() {
+        let service = HoverService()
+        service.isEnabled = true
+        service.isSuspended = true
+        var fired = 0
+        service.onTrigger = { _ in fired += 1 }
+
+        service.beginMainStatusItemHoverDwell()
+
+        #expect(fired == 0, "A suspended hover service must not arm or fire an icon-hover reveal")
+    }
 }

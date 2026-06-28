@@ -365,19 +365,58 @@ final class MenuBarObserverWorkflow {
 
         guard !flags.isDisjoint(with: displayTopologyChangedFlags) else { return }
 
-        if flags.contains(displayEnabledFlag) || displayResumePendingAfterDisable {
+        // CoreGraphics also posts reconfiguration callbacks on a plain sleep/wake:
+        // the internal panel re-inits its mode/scale, carrying topology flags
+        // (displaySetModeFlag / displayDesktopShapeChangedFlag / displaySetMainFlag)
+        // WITHOUT displayEnabledFlag and without arming displayResumePendingAfterDisable.
+        // An unconditional `.screenParametersChanged` for that case would reanchor the
+        // user's explicit divider toward Control Center on a byte-for-byte UNCHANGED
+        // arrangement — the exact #136/#168 post-wake drift the notification-sink gate
+        // already closes. Classify the routing, then gate the topology-only case through
+        // the same pure fingerprint decision the notification sink uses.
+        switch Self.displayReconfigurationWakeRouting(
+            flags: flags,
+            resumePendingAfterDisable: displayResumePendingAfterDisable
+        ) {
+        case .wakeResume:
             displayResumePendingAfterDisable = false
             handleWakeResume(notificationName: "Display reconfiguration wake")
-            return
+        case .fingerprintGated:
+            manager.clearCachedSeparatorGeometryForLifecycleTransition(reason: "screenParametersChanged")
+            manager.cancelVisibilityIntentReplayTask(reason: "screenParametersChanged")
+            manager.enforceExternalMonitorVisibilityPolicy(reason: "screenParametersChanged")
+            let fingerprint = MenuBarDisplayConfiguration.currentFingerprint()
+            let decision = Self.screenParametersValidationDecision(
+                fingerprint: fingerprint,
+                lastObservedFingerprint: lastObservedDisplayFingerprint
+            )
+            lastObservedDisplayFingerprint = decision.newLastObserved
+            logger.debug(
+                "Display reconfiguration changed - fingerprint=\(fingerprint, privacy: .public) → validating as \(decision.context.rawValue, privacy: .public) (display=\(display, privacy: .public), flags=\(flags.rawValue, privacy: .public))"
+            )
+            manager.schedulePositionValidation(context: decision.context)
         }
+    }
 
-        manager.clearCachedSeparatorGeometryForLifecycleTransition(reason: "screenParametersChanged")
-        manager.cancelVisibilityIntentReplayTask(reason: "screenParametersChanged")
-        logger.debug(
-            "Display reconfiguration changed - refreshed cached separator policy (display=\(display, privacy: .public), flags=\(flags.rawValue, privacy: .public))"
-        )
-        manager.enforceExternalMonitorVisibilityPolicy(reason: "screenParametersChanged")
-        manager.schedulePositionValidation(context: .screenParametersChanged)
+    /// How a CoreGraphics display-reconfiguration callback — past the begin/disable
+    /// early-outs and the topology-flag guard — should drive position validation.
+    /// Extracted so the #136/#168 routing is unit-testable: a topology-only wake (the
+    /// internal panel re-initializing its mode/scale on sleep/wake, carrying
+    /// displaySetModeFlag / displayDesktopShapeChangedFlag / displaySetMainFlag WITHOUT
+    /// displayEnabledFlag and with no pending resume) must reach the fingerprint gate
+    /// (`.fingerprintGated`), never an unconditional reanchor.
+    enum DisplayReconfigurationWakeRouting: Equatable {
+        /// Explicit display-enable, or a resume after a prior display-disable.
+        case wakeResume
+        /// Topology change with no enable → gate by display fingerprint.
+        case fingerprintGated
+    }
+
+    nonisolated static func displayReconfigurationWakeRouting(
+        flags: CGDisplayChangeSummaryFlags,
+        resumePendingAfterDisable: Bool
+    ) -> DisplayReconfigurationWakeRouting {
+        (flags.contains(displayEnabledFlag) || resumePendingAfterDisable) ? .wakeResume : .fingerprintGated
     }
 
     private func cancelStaleDisplayValidation(
