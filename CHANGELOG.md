@@ -10,6 +10,12 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
+## [2.1.84] - 2026-06-27
+
+Further improves menu-bar divider stability around sleep and wake: addresses a case where the divider could still drift toward Control Center after waking even when your displays had not changed. Also adds a way back in when macOS does not place SaneBar's menu-bar icon at launch — relaunching SaneBar now reliably opens a window so you can reach Settings and the Health screen instead of the app being unreachable.
+
+---
+
 ## [2.1.83] - 2026-06-26
 
 Fixes icon moves that still failed after recent updates: moving icons between Hidden/Visible/Always Hidden now works (verified on notched built-in displays), and the right-click move menu now shows the correct options for an icon's actual zone. Adds recovery for the menu-bar separator when macOS parks it off-screen so moves stop silently doing nothing.
