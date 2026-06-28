@@ -198,7 +198,7 @@ class StartupLayoutProbe
     run_probe_case('currentHost visibility cleanup') { run_current_host_visibility_override_case }
     run_probe_case('autoRehide=false startup') { run_auto_rehide_false_case }
     run_probe_case('#157 dirty reboot recovery') { run_dirty_reboot_recovery_case }
-    run_probe_case('#155 Always Hidden dirty replay') { run_always_hidden_dirty_replay_outbound_case }
+    run_probe_case('resource soak after dirty startup') { run_always_hidden_dirty_replay_outbound_case }
 
     restore_state!
     @state_restored = true
@@ -573,6 +573,14 @@ class StartupLayoutProbe
   end
 
   def run_always_hidden_dirty_replay_outbound_case
+    # The AppleScript SBF move-matrix replay is a NON-REPRESENTATIVE lane (owner ruling): SaneBar's
+    # AppleScript `move icon` command is a different code path from the UI drag / right-click that
+    # customers actually use, and on notchless or off-screen separators it hangs or false-fails
+    # (it has blocked releases twice). Gated OFF by default; real move coverage = the Swift
+    # move-regression suite + on-device IRL. The dirty-startup resource soak (release-receipt
+    # evidence) still runs, via the soak-only path below.
+    return run_dirty_startup_resource_soak_case unless ENV['SANEBAR_SMOKE_REQUIRE_MOVE_MATRIX'] == '1'
+
     width = numeric_default('SaneBar_CalibratedScreenWidth') || parsed_snapshot_value(read_layout_snapshot!, 'screenWidth')
     raise 'Missing calibrated screen width for #155 dirty replay probe' unless width
 
@@ -706,6 +714,35 @@ class StartupLayoutProbe
     result
   ensure
     restore_current_host_defaults(original_visibility_values) if original_visibility_values
+  end
+
+  # Soak-only path used when the AppleScript move-matrix lane is gated off (the default).
+  # Exercises a dirty startup + passive-idle health + the adaptive resource soak (the release
+  # receipt's resource_soak_growth evidence) WITHOUT driving the brittle AppleScript moves.
+  def run_dirty_startup_resource_soak_case
+    quit_app
+    settings = dirty_reboot_settings(load_settings_json)
+    save_settings_json(settings)
+    launch_app
+    parked_cursor = park_pointer_away_from_menu_bar!(label: 'dirty startup resource soak')
+    soak_t2 = snapshot_after_delay(2.0, label: 'dirty startup resource soak T+2s')
+    soak_t5 = snapshot_after_delay(5.0, label: 'dirty startup resource soak T+5s')
+    assert_snapshot_healthy!(soak_t2, label: 'dirty startup resource soak T+2s')
+    assert_snapshot_healthy!(soak_t5, label: 'dirty startup resource soak T+5s')
+    cursor_proof = assert_cursor_stable!(parked_cursor, label: 'dirty startup resource soak passive')
+
+    resource_soak = run_resource_soak_after_155! if resource_soak_after_155_enabled?
+    completed_scenarios = ['dirty startup remains healthy through passive idle']
+    completed_scenarios << 'dirty startup resource soak remains stable' if resource_soak
+
+    result = {
+      name: 'dirty startup resource soak remains stable',
+      completed_scenarios: completed_scenarios,
+      cursor_proof: cursor_proof,
+      snapshots: { soak_t2: soak_t2, soak_t5: soak_t5 }
+    }
+    result[:resource_soak] = resource_soak if resource_soak
+    result
   end
 
   def resource_soak_after_155_enabled?

@@ -1739,7 +1739,7 @@ end
     assert_includes source, "backup_state!\n    prepare_startup_probe_settings!\n\n    run_probe_case"
     assert_includes source, 'def prepare_startup_probe_settings!'
     assert_includes source, "run_probe_case('current-width backup restore')"
-    assert_includes source, "run_probe_case('#155 Always Hidden dirty replay')"
+    assert_includes source, "run_probe_case('resource soak after dirty startup')"
     assert_includes source, 'puts "   ↳ startup probe: #{label}"'
     assert_includes source, '@cases << result'
     assert_includes source, '@cases << partial'
