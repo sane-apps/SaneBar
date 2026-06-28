@@ -630,9 +630,9 @@ final class MenuBarStatusItemRecoveryWorkflow {
         recoveryCount: Int
     ) {
         guard MenuBarVisibilityPolicy.shouldSurfaceHealthAfterStatusItemRecoveryStop(
-            recoveryReason: reason,
-            recoveryCount: recoveryCount,
-            validationContext: validationContext
+            recoveryReason: reason, recoveryCount: recoveryCount,
+            validationContext: validationContext,
+            likelySystemSuppressed: currentRuntimeSnapshot().likelySystemSuppressedStatusItems
         ) else { return }
 
         logger.error(

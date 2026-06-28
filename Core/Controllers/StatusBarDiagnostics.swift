@@ -1,13 +1,13 @@
 import AppKit
 import Foundation
 
-struct StatusItemVisibilityOverrideSnapshot: Equatable, Sendable {
+struct StatusItemVisibilityOverrideSnapshot: Equatable {
     let scope: String
     let key: String
     let value: String
 }
 
-struct MissionControlSpacesDiagnostic: Equatable, Sendable {
+struct MissionControlSpacesDiagnostic: Equatable {
     let spansDisplays: Bool?
 
     var displaysHaveSeparateSpaces: Bool? {
@@ -22,13 +22,13 @@ struct MissionControlSpacesDiagnostic: Equatable, Sendable {
     }
 }
 
-struct StatusItemSuppressionInput: Equatable, Sendable {
+struct StatusItemSuppressionInput: Equatable {
     let isVisibleFlag: Bool?
     let windowFrame: CGRect?
     let screenFrame: CGRect?
 }
 
-struct HiddenCollapsedSeparatorHealthInput: Equatable, Sendable {
+struct HiddenCollapsedSeparatorHealthInput: Equatable {
     let hidingState: HidingState
     let mainWindowValid: Bool
     let separatorVisible: Bool?
@@ -95,7 +95,8 @@ enum StatusBarDiagnostics {
               windowFrame.width.isFinite,
               windowFrame.height.isFinite,
               windowFrame.width > 0,
-              windowFrame.height > 0 else {
+              windowFrame.height > 0
+        else {
             return false
         }
 
@@ -145,31 +146,28 @@ enum StatusBarDiagnostics {
     nonisolated static func hiddenCollapsedSeparatorIsStructurallyHealthy(
         _ input: HiddenCollapsedSeparatorHealthInput
     ) -> Bool {
+        // In the hidden state the divider is parked off-screen (length 10000), so this
+        // check governs STRUCTURAL validity only — that the items exist, are visible,
+        // and are ordered correctly — NOT positional drift.
+        //
+        // Gating structural validity on positional drift (the old
+        // !shouldRecoverStartupPositions + near-Control-Center/persisted-intent checks)
+        // made startupItemsValid flap false whenever the divider drifted while hidden.
+        // That triggered the recovery loop, which CANNOT correct the position while
+        // hidden — so it churned (24+ attempts, autosave-version bumping; this is #160)
+        // and never resolved, and it blocked the customer-UI receipt. Recovery wasn't
+        // fixing the drift anyway, so gating on it only produced churn. Positional drift
+        // is corrected when the geometry is reliable again (on un-hide / shown state),
+        // where the restore mechanisms actually work.
+        //
+        // Genuine STRUCTURAL failures are still caught: a main item macOS never placed
+        // (#157, default window y=-22) fails `mainWindowValid` (validateItemPosition
+        // already guarantees a valid on-screen menu-bar frame); a missing or misordered
+        // separator fails the visibility / `separatorX < mainX` invariants.
         guard input.hidingState == .hidden else { return false }
         guard input.mainWindowValid, input.separatorVisible == true else { return false }
         guard let separatorX = input.separatorX, let mainX = input.mainX, separatorX < mainX else { return false }
-        guard !MenuBarVisibilityPolicy.shouldRecoverStartupPositions(
-            separatorX: input.separatorX,
-            mainX: input.mainX,
-            mainRightGap: input.mainRightGap,
-            screenWidth: input.screenWidth,
-            notchRightSafeMinX: input.notchRightSafeMinX,
-            persistedMainDistanceFromRight: input.persistedMainDistanceFromRight
-        ) else {
-            return false
-        }
-        if hasUsablePersistedMainIntent(
-            persistedMainDistanceFromRight: input.persistedMainDistanceFromRight,
-            mainRightGap: input.mainRightGap
-        ) {
-            return true
-        }
-        return MenuBarVisibilityPolicy.isMainNearControlCenter(
-            mainX: mainX,
-            mainRightGap: input.mainRightGap,
-            screenWidth: input.screenWidth,
-            notchRightSafeMinX: input.notchRightSafeMinX
-        )
+        return true
     }
 
     nonisolated static func persistedMainDistanceFromRight() -> CGFloat? {
@@ -178,21 +176,6 @@ enum StatusBarDiagnostics {
         )
         guard StatusBarPositionStore.isPixelLikePosition(persisted), let persisted else { return nil }
         return CGFloat(persisted)
-    }
-
-    private nonisolated static func hasUsablePersistedMainIntent(
-        persistedMainDistanceFromRight: CGFloat?,
-        mainRightGap: CGFloat?
-    ) -> Bool {
-        guard let persistedMainDistanceFromRight,
-              persistedMainDistanceFromRight.isFinite,
-              persistedMainDistanceFromRight >= 0,
-              persistedMainDistanceFromRight < 5000,
-              let mainRightGap,
-              mainRightGap.isFinite else {
-            return false
-        }
-        return true
     }
 
     nonisolated static func missionControlSpacesSummary(spansDisplays: Bool?) -> String {

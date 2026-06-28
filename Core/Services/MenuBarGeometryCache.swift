@@ -6,15 +6,26 @@ import CoreGraphics
 /// coordinates to recovery/move code is the root of the arrangement-drift
 /// issue family (#136, #139, #153).
 enum MenuBarDisplayConfiguration {
+    /// Sentinel returned by `currentFingerprint()` when no displays are active
+    /// (e.g. clamshell with the external asleep). Callers must NOT treat a
+    /// transition to/from this as a real arrangement change — there is nothing to
+    /// reanchor against, and doing so feeds the #136/#153 wake-drift family.
+    static let noScreensFingerprint = "no-screens"
+
     @MainActor
     static func currentFingerprint() -> String {
         let screens = NSScreen.screens
-        guard !screens.isEmpty else { return "no-screens" }
+        guard !screens.isEmpty else { return noScreensFingerprint }
         return screens
             .map { screen in
                 let frame = screen.frame
                 let number = (screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.stringValue ?? "?"
-                return "\(number):\(Int(frame.minX)),\(Int(frame.minY)),\(Int(frame.width))x\(Int(frame.height))"
+                // Include backingScaleFactor: a scale-mode switch (e.g. a HiDPI "More
+                // Space" change) that keeps the same logical point frame still alters
+                // menu-bar item geometry, so it must register as a real arrangement
+                // change (avoids the #136 false-equal where it routes wake-resume → no
+                // reanchor). Also strengthens the geometry cache's cross-config guard.
+                return "\(number):\(Int(frame.minX)),\(Int(frame.minY)),\(Int(frame.width))x\(Int(frame.height))@\(screen.backingScaleFactor)"
             }
             .sorted()
             .joined(separator: "|")

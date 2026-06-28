@@ -466,7 +466,15 @@ class WakeLayoutProbe
   EXPLICIT_DIVIDER_BASELINE_MIN_FAR_POSITION = 400
 
   def assert_explicit_divider_baseline_is_far!(baseline, persisted_main_before:)
-    if truthy?(baseline['mainNearControlCenter'])
+    # On notched built-in displays `mainNearControlCenter` reflects "inside the
+    # notch-safe right zone", which a legitimately-FAR divider also satisfies — it
+    # reads true for a far divider, so it cannot distinguish far-vs-near there. The
+    # substantive far-check is the persisted-position assertion below, which works on
+    # every display. Only use the mainNearControlCenter signal on non-notched displays,
+    # where it is meaningful. (The persisted-drift survival check is likewise the
+    # authoritative reanchor detector and is notch-independent.)
+    notched = !baseline['notchRightSafeMinX'].nil?
+    if !notched && truthy?(baseline['mainNearControlCenter'])
       raise 'FM-2 gate baseline invalid: the explicit far divider was pulled near Control Center at COLD LAUNCH (mainNearControlCenter=true). Either the seed did not take or the launch path reanchored a fittable explicit divider (a launch-path regression of invariant #5).'
     end
 
@@ -555,7 +563,12 @@ class WakeLayoutProbe
       end
     end
 
-    if truthy?(snapshot['mainNearControlCenter'])
+    # mainNearControlCenter is a notch-safe-right-zone flag, not a literal CC-proximity
+    # signal, so on notched displays it reads true for a legitimately-far divider and
+    # cannot detect the launder. The persisted-drift checks above ARE the authoritative,
+    # notch-independent reanchor detectors. Only use mainNearControlCenter on non-notched
+    # displays where it is meaningful.
+    if snapshot['notchRightSafeMinX'].nil? && truthy?(snapshot['mainNearControlCenter'])
       raise "#{label}: FM-2 ROOT CAUSE DETECTED — divider snapped to Control Center (mainNearControlCenter flipped true) after wake validation, despite an explicit far-from-Control-Center user layout."
     end
 
