@@ -15,13 +15,17 @@ class CustomerUIActionSweep
     'per-sample CPU/RSS/physical footprint trend fields were captured'
   ].freeze
 
-  # Runtime-state rows whose ONLY evidence comes from the AppleScript SBF move-matrix
-  # lane. That lane is opt-in (SANEBAR_SMOKE_REQUIRE_MOVE_MATRIX=1) because the product
-  # correctly refuses unsafe AppleScript drags on notch/off-screen separators — it is not
-  # the real UI path. When the lane is gated off these rows are INFORMATIONAL, not failed
-  # (real move coverage = Swift move-regression suite + on-device IRL). Mirrors the
-  # contract-side `move_runtime_line` and the runtime `move_matrix_required` gating.
-  MOVE_MATRIX_GATED_RUNTIME_STATES = %w[shared_bundle_exact_id_moves].freeze
+  AIR_IR_MOVE_RECEIPT_PATH = File.join(RUNTIME_PREFLIGHT_EVIDENCE_DIR, 'sanebar_air_ir_move_receipt.json')
+  AIR_IR_MOVE_RECEIPT_MAX_AGE_SECONDS = 12 * 60 * 60
+  AIR_IR_REQUIRED_MOVE_CASES = {
+    'menu-hidden-visible' => ['menu', 'hidden', 'visible', 'menu move Hidden to Visible changed authoritative zone'],
+    'menu-visible-alwaysHidden' => ['menu', 'visible', 'alwaysHidden', 'menu move Visible to Always Hidden changed authoritative zone'],
+    'menu-alwaysHidden-hidden' => ['menu', 'alwaysHidden', 'hidden', 'menu move Always Hidden to Hidden changed authoritative zone'],
+    'drag-visible-hidden' => ['drag', 'visible', 'hidden', 'drag move Visible to Hidden changed authoritative zone'],
+    'drag-hidden-alwaysHidden' => ['drag', 'hidden', 'alwaysHidden', 'drag move Hidden to Always Hidden changed authoritative zone'],
+    'drag-alwaysHidden-visible' => ['drag', 'alwaysHidden', 'visible', 'drag move Always Hidden to Visible changed authoritative zone']
+  }.freeze
+  AIR_IR_REQUIRED_INGRESS = %w[sane_test hotkey click right_click_menu drag_tile].freeze
 
   private
 
@@ -42,8 +46,8 @@ class CustomerUIActionSweep
     # Single source of truth for whether AppleScript move/exact-ID evidence is required,
     # mirroring project_qa_runtime_preflight's representative_move_matrix_release_gate_enabled?.
     # When off (default) those lanes don't run, so the sweep must not demand their
-    # evidence; real move coverage = Swift move-regression suite + on-device IRL (owner
-    # ruling 2026-06-26: AppleScript moves aren't the real UI path).
+    # evidence; real move coverage is the Air IR real-input receipt (owner ruling
+    # 2026-06-26: AppleScript moves aren't the real UI path).
     move_matrix_required = ENV['SANEBAR_SMOKE_REQUIRE_MOVE_MATRIX'] == '1'
     [smoke_log, startup_log, wake_log].each do |path|
       raise "Missing runtime evidence #{path}" unless fresh_release_runtime_evidence?(path)
@@ -252,8 +256,7 @@ class CustomerUIActionSweep
       required_scenarios = Array(row['required_scenarios']).map(&:to_s)
       missing_types = required_types - evidence_types
       missing_scenarios = required_scenarios - completed_scenarios
-      informational_reason = runtime_state_informational_reason(row) ||
-                             move_matrix_gated_informational_reason(id.to_s)
+      informational_reason = runtime_state_informational_reason(row)
       failure_reasons = []
       failure_reasons << "missing evidence types: #{missing_types.join(', ')}" unless missing_types.empty?
       failure_reasons << "missing completed scenarios: #{missing_scenarios.join(', ')}" unless missing_scenarios.empty?
@@ -335,18 +338,6 @@ class CustomerUIActionSweep
     reason.empty? ? nil : reason
   end
 
-  # Downgrade move-matrix-only runtime states to informational when the opt-in
-  # AppleScript move lane is gated off (the default). Keeps the receipt honest:
-  # the row is reported, labeled why it is not gating, and never blocks release.
-  def move_matrix_gated_informational_reason(id)
-    return nil if ENV['SANEBAR_SMOKE_REQUIRE_MOVE_MATRIX'] == '1'
-    return nil unless MOVE_MATRIX_GATED_RUNTIME_STATES.include?(id.to_s)
-
-    'AppleScript move-matrix lane gated off by default ' \
-      '(set SANEBAR_SMOKE_REQUIRE_MOVE_MATRIX=1 to require); ' \
-      'real move coverage = Swift move-regression suite + on-device IRL'
-  end
-
   def runtime_state_artifact(id)
     case id
     when 'wake_visible_zone_persistence'
@@ -354,7 +345,7 @@ class CustomerUIActionSweep
     when 'dynamic_helper_wake_drift'
       dynamic_helper_wake_artifact
     when 'shared_bundle_exact_id_moves'
-      shared_bundle_exact_id_artifact
+      air_ir_move_artifact
     when 'hover_auto_rehide'
       runtime_json_artifact(
         File.join(RUNTIME_PREFLIGHT_EVIDENCE_DIR, 'sanebar_runtime_hover_rehide.json')
@@ -617,29 +608,80 @@ class CustomerUIActionSweep
     []
   end
 
-  def shared_bundle_exact_id_artifact
-    path = '/tmp/sanebar_runtime_shared_bundle_smoke.log'
-    return nil unless fresh_release_runtime_evidence?(path)
+  def air_ir_move_artifact
+    path = AIR_IR_MOVE_RECEIPT_PATH
+    return nil unless fresh_runtime_evidence?(path, max_age_seconds: AIR_IR_MOVE_RECEIPT_MAX_AGE_SECONDS)
 
-    body = safe_read_artifact(path)
-    return nil unless runtime_log_candidate_matches?(body)
+    payload = JSON.parse(safe_read_artifact(path))
+    return nil unless valid_air_ir_move_receipt?(payload)
 
-    required_line = body.lines.find { |line| line.start_with?('required_ids=') }
-    required_ids = required_line.to_s.sub(/\Arequired_ids=/, '').strip.split(',').reject(&:empty?)
-    return nil if required_ids.length < 2
-    return nil if body.include?('shared_bundle_exact_id_pool_empty=1') || body.include?('default_move_pool_empty=1')
-    return nil unless body.include?('✅ Candidate set passed:')
-
-    sample_paths = body.scan(%r{resource_sample=(/tmp/[^\s]+)}).flatten
+    evidence_paths = [path] + Array(payload['cases']).flat_map do |item|
+      [
+        item['before_screenshot'],
+        item['after_screenshot'],
+        item['log_path'],
+        item['before_zones_path'],
+        item['after_zones_path']
+      ]
+    end
     {
-      evidence_types: %w[mini_runtime log state_receipt],
-      evidence_paths: runtime_evidence_with_retained_paths([path] + sample_paths, label: 'shared-bundle-exact-id'),
-      completed_scenarios: [
-        'shared-bundle exact-id smoke ran with non-empty required_ids',
-        'every required shared-bundle candidate moved by unique ID, not sibling fallback'
-      ],
-      candidate: runtime_log_candidate(body)
+      evidence_types: %w[air_runtime log screenshot state_receipt],
+      evidence_paths: runtime_evidence_with_retained_paths(evidence_paths, label: 'air-ir-move'),
+      completed_scenarios: AIR_IR_REQUIRED_MOVE_CASES.values.map { |spec| spec[3] } + ['real app ingress used sane_test launch, hotkey, click, right-click menu, and drag tile'],
+      candidate: runtime_candidate(payload)
     }
+  rescue JSON::ParserError
+    nil
+  end
+
+  def valid_air_ir_move_receipt?(payload)
+    return false unless payload.is_a?(Hash)
+    return false unless payload['app'].to_s == 'SaneBar'
+    return false unless payload['status'].to_s == 'passed'
+    return false unless payload['proof'].to_s == 'air_ir_move_matrix'
+    return false unless payload['launch_method'].to_s.include?('sane_test.rb')
+    return false unless runtime_candidate_matches?(payload)
+    return false unless payload['git_sha'].to_s == current_git_sha
+    return false unless air_ir_built_in_display?(payload['display'])
+    return false unless (AIR_IR_REQUIRED_INGRESS - Array(payload['ingress']).map(&:to_s)).empty?
+
+    cases_by_id = Array(payload['cases']).each_with_object({}) { |item, memo| memo[item['id'].to_s] = item if item.is_a?(Hash) }
+    AIR_IR_REQUIRED_MOVE_CASES.all? do |id, spec|
+      valid_air_ir_move_case?(cases_by_id[id], spec)
+    end
+  end
+
+  def valid_air_ir_move_case?(item, spec)
+    action, before_zone, after_zone = spec
+    return false unless item.is_a?(Hash)
+    return false unless item['action'].to_s == action
+    return false unless item['before_zone'].to_s == before_zone
+    return false unless item['after_zone'].to_s == after_zone
+    return false unless item['before_zone'].to_s != item['after_zone'].to_s
+    return false unless item['fixture_id'].to_s.match?(/com\.sanebar\.sharedfixture.*SBF-[A-E]|SBF-[A-E]/)
+    return false if item['input_path'].to_s.match?(/applescript|runScriptMove|move icon to/i)
+    return false if Array(item['log_excerpt']).join("\n").strip.empty?
+
+    [
+      item['before_screenshot'],
+      item['after_screenshot'],
+      item['before_zones_path'],
+      item['after_zones_path'],
+      item['log_path']
+    ].all? { |path| safe_regular_artifact_file?(path.to_s) }
+  end
+
+  def air_ir_built_in_display?(display)
+    return display['built_in'] == true if display.is_a?(Hash)
+
+    display.to_s.match?(/built.?in/i)
+  end
+
+  def current_git_sha
+    @current_git_sha ||= begin
+      out, status = Open3.capture2('git', '-C', PROJECT_ROOT, 'rev-parse', 'HEAD')
+      status.success? ? out.strip : ''
+    end
   end
 
   def dynamic_helper_wake_artifact

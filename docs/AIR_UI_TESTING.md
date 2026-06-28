@@ -18,15 +18,24 @@ beachball fix; follow it instead of rediscovering.
 ## 0. Quick start — use the script (don't re-learn the dance)
 
 ```bash
-Scripts/air_ir_test.sh setup      # build+sign+deploy, enable local-UI, start logs, PRINT the agent recipe
-Scripts/air_ir_test.sh zones      # ground truth: every icon's real zone (read-only; the source of truth)
-Scripts/air_ir_test.sh logs       # move-relevant lines from the live log
-Scripts/air_ir_test.sh teardown   # stop logs, remove the local-UI bypass, restore hooks
+scripts/air_ir_test.sh setup      # build+sign+deploy, enable local-UI, start logs, create receipt run
+scripts/air_ir_test.sh start menu-hidden-visible SBF-A
+# perform the real menu move with hotkey/click/right-click input
+scripts/air_ir_test.sh finish menu-hidden-visible
+scripts/air_ir_test.sh validate   # requires all 6 real-input move cases
+scripts/air_ir_test.sh teardown   # stop logs, remove the local-UI bypass, restore hooks
 ```
 
 `setup` prints the full computer-use recipe (coordinates + the atomic-batch
-pattern + the 6-direction matrix). Sections 1–7 below are the underlying detail;
-the script encodes them. Corrections learned 2026-06-26 (the script is right,
+pattern + the 6-direction matrix). `start` captures the authoritative before
+zone plus a screenshot, `finish` captures the after zone, screenshot, and live
+log excerpt, and `validate` rejects release proof until the receipt covers:
+
+- Menu moves: `Hidden -> Visible`, `Visible -> Always Hidden`, `Always Hidden -> Hidden`
+- Drag moves: `Visible -> Hidden`, `Hidden -> Always Hidden`, `Always Hidden -> Visible`
+
+Sections 1–7 below are the underlying detail; the script encodes them.
+Corrections learned 2026-06-26 (the script is right,
 some prose below was wrong):
 
 - **`--level debug` log streaming WORKS** for live `log stream` (§3's "debug
@@ -42,11 +51,13 @@ some prose below was wrong):
 - **Stable panel coordinates:** All tab (749,104); Hidden/Visible/AlwaysHidden
   (533/595/677,104); filter box (685,174); filtered single tile (541,251); red
   close (505,65). Filter to ONE icon so its tile is always at (541,251).
-- **Ground truth = `Scripts/air_ir_test.sh zones`** (`list icon zones`). The log
+- **Ground truth = `scripts/air_ir_test.sh zones`** (`list icon zones`). The log
   line "Move complete - direct hide from showAll state" is NOT proof a move
   worked — it logs even on the abort path. Verify the zone actually changed.
 
 ## 1. Build + install a testable build on the Air
+
+Use `scripts/air_ir_test.sh setup`; it runs:
 
 ```bash
 ruby ~/SaneApps/infra/SaneProcess/scripts/sane_test.rb SaneBar --local --no-logs

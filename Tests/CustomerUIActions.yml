@@ -84,19 +84,25 @@ runtime_state_matrix:
     - dynamic helper required IDs remain in intended zones after wake
     - helper-specific Hidden to Visible drift is rejected as a release blocker
   shared_bundle_exact_id_moves:
-    why: Control Center, Clock, Focus, Wi-Fi, Battery, and Display share bundles; moving by bundle or stale geometry can target the wrong icon while native exact-ID lanes still pass.
+    why: Move bugs only count as release-proven when the notched MacBook Air drives the real Icon Panel ingress with deterministic SBF fixtures; AppleScript move commands observe a different path.
     action_ids:
     - startup-wake-appearance-recovery
     - browse-icons-icon-context-actions
     required_proof_level: full_runtime_completion
     required_evidence_types:
-    - mini_runtime
+    - air_runtime
     - log
+    - screenshot
     - state_receipt
-    runner: Scripts/qa.rb shared-bundle focused exact-ID smoke
+    runner: scripts/air_ir_test.sh setup + start/finish/validate on the notched MacBook Air
     required_scenarios:
-    - shared-bundle exact-id smoke ran with non-empty required_ids
-    - every required shared-bundle candidate moved by unique ID, not sibling fallback
+    - real app ingress used sane_test launch, hotkey, click, right-click menu, and drag tile
+    - menu move Hidden to Visible changed authoritative zone
+    - menu move Visible to Always Hidden changed authoritative zone
+    - menu move Always Hidden to Hidden changed authoritative zone
+    - drag move Visible to Hidden changed authoritative zone
+    - drag move Hidden to Always Hidden changed authoritative zone
+    - drag move Always Hidden to Visible changed authoritative zone
   hover_auto_rehide:
     why: Hover reveal and delayed auto-rehide are timing-sensitive customer flows that source guards and screenshots do not exercise.
     action_ids:

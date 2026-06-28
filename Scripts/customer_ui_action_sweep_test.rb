@@ -134,6 +134,50 @@ class CustomerUIActionSweepTest < Minitest::Test
     }
   end
 
+  def write_air_ir_receipt(path, dir, cases: nil, status: 'passed')
+    fixtures = %w[SBF-A SBF-B SBF-C SBF-D SBF-E SBF-A]
+    specs = CustomerUIActionSweep.const_get(:AIR_IR_REQUIRED_MOVE_CASES)
+    cases ||= specs.each_with_index.map do |(id, spec), index|
+      before_screenshot = File.join(dir, "#{id}-before.png")
+      after_screenshot = File.join(dir, "#{id}-after.png")
+      before_zones = File.join(dir, "#{id}-before-zones.txt")
+      after_zones = File.join(dir, "#{id}-after-zones.txt")
+      log_path = File.join(dir, "#{id}.log")
+      [before_screenshot, after_screenshot].each { |screenshot| File.binwrite(screenshot, "\x89PNG\r\n\x1A\n".b) }
+      File.write(before_zones, "#{spec[1]}\ttrue\tcom.sanebar.sharedfixture\t#{fixtures[index]}\t#{fixtures[index]}\n")
+      File.write(after_zones, "#{spec[2]}\ttrue\tcom.sanebar.sharedfixture\t#{fixtures[index]}\t#{fixtures[index]}\n")
+      File.write(log_path, "MOVE ICON START #{fixtures[index]}\nMove complete #{spec[2]}\n")
+      {
+        'id' => id,
+        'action' => spec[0],
+        'fixture_id' => "com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.#{fixtures[index]}",
+        'before_zone' => spec[1],
+        'after_zone' => spec[2],
+        'input_path' => spec[0] == 'menu' ? 'hotkey -> click All -> filter -> right_click_menu -> click Move row' : 'hotkey -> click All -> filter -> drag_tile',
+        'before_screenshot' => before_screenshot,
+        'after_screenshot' => after_screenshot,
+        'before_zones_path' => before_zones,
+        'after_zones_path' => after_zones,
+        'log_path' => log_path,
+        'log_excerpt' => ["MOVE ICON START #{fixtures[index]}", "Move complete #{spec[2]}"]
+      }
+    end
+    payload = {
+      'app' => 'SaneBar',
+      'status' => status,
+      'proof' => 'air_ir_move_matrix',
+      'launch_method' => 'ruby ~/SaneApps/infra/SaneProcess/scripts/sane_test.rb SaneBar --local --no-logs',
+      'git_sha' => @sweep.send(:current_git_sha),
+      'host' => 'macbook-air',
+      'display' => { 'built_in' => true, 'name' => 'Built-In Liquid Retina Display' },
+      'ingress' => %w[sane_test hotkey click right_click_menu drag_tile],
+      'candidate' => project_runtime_candidate_fixture,
+      'cases' => cases
+    }
+    FileUtils.mkdir_p(File.dirname(path))
+    File.write(path, JSON.pretty_generate(payload))
+  end
+
   def runtime_log_lines(*lines, candidate: project_runtime_candidate_fixture)
     [
       "candidate_app_path=#{candidate[:app_path]}",
@@ -967,46 +1011,45 @@ class CustomerUIActionSweepTest < Minitest::Test
     end
   end
 
-  def test_runtime_state_results_include_shared_bundle_exact_id_artifact
-    shared_log = '/tmp/sanebar_runtime_shared_bundle_smoke.log'
-    preserve_files(shared_log) do
-    Dir.mktmpdir do |evidence_dir|
-    @sweep.instance_variable_set(:@evidence_dir, evidence_dir)
-    File.write(
-      shared_log,
-      [
-        'required_ids=com.apple.controlcenter.wifi,com.apple.controlcenter.battery',
-        'resource_sample=/tmp/sanebar_runtime_shared_bundle_resource_sample-try1.txt',
-        '✅ Candidate set passed: com.apple.controlcenter.wifi, com.apple.controlcenter.battery'
-      ].join("\n")
-    )
-    @sweep.instance_variable_set(:@action_results, {
-      'startup-wake-appearance-recovery' => {
-        evidence: [
-          { type: 'mini_runtime', detail: '/tmp/sanebar_runtime_shared_bundle_smoke.log: shared bundle passed', artifacts: [shared_log] },
-          { type: 'log', detail: 'shared bundle log', artifacts: [shared_log] },
-          { type: 'state_receipt', detail: '/tmp/sanebar_runtime_shared_bundle_smoke.log: exact IDs', artifacts: [shared_log] }
-        ]
-      },
-      'browse-icons-icon-context-actions' => {
-        evidence: [
-          { type: 'mini_runtime', detail: '/tmp/sanebar_runtime_shared_bundle_smoke.log: shared bundle passed', artifacts: [shared_log] },
-          { type: 'log', detail: 'shared bundle log', artifacts: [shared_log] },
-          { type: 'state_receipt', detail: '/tmp/sanebar_runtime_shared_bundle_smoke.log: exact IDs', artifacts: [shared_log] }
-        ]
-      }
-    })
+  def test_runtime_state_results_include_air_ir_move_receipt
+    receipt_path = CustomerUIActionSweep.const_get(:AIR_IR_MOVE_RECEIPT_PATH)
+    preserve_files(receipt_path) do
+      Dir.mktmpdir do |dir|
+        Dir.mktmpdir do |evidence_dir|
+          @sweep.instance_variable_set(:@evidence_dir, evidence_dir)
+          write_air_ir_receipt(receipt_path, dir)
+          @sweep.instance_variable_set(:@action_results, {
+            'startup-wake-appearance-recovery' => { evidence: [] },
+            'browse-icons-icon-context-actions' => { evidence: [] }
+          })
 
-    rows = @sweep.send(:runtime_state_results, { 'manifest_sha256' => 'abc' })
-    shared = rows.find { |row| row[:id] == 'shared_bundle_exact_id_moves' }
-    durable_shared_log = File.join(evidence_dir, 'shared-bundle-exact-id-sanebar_runtime_shared_bundle_smoke.log')
+          rows = @sweep.send(:runtime_state_results, { 'manifest_sha256' => 'abc' })
+          shared = rows.find { |row| row[:id] == 'shared_bundle_exact_id_moves' }
 
-    assert_equal 'passed', shared[:status]
-    assert_includes shared[:completed_scenarios], 'shared-bundle exact-id smoke ran with non-empty required_ids'
-    assert_includes shared[:evidence_paths], durable_shared_log
-    refute_includes shared[:evidence_paths], shared_log
-    assert File.file?(durable_shared_log)
+          assert_equal 'passed', shared[:status]
+          assert_includes shared[:evidence_types], 'air_runtime'
+          assert_includes shared[:completed_scenarios], 'real app ingress used sane_test launch, hotkey, click, right-click menu, and drag tile'
+          assert_includes shared[:evidence_paths], 'outputs/runtime-preflight/sanebar_air_ir_move_receipt.json'
+        end
+      end
     end
+  end
+
+  def test_runtime_state_results_fail_air_ir_move_row_without_real_receipt
+    receipt_path = CustomerUIActionSweep.const_get(:AIR_IR_MOVE_RECEIPT_PATH)
+    preserve_files(receipt_path) do
+      FileUtils.rm_f(receipt_path)
+      @sweep.instance_variable_set(:@action_results, {
+        'startup-wake-appearance-recovery' => { evidence: [] },
+        'browse-icons-icon-context-actions' => { evidence: [] }
+      })
+
+      rows = @sweep.send(:runtime_state_results, { 'manifest_sha256' => 'abc' })
+      shared = rows.find { |row| row[:id] == 'shared_bundle_exact_id_moves' }
+
+      assert_equal 'failed', shared[:status]
+      assert_nil shared[:informational_reason]
+      assert_includes shared[:failure_reasons], 'missing evidence types: air_runtime, log, screenshot, state_receipt'
     end
   end
 
