@@ -302,9 +302,9 @@ class ProjectQA
       'testStartupHideContinuesWhenAccessibilityPermissionIsMissing'
     ],
     'Scripts/startup_layout_probe.rb' => [
-      '#155 dirty startup AH replay allows outbound moves',
-      '#155 pinned icon exits Always Hidden after dirty startup',
-      'move_icon_and_expect!'
+      'run_dirty_startup_resource_soak_case',
+      'dirty startup resource soak remains stable',
+      'run_resource_soak_after_155!'
     ],
     'Tests/RuntimeGuardQAAndLicensingXCTests.swift' => [
       'testIconPanelDoesNotForceAlwaysHiddenForFreeUsers'

@@ -198,7 +198,7 @@ class StartupLayoutProbe
     run_probe_case('currentHost visibility cleanup') { run_current_host_visibility_override_case }
     run_probe_case('autoRehide=false startup') { run_auto_rehide_false_case }
     run_probe_case('#157 dirty reboot recovery') { run_dirty_reboot_recovery_case }
-    run_probe_case('resource soak after dirty startup') { run_always_hidden_dirty_replay_outbound_case }
+    run_probe_case('resource soak after dirty startup') { run_dirty_startup_resource_soak_case }
 
     restore_state!
     @state_restored = true
@@ -572,150 +572,6 @@ class StartupLayoutProbe
     restore_current_host_defaults(original_visibility_values) if original_visibility_values
   end
 
-  def run_always_hidden_dirty_replay_outbound_case
-    # The AppleScript SBF move-matrix replay is a NON-REPRESENTATIVE lane (owner ruling): SaneBar's
-    # AppleScript `move icon` command is a different code path from the UI drag / right-click that
-    # customers actually use, and on notchless or off-screen separators it hangs or false-fails
-    # (it has blocked releases twice). Gated OFF by default; real move coverage = the Swift
-    # move-regression suite + on-device IRL. The dirty-startup resource soak (release-receipt
-    # evidence) still runs, via the soak-only path below.
-    return run_dirty_startup_resource_soak_case unless ENV['SANEBAR_SMOKE_REQUIRE_MOVE_MATRIX'] == '1'
-
-    width = numeric_default('SaneBar_CalibratedScreenWidth') || parsed_snapshot_value(read_layout_snapshot!, 'screenWidth')
-    raise 'Missing calibrated screen width for #155 dirty replay probe' unless width
-
-    width_bucket = width.to_i
-    version = autosave_version
-    main_key = "NSStatusItem Preferred Position SaneBar_Main_v#{version}"
-    separator_key = "NSStatusItem Preferred Position SaneBar_Separator_v#{version}"
-    always_hidden_key = "NSStatusItem Preferred Position SaneBar_AlwaysHiddenSeparator_v#{version}"
-    visibility_keys = current_host_visibility_keys(version)
-    original_visibility_values = visibility_keys.to_h { |key| [key, read_current_host_default(key)] }
-
-    quit_app
-    settings = dirty_reboot_settings(load_settings_json).merge(
-      'alwaysHiddenSectionEnabled' => true,
-      'requireAuthToShowHiddenIcons' => false
-    )
-    save_settings_json(settings)
-    launch_app
-    ensure_pro_unlocked_for_always_hidden_moves!
-    snapshot_after_delay(2.0, label: '#155 AH replay fixture launch T+2s')
-
-    candidates = ensure_preferred_always_hidden_replay_candidates!
-    raise "#155 dirty replay probe needs two deterministic exact-ID candidates, found #{candidates.length}" if candidates.length < 2
-
-    hidden_exit_candidate, visible_exit_candidate = candidates.first(2)
-    move_icon_and_expect!(
-      hidden_exit_candidate[:unique_id],
-      command: 'move icon to always hidden',
-      expected_zone: 'alwaysHidden',
-      label: '#155 seed hidden-exit candidate'
-    )
-    move_icon_and_expect!(
-      visible_exit_candidate[:unique_id],
-      command: 'move icon to always hidden',
-      expected_zone: 'alwaysHidden',
-      label: '#155 seed visible-exit candidate'
-    )
-
-    pinned_settings = load_settings_json.merge(
-      'alwaysHiddenSectionEnabled' => true,
-      'requireAuthToShowHiddenIcons' => false
-    )
-    pinned_ids = Array(pinned_settings['alwaysHiddenPinnedItemIds'])
-    pinned_settings['alwaysHiddenPinnedItemIds'] = (pinned_ids + candidates.first(2).map { |item| item[:unique_id] }).uniq
-    save_settings_json(pinned_settings)
-
-    quit_app
-    visibility_keys.each { |key| write_current_host_bool(key, false) }
-    write_numeric_default(main_key, 0)
-    write_numeric_default(separator_key, 1)
-    write_numeric_default(always_hidden_key, 10_000)
-
-    log("Seeded #155 dirty AH replay width=#{width_bucket} fixture_candidates=2")
-    launch_app
-    parked_cursor = park_pointer_away_from_menu_bar!(label: '#155 dirty AH replay startup')
-    replay_t2 = snapshot_after_delay(2.0, label: '#155 dirty AH replay T+2s')
-    replay_t5 = snapshot_after_delay(5.0, label: '#155 dirty AH replay T+5s')
-    assert_snapshot_healthy!(replay_t2, label: '#155 dirty AH replay T+2s')
-    assert_snapshot_healthy!(replay_t5, label: '#155 dirty AH replay T+5s')
-    hidden_replay_zone = wait_for_icon_zone!(
-      hidden_exit_candidate[:unique_id],
-      'alwaysHidden',
-      label: '#155 hidden-exit starts in AH after dirty startup'
-    )
-    visible_replay_zone = wait_for_icon_zone!(
-      visible_exit_candidate[:unique_id],
-      'alwaysHidden',
-      label: '#155 visible-exit starts in AH after dirty startup'
-    )
-    cursor_proof = assert_cursor_stable!(parked_cursor, label: '#155 dirty AH replay passive startup')
-
-    hidden_move = move_icon_and_expect!(
-      hidden_exit_candidate[:unique_id],
-      command: 'move icon to hidden',
-      expected_zone: 'hidden',
-      label: '#155 AH-to-Hidden after dirty startup'
-    )
-    visible_move = move_icon_and_expect!(
-      visible_exit_candidate[:unique_id],
-      command: 'move icon to visible',
-      expected_zone: 'visible',
-      label: '#155 AH-to-Visible after dirty startup'
-    )
-    idle_snapshot = assert_move_idle!('#155 dirty AH replay outbound moves')
-    resource_soak = run_resource_soak_after_155! if resource_soak_after_155_enabled?
-    post_soak = nil
-    if resource_soak
-      post_soak = {
-        hidden_zone: wait_for_icon_zone!(
-          hidden_exit_candidate[:unique_id],
-          'hidden',
-          label: '#155 hidden-exit remains Hidden after resource soak'
-        ),
-        visible_zone: wait_for_icon_zone!(
-          visible_exit_candidate[:unique_id],
-          'visible',
-          label: '#155 visible-exit remains Visible after resource soak'
-        ),
-        idle: assert_move_idle!('#155 dirty AH replay post-resource-soak')
-      }
-    end
-    completed_scenarios = [
-      '#155 dirty startup does not give up AH replay',
-      '#155 dirty startup restores pinned icons into Always Hidden before outbound moves',
-      '#155 pinned icon exits Always Hidden after dirty startup',
-      '#155 Always Hidden outbound moves leave move state idle'
-    ]
-    if resource_soak
-      completed_scenarios << '#155 dirty startup resource soak remains stable after outbound moves'
-      completed_scenarios << '#155 outbound move state remains durable after resource soak'
-    end
-
-    result = {
-      name: '#155 dirty startup AH replay allows outbound moves',
-      completed_scenarios: completed_scenarios,
-      width_bucket: width_bucket,
-      candidates: [
-        sanitized_replay_candidate(hidden_exit_candidate, role: 'hidden_exit', observed_zone: hidden_replay_zone),
-        sanitized_replay_candidate(visible_exit_candidate, role: 'visible_exit', observed_zone: visible_replay_zone)
-      ],
-      moves: [hidden_move, visible_move].map { |move| sanitized_move_result(move) },
-      cursor_proof: cursor_proof,
-      snapshots: {
-        replay_t2: replay_t2,
-        replay_t5: replay_t5,
-        idle: idle_snapshot
-      }
-    }
-    result[:resource_soak] = resource_soak if resource_soak
-    result[:post_soak] = post_soak if post_soak
-    result
-  ensure
-    restore_current_host_defaults(original_visibility_values) if original_visibility_values
-  end
-
   # Soak-only path used when the AppleScript move-matrix lane is gated off (the default).
   # Exercises a dirty startup + passive-idle health + the adaptive resource soak (the release
   # receipt's resource_soak_growth evidence) WITHOUT driving the brittle AppleScript moves.
@@ -766,18 +622,18 @@ class StartupLayoutProbe
       '--json'
     ]
     log(
-      "#155 dirty AH replay starting resource soak " \
+      "starting dirty-startup resource soak " \
       "duration=#{duration_seconds}s min=#{min_duration_seconds}s"
     )
     out, status = capture_with_env(env, *command)
-    report = parse_json_object_output(out, label: '#155 resource soak report')
-    raise "#155 resource soak command failed: #{truncated_log_output(out)}" unless status.success?
-    raise "#155 resource soak failed: #{Array(report['issues']).join('; ')}" unless report['ok']
+    report = parse_json_object_output(out, label: 'resource soak report')
+    raise "resource soak command failed: #{truncated_log_output(out)}" unless status.success?
+    raise "resource soak failed: #{Array(report['issues']).join('; ')}" unless report['ok']
 
     artifact_path = report['artifact_path'].to_s
     artifact = JSON.parse(safe_read_file(artifact_path))
     unless artifact['status'] == 'pass'
-      raise "#155 resource soak artifact status is #{artifact['status'].inspect}, expected pass"
+      raise "resource soak artifact status is #{artifact['status'].inspect}, expected pass"
     end
     durable_artifact_path = durable_resource_soak_path(artifact_path)
     safe_copy_file(artifact_path, durable_artifact_path)
@@ -791,7 +647,7 @@ class StartupLayoutProbe
 
     {
       status: 'pass',
-      completed_scenarios: ['#155 dirty startup resource soak remains stable after outbound moves'],
+      completed_scenarios: ['dirty startup resource soak remains stable'],
       artifact_completed_scenarios: Array(artifact['completed_scenarios']),
       artifact_path: durable_artifact_path,
       log_path: durable_log_path,
@@ -852,182 +708,6 @@ class StartupLayoutProbe
   def prepare_startup_probe_settings!
     save_settings_json(dirty_reboot_settings(load_settings_json))
     log('Prepared post-onboarding settings for startup layout probe')
-  end
-
-  def preferred_always_hidden_replay_candidates
-    preferred_bundles = [
-      'com.sanebar.sharedfixture',
-      'com.sanebar.hostsentinel'
-    ]
-    list_icon_zones
-      .select { |item| item[:movable] && deterministic_replay_candidate_id?(item) }
-      .select { |item| preferred_bundles.include?(item[:bundle].to_s) }
-      .reject { |item| item[:bundle].to_s == bundle_identifier }
-      .sort_by do |item|
-        bundle_rank = preferred_bundles.index(item[:bundle].to_s) || 100
-        zone_rank = item[:zone].to_s == 'alwaysHidden' ? 2 : 0
-        [bundle_rank, zone_rank, item[:unique_id].to_s]
-      end
-  end
-
-  def ensure_preferred_always_hidden_replay_candidates!
-    candidates = preferred_always_hidden_replay_candidates
-    return candidates if candidates.length >= 2
-
-    log("Shared fixture candidates missing for #155 startup probe; seeding deterministic fixture")
-    begin
-      require_relative 'qa'
-      @shared_fixture_helper = ProjectQA.new
-      fixture_was_running = @shared_fixture_helper.send(:runtime_shared_bundle_fixture_running?)
-      ids = @shared_fixture_helper.send(
-        :ensure_runtime_shared_bundle_fixture!,
-        { app_path: @app_path, no_keychain: no_keychain_launch? }
-      )
-      fixture_is_running = @shared_fixture_helper.send(:runtime_shared_bundle_fixture_running?)
-      @seeded_shared_fixture_for_probe ||= !fixture_was_running && fixture_is_running
-      log("Shared fixture seed resolved ids=#{ids.join(',')}")
-    rescue StandardError => e
-      log("Shared fixture seed failed: #{e.class}: #{e.message}")
-    end
-
-    deadline = Time.now + 35
-    while Time.now < deadline
-      candidates = preferred_always_hidden_replay_candidates
-      return candidates if candidates.length >= 2
-
-      sleep 0.5
-    end
-
-    candidates
-  end
-
-  def ensure_pro_unlocked_for_always_hidden_moves!
-    snapshot = read_layout_snapshot!
-    return if truthy?(snapshot['licenseIsPro'])
-
-    log("Relaunching #{@app_name} to re-check paid license or active Pro trial for #155 move proof")
-    quit_app
-    launch_app
-
-    pro_snapshot = wait_for_healthy_snapshot(label: '#155 Pro relaunch')
-    return if truthy?(pro_snapshot['licenseIsPro'])
-
-    raise "#155 dirty replay probe requires a paid license or active Pro trial before moving icons; licenseIsPro=#{pro_snapshot['licenseIsPro'].inspect}"
-  end
-
-  def deterministic_replay_candidate_id?(item)
-    unique_id = item[:unique_id].to_s
-    case item[:bundle].to_s
-    when 'com.sanebar.sharedfixture'
-      unique_id.include?('::statusItem:') || unique_id.include?('::axid:com.sanebar.sharedfixture.')
-    when 'com.sanebar.hostsentinel'
-      unique_id.include?('::statusItem:') || unique_id.include?('::axid:')
-    else
-      false
-    end
-  end
-
-  def sanitized_replay_candidate(item, role:, observed_zone:)
-    {
-      role: role,
-      fixture: sane_fixture_label(item[:bundle]),
-      initial_zone: item[:zone],
-      observed_zone: observed_zone,
-      unique_id_hash: Digest::SHA256.hexdigest(item[:unique_id].to_s)[0, 12]
-    }
-  end
-
-  def sanitized_move_result(move)
-    move
-      .reject { |key, _| key == :unique_id }
-      .merge(unique_id_hash: Digest::SHA256.hexdigest(move[:unique_id].to_s)[0, 12])
-  end
-
-  def sane_fixture_label(bundle)
-    case bundle.to_s
-    when 'com.sanebar.hostsentinel'
-      'hostsentinel'
-    when 'com.sanebar.sharedfixture'
-      'sharedfixture'
-    else
-      'unknown'
-    end
-  end
-
-  def list_icon_zones
-    out, status = applescript_command('list icon zones')
-    raise "list icon zones failed: #{out}" unless status.success?
-
-    out.lines.map do |line|
-      zone, movable, bundle, unique_id, name = line.strip.split("\t", 5)
-      next nil if unique_id.nil? || unique_id.empty?
-
-      {
-        zone: zone,
-        movable: movable == 'true',
-        bundle: bundle,
-        unique_id: unique_id,
-        name: name
-      }
-    end.compact
-  end
-
-  def move_icon_and_expect!(unique_id, command:, expected_zone:, label:)
-    wait_for_move_idle!(label)
-    escaped_id = escape_applescript(unique_id)
-    out, status = applescript_command(%(#{command} "#{escaped_id}"))
-    raise "#{label}: #{command} failed for #{unique_id}: #{out}" unless status.success?
-
-    zone = wait_for_icon_zone!(unique_id, expected_zone, label: label)
-    idle_snapshot = assert_move_idle!(label)
-    {
-      label: label,
-      command: command,
-      unique_id: unique_id,
-      expected_zone: expected_zone,
-      observed_zone: zone,
-      idle_snapshot: idle_snapshot
-    }
-  end
-
-  def wait_for_icon_zone!(unique_id, expected_zone, label:)
-    deadline = Time.now + 8.0
-    last_zone = nil
-
-    loop do
-      match = list_icon_zones.find { |item| item[:unique_id] == unique_id }
-      last_zone = match && match[:zone]
-      return last_zone if last_zone == expected_zone
-
-      break if Time.now >= deadline
-
-      sleep 0.35
-    end
-
-    raise "#{label}: #{unique_id} did not reach #{expected_zone} (last=#{last_zone.inspect})"
-  end
-
-  def wait_for_move_idle!(label, timeout: 6.0)
-    deadline = Time.now + timeout
-    last_snapshot = nil
-
-    loop do
-      last_snapshot = read_layout_snapshot!
-      return last_snapshot unless truthy?(last_snapshot['isMoveInProgress'])
-
-      break if Time.now >= deadline
-
-      sleep 0.25
-    end
-
-    raise "#{label}: move state did not become idle before command dispatch (last snapshot: #{last_snapshot.inspect})"
-  end
-
-  def assert_move_idle!(label)
-    snapshot = wait_for_move_idle!(label)
-    raise "#{label}: move state remained active after command return" if truthy?(snapshot['isMoveInProgress'])
-
-    snapshot
   end
 
   def wait_for_current_width_backup(width_bucket:, main_key:, separator_key:, timeout: 8.0)
