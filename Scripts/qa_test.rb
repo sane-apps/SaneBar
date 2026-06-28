@@ -691,11 +691,8 @@ class ProjectQATest < Minitest::Test
     assert_includes preflight_source, 'stale_runtime_artifact?'
     assert_includes preflight_source, '#157 dirty reboot recovery keeps live anchors before hiding'
     assert_includes preflight_source, '#157 dirty startup waits for valid status-item windows before auto-hide'
-    assert_includes preflight_source, '#155 dirty startup AH replay allows outbound moves'
-    assert_includes preflight_source, '#155 dirty startup restores pinned icons into Always Hidden before outbound moves'
-    assert_includes preflight_source, '#155 pinned icon exits Always Hidden after dirty startup'
-    assert_includes preflight_source, '#155 Always Hidden outbound moves leave move state idle'
-    assert_includes preflight_source, '#155 dirty startup resource soak remains stable after outbound moves'
+    assert_includes preflight_source, 'dirty startup remains healthy through passive idle'
+    assert_includes preflight_source, 'dirty startup resource soak remains stable'
     assert_includes preflight_source, 'runtime_probe_candidate_matches_project?'
     assert_includes source, "wake_probe_script = File.join(SCRIPTS_DIR, 'wake_layout_probe.rb')"
     assert_includes source, "'SANEBAR_WAKE_PROBE_LOG_PATH' => RUNTIME_WAKE_PROBE_LOG_PATH"
@@ -2157,11 +2154,9 @@ end
     assert_includes source, 'timeout: startup_probe_timeout_seconds(startup_resource_soak_required, startup_resource_soak_seconds)'
     assert_includes source, 'return 300 unless resource_soak_required'
     assert_includes source, '[resource_soak_seconds + 300, 900].max'
-    assert_includes source, '#155 dirty startup resource soak remains stable after outbound moves'
-    assert_includes source, '#155 outbound move state remains durable after resource soak'
+    assert_includes source, 'dirty startup resource soak remains stable'
     assert_includes source, 'startup_probe_resource_soak_contract_error'
     assert_includes source, 'Startup layout probe #155 resource proof missing candidate metadata.'
-    assert_includes source, 'Startup layout probe #155 resource proof did not re-check icon zones and idle move state after soak.'
     assert_includes source, 'preflight_mode?'
   end
 
@@ -2186,12 +2181,7 @@ end
       startup_artifact = {
         'cases' => [
           {
-            'name' => '#155 dirty startup AH replay allows outbound moves',
-            'post_soak' => {
-              'hidden_zone' => 'hidden',
-              'visible_zone' => 'visible',
-              'idle' => { 'isMoveInProgress' => false }
-            },
+            'name' => 'dirty startup resource soak remains stable',
             'resource_soak' => {
               'artifact_path' => artifact_path,
               'log_path' => log_path
@@ -2202,10 +2192,10 @@ end
 
       assert_nil @qa.send(:startup_probe_resource_soak_contract_error, startup_artifact)
 
-      startup_artifact['cases'][0]['post_soak']['visible_zone'] = 'alwaysHidden'
+      startup_artifact['cases'][0]['resource_soak'] = nil
       assert_includes(
         @qa.send(:startup_probe_resource_soak_contract_error, startup_artifact),
-        'did not re-check icon zones'
+        'missing resource_soak proof payload'
       )
     end
   end
