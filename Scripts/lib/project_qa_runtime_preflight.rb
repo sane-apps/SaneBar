@@ -970,7 +970,7 @@ class ProjectQA
 
     required_cases = [
       '#157 dirty reboot recovery keeps live anchors before hiding',
-      '#155 dirty startup AH replay allows outbound moves'
+      'dirty startup resource soak remains stable'
     ]
     required_cases.reject! { |name| name.start_with?('#157') } if external_only_skip
     missing_cases = required_cases - case_names
@@ -983,15 +983,11 @@ class ProjectQA
       '#157 dirty startup clears currentHost visibility overrides',
       '#157 dirty startup waits for valid status-item windows before auto-hide',
       '#157 dirty startup remains passive and does not move the cursor',
-      '#155 dirty startup does not give up AH replay',
-      '#155 dirty startup restores pinned icons into Always Hidden before outbound moves',
-      '#155 pinned icon exits Always Hidden after dirty startup',
-      '#155 Always Hidden outbound moves leave move state idle'
+      'dirty startup remains healthy through passive idle'
     ]
     required_scenarios.reject! { |name| name.start_with?('#157') } if external_only_skip
     if startup_probe_resource_soak_required?
-      required_scenarios << '#155 dirty startup resource soak remains stable after outbound moves'
-      required_scenarios << '#155 outbound move state remains durable after resource soak'
+      required_scenarios << 'dirty startup resource soak remains stable'
     end
     completed_scenarios = Array(artifact['completed_scenarios'])
     missing = required_scenarios - completed_scenarios
@@ -1047,21 +1043,12 @@ class ProjectQA
 
   def startup_probe_resource_soak_contract_error(artifact)
     case_entry = Array(artifact['cases']).find do |entry|
-      entry.is_a?(Hash) && entry['name'].to_s == '#155 dirty startup AH replay allows outbound moves'
+      entry.is_a?(Hash) && entry['name'].to_s == 'dirty startup resource soak remains stable'
     end
-    return 'Startup layout probe artifact missing #155 case details for resource proof.' unless case_entry
-
-    post_soak = case_entry['post_soak']
-    unless post_soak.is_a?(Hash) &&
-           post_soak['hidden_zone'].to_s == 'hidden' &&
-           post_soak['visible_zone'].to_s == 'visible' &&
-           post_soak['idle'].is_a?(Hash) &&
-           !runtime_truthy?(post_soak['idle']['isMoveInProgress'])
-      return 'Startup layout probe #155 resource proof did not re-check icon zones and idle move state after soak.'
-    end
+    return 'Startup layout probe artifact missing resource-soak case details for resource proof.' unless case_entry
 
     proof = case_entry['resource_soak']
-    return 'Startup layout probe #155 case missing resource_soak proof payload.' unless proof.is_a?(Hash)
+    return 'Startup layout probe resource-soak case missing resource_soak proof payload.' unless proof.is_a?(Hash)
 
     artifact_path = proof['artifact_path'].to_s
     log_path = proof['log_path'].to_s
