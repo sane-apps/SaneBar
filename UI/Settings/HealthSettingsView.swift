@@ -127,7 +127,7 @@ struct HealthSettingsView: View {
                 if runtimeSnapshot.likelySystemSuppressedStatusItems {
                     CompactSection("Icon Missing From the Menu Bar?", icon: "exclamationmark.triangle.fill", iconColor: .orange) {
                         SaneInlineHelp(
-                            "macOS may be hiding SaneBar's icon behind the notch or because the menu bar is full. macOS doesn't let apps force their own icon back on screen, so this is fixed at the system level: open Menu Bar settings to manage what's shown, remove or reorder other menu-bar icons, or move SaneBar's icon to the left of the notch."
+                            "macOS may be hiding SaneBar's icon behind the notch or because the menu bar is full. macOS doesn't let apps force their own icon back on screen, so this is fixed at the system level: open Menu Bar settings to manage what's shown, remove or reorder other menu-bar icons, or move SaneBar's icon to the immediate left of Control Center."
                         )
                         .padding(.horizontal, 12)
                         .padding(.top, 4)
