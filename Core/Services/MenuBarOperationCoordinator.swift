@@ -352,6 +352,26 @@ enum MenuBarOperationCoordinator {
                 return .captureCurrentDisplayBackup
             }
 
+            // #160: a genuinely live + seated MAIN item on a steady-state validation
+            // (Space switch / app activation / wake) proves the menu-bar items are NOT
+            // actually gone or macOS-suppressed. A not-live SEPARATOR — legitimately
+            // parked off-screen in the hidden state (length 10000), which ALSO trips the
+            // suppression heuristic (likelySystemSuppressedStatusItems) and flaps
+            // startupItemsValid false → .unattachedWindows — must not trigger a layout
+            // recreate. That recreate is the visible flash users hit every few minutes,
+            // on single notched displays AND multi-monitor setups. Stand down BEFORE the
+            // suppressed-items branch and the generic recreate. Genuinely gone/suppressed
+            // items have a NON-live main and still fall through to repair (#152/#157).
+            if recoveryReason == .invalidStatusItems,
+               validationContext == .screenParametersChanged ||
+               validationContext == .activeSpaceChanged ||
+               validationContext == .wakeResume,
+               snapshot.structuralState == .unattachedWindows,
+               snapshot.mainAnchorSource == .live,
+               snapshot.mainX != nil {
+                return .stop(recoveryReason)
+            }
+
             if recoveryReason == .invalidStatusItems,
                snapshot.likelySystemSuppressedStatusItems {
                 // One repair attempt is allowed so affected users are not left
@@ -367,24 +387,9 @@ enum MenuBarOperationCoordinator {
                validationContext == .screenParametersChanged ||
                validationContext == .activeSpaceChanged ||
                validationContext == .wakeResume {
-                // #160: on multi-monitor setups the SEPARATOR status-item window
-                // can read not-live for seconds at a time while macOS recomposites
-                // the menu bar across displays (override positions captured in a
-                // mismatched per-display vs global coordinate frame never reconcile),
-                // flapping startupItemsValid false → .unattachedWindows. When the
-                // MAIN item is itself genuinely live and seated (mainAnchorSource
-                // == .live with known coordinates), recreating the whole layout to
-                // chase a not-live separator only produces the visible unfurl→
-                // collapse flash that repeats on every Space switch / app activation
-                // ("the menu pops open every few minutes"). Stand down instead; the
-                // next validation pass re-evaluates. A genuinely detached main item
-                // (mainAnchorSource != .live) or missing/invisible items still fall
-                // through to recovery, so gone-icon repair (#157/#152) is unchanged.
-                if snapshot.structuralState == .unattachedWindows,
-                   snapshot.mainAnchorSource == .live,
-                   snapshot.mainX != nil {
-                    return .stop(recoveryReason)
-                }
+                // The live-main stand-down hoisted above already caught the legitimate
+                // hidden/parked-separator case; reaching here means the main is NOT
+                // genuinely live, so escalate recovery (bounded) as before.
                 if recoveryCount == 0 {
                     return .repairPersistedLayoutAndRecreate(recoveryReason)
                 }
