@@ -12,7 +12,7 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ## [2.1.85] - 2026-06-29
 
-Quiets a menu-bar flicker some people see every few minutes. When the hidden-icons separator sits parked off-screen — its normal position while icons are hidden — macOS can momentarily report it as missing, and SaneBar would rebuild its menu-bar items on every Space switch or app change, which shows up as a brief flash. SaneBar now recognizes when its main icon is present and stable and stops rebuilding in that case, so the flicker should settle down. This was confirmed on a real affected machine (the rebuild churn dropped to zero), and it covers both single notched displays and multi-monitor setups. Genuinely missing icons still recover as before.
+Quiets a menu-bar flicker some people see every few minutes. When the hidden-icons separator sits parked off-screen — its normal position while icons are hidden — macOS can momentarily report it as missing, and SaneBar would rebuild its menu-bar items on every Space switch or app change, which shows up as a brief flash. SaneBar now recognizes when its main icon is present and stable and stops rebuilding in that case, so the flicker should settle down. This was confirmed on a real affected machine, where the rebuild churn dropped to zero. If you saw this flicker on a multi-monitor setup, this update is aimed at it. Genuinely missing icons still recover as before.
 
 ---
 
