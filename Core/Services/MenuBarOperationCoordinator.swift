@@ -352,20 +352,26 @@ enum MenuBarOperationCoordinator {
                 return .captureCurrentDisplayBackup
             }
 
-            // #160: a genuinely live + seated MAIN item on a steady-state validation
-            // (Space switch / app activation / wake) proves the menu-bar items are NOT
-            // actually gone or macOS-suppressed. A not-live SEPARATOR — legitimately
-            // parked off-screen in the hidden state (length 10000), which ALSO trips the
+            // #160: a genuinely live + seated MAIN item on a STEADY-STATE validation
+            // (Space switch / app activation) proves the menu-bar items are NOT actually
+            // gone or macOS-suppressed. A not-live SEPARATOR — legitimately parked
+            // off-screen in the hidden state (length 10000), which ALSO trips the
             // suppression heuristic (likelySystemSuppressedStatusItems) and flaps
             // startupItemsValid false → .unattachedWindows — must not trigger a layout
             // recreate. That recreate is the visible flash users hit every few minutes,
             // on single notched displays AND multi-monitor setups. Stand down BEFORE the
             // suppressed-items branch and the generic recreate. Genuinely gone/suppressed
             // items have a NON-live main and still fall through to repair (#152/#157).
+            //
+            // .wakeResume is intentionally EXCLUDED here: a display sleep/wake genuinely
+            // needs the separator re-seated (the #136 path). Standing down on wake left a
+            // visible icon drifted into the hidden zone after wake and never recovered —
+            // caught by the wake layout probe (2026-06-29). Wake therefore falls through
+            // to the bounded recovery branches below (one repair, then settle) instead of
+            // being suppressed.
             if recoveryReason == .invalidStatusItems,
                validationContext == .screenParametersChanged ||
-               validationContext == .activeSpaceChanged ||
-               validationContext == .wakeResume,
+               validationContext == .activeSpaceChanged,
                snapshot.structuralState == .unattachedWindows,
                snapshot.mainAnchorSource == .live,
                snapshot.mainX != nil {

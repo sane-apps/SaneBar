@@ -85,10 +85,14 @@ struct MenuBarOperationRuntimeValidationTests {
     func transientUnattachedWindowsDoesNotRecreateOnSteadyStateValidation() {
         // The MAIN item is genuinely live and seated (mainAnchorSource == .live with
         // known coordinates); only the separator/window flapped not-live while macOS
-        // recomposited the menu bar on a Space switch / app activation / wake
+        // recomposited the menu bar on a Space switch / app activation
         // (.unattachedWindows). Recreating the layout here is the visible
         // unfurl→collapse flash users see "every few minutes" (#160), so the steady-
         // state path must stand down — the live main proves the items still exist.
+        // NOTE: .wakeResume is deliberately NOT a steady-state stand-down — a real
+        // display sleep/wake needs the separator re-seated (#136), so it recovers
+        // (asserted separately below). Standing wake down regressed it: the wake
+        // layout probe caught a visible icon drifting into the hidden zone (2026-06-29).
         let transientlyDetached = MenuBarRuntimeSnapshot(
             structuralState: .unattachedWindows,
             separatorAnchorSource: .live,
@@ -114,7 +118,7 @@ struct MenuBarOperationRuntimeValidationTests {
                 context: .positionValidation(.wakeResume),
                 recoveryCount: 0,
                 maxRecoveryCount: 2
-            ) == .stop(.invalidStatusItems)
+            ) == .repairPersistedLayoutAndRecreate(.invalidStatusItems)
         )
         #expect(
             MenuBarOperationCoordinator.statusItemRecoveryAction(

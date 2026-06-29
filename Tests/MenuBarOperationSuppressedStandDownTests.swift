@@ -36,16 +36,8 @@ struct MenuBarOperationSuppressedStandDownTests {
         )
     }
 
-    @Test("Live main + suppression heuristic stands down on wake and screen-params too")
-    func standsDownOnWakeAndScreenParams() {
-        #expect(
-            MenuBarOperationCoordinator.statusItemRecoveryAction(
-                snapshot: suppressedButMainLive(),
-                context: .positionValidation(.wakeResume),
-                recoveryCount: 0,
-                maxRecoveryCount: 2
-            ) == .stop(.invalidStatusItems)
-        )
+    @Test("Live main + suppression heuristic stands down on screen-params too")
+    func standsDownOnScreenParams() {
         #expect(
             MenuBarOperationCoordinator.statusItemRecoveryAction(
                 snapshot: suppressedButMainLive(),
@@ -53,6 +45,25 @@ struct MenuBarOperationSuppressedStandDownTests {
                 recoveryCount: 0,
                 maxRecoveryCount: 2
             ) == .stop(.invalidStatusItems)
+        )
+    }
+
+    /// Wake-drift regression caught by the wake layout probe (2026-06-29): the
+    /// original #160 stand-down also fired on `.wakeResume`, so after a display
+    /// sleep/wake the parked separator was never re-seated and a genuinely-visible
+    /// icon drifted into the hidden zone and stayed there. A display sleep/wake is a
+    /// real transition that needs bounded recovery (the #136 path), NOT a stand-down.
+    /// So `.wakeResume` must perform one repair (recoveryCount 0), unlike the
+    /// steady-state Space-switch / screen-params flicker triggers which stand down.
+    @Test("Wake resume recovers (does NOT stand down) so the separator re-seats")
+    func wakeResumeRecoversInsteadOfStandingDown() {
+        #expect(
+            MenuBarOperationCoordinator.statusItemRecoveryAction(
+                snapshot: suppressedButMainLive(),
+                context: .positionValidation(.wakeResume),
+                recoveryCount: 0,
+                maxRecoveryCount: 2
+            ) == .repairPersistedLayoutAndRecreate(.invalidStatusItems)
         )
     }
 
