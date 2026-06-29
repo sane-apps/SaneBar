@@ -121,7 +121,8 @@ enum MenuBarOperationCoordinator {
               snapshot.startupItemsValid,
               snapshot.visibilityPhase == .hidden,
               snapshot.mainAnchorSource == .live,
-              snapshot.separatorAnchorSource == .cached else {
+              snapshot.separatorAnchorSource == .cached
+        else {
             return false
         }
         guard !MenuBarVisibilityPolicy.shouldRecoverStartupPositions(
@@ -351,6 +352,26 @@ enum MenuBarOperationCoordinator {
                 return .captureCurrentDisplayBackup
             }
 
+            // #160: a genuinely live + seated MAIN item on a steady-state validation
+            // (Space switch / app activation / wake) proves the menu-bar items are NOT
+            // actually gone or macOS-suppressed. A not-live SEPARATOR — legitimately
+            // parked off-screen in the hidden state (length 10000), which ALSO trips the
+            // suppression heuristic (likelySystemSuppressedStatusItems) and flaps
+            // startupItemsValid false → .unattachedWindows — must not trigger a layout
+            // recreate. That recreate is the visible flash users hit every few minutes,
+            // on single notched displays AND multi-monitor setups. Stand down BEFORE the
+            // suppressed-items branch and the generic recreate. Genuinely gone/suppressed
+            // items have a NON-live main and still fall through to repair (#152/#157).
+            if recoveryReason == .invalidStatusItems,
+               validationContext == .screenParametersChanged ||
+               validationContext == .activeSpaceChanged ||
+               validationContext == .wakeResume,
+               snapshot.structuralState == .unattachedWindows,
+               snapshot.mainAnchorSource == .live,
+               snapshot.mainX != nil {
+                return .stop(recoveryReason)
+            }
+
             if recoveryReason == .invalidStatusItems,
                snapshot.likelySystemSuppressedStatusItems {
                 // One repair attempt is allowed so affected users are not left
@@ -366,6 +387,9 @@ enum MenuBarOperationCoordinator {
                validationContext == .screenParametersChanged ||
                validationContext == .activeSpaceChanged ||
                validationContext == .wakeResume {
+                // The live-main stand-down hoisted above already caught the legitimate
+                // hidden/parked-separator case; reaching here means the main is NOT
+                // genuinely live, so escalate recovery (bounded) as before.
                 if recoveryCount == 0 {
                     return .repairPersistedLayoutAndRecreate(recoveryReason)
                 }

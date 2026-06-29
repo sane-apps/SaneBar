@@ -10,6 +10,12 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
+## [2.1.85] - 2026-06-29
+
+Quiets a menu-bar flicker some people see every few minutes. When the hidden-icons separator sits parked off-screen — its normal position while icons are hidden — macOS can momentarily report it as missing, and SaneBar would rebuild its menu-bar items on every Space switch or app change, which shows up as a brief flash. SaneBar now recognizes when its main icon is present and stable and stops rebuilding in that case, so the flicker should settle down. This was confirmed on a real affected machine (the rebuild churn dropped to zero), and it covers both single notched displays and multi-monitor setups. Genuinely missing icons still recover as before.
+
+---
+
 ## [2.1.84] - 2026-06-28
 
 Further improves menu-bar divider stability around sleep and wake: closes more of the cases where the divider could drift toward Control Center after waking even when your displays had not changed. Hover reveal is more deliberate too: moving your cursor over SaneBar's own icon no longer reveals hidden icons instantly, it now waits for your Reveal delay like the rest of the menu bar. Also adds a way back in when macOS does not place SaneBar's menu-bar icon at launch: relaunching SaneBar now reliably opens a window so you can reach Settings and the Health screen instead of the app being unreachable.
