@@ -109,9 +109,17 @@ class ProjectQA
     required = Array(ids).map(&:to_s).reject(&:empty?).uniq
     return [] if required.empty?
 
-    deadline = Time.now + 20
+    # Placing the visible helper is fixture SETUP, not the assertion. The move is a
+    # CGEvent Cmd-drag, which SaneBar itself reports needs a brief settle "right after
+    # wake or a display change" (-2700) — and this runs right after the startup probe
+    # churns the menu bar. The old budget (3 attempts ~0.5s apart, ~1.5s total) gave up
+    # before the bar settled, so the Visible->Hidden wake-drift assertion never ran and
+    # the whole probe failed on setup. Spread the retries over a longer window with a
+    # real settle between tries so setup is reliable; this does not weaken the assertion.
+    deadline = Time.now + 60
     last_problem = nil
     move_attempts = Hash.new(0)
+    max_move_attempts = 12
 
     while Time.now < deadline
       zones = runtime_smoke_list_icon_zones(target)
@@ -124,16 +132,16 @@ class ProjectQA
       end
 
       non_visible.each do |identifier|
-        next if move_attempts[identifier] >= 3
+        next if move_attempts[identifier] >= max_move_attempts
 
         output, status = runtime_smoke_move_icon(target, 'move icon to visible', identifier)
         move_attempts[identifier] += 1
-        fixture_log << "move_visible=#{identifier}:#{status&.success? ? 'ok' : 'failed'}"
+        fixture_log << "move_visible=#{identifier}:#{status&.success? ? 'ok' : 'failed'}(attempt #{move_attempts[identifier]})"
         fixture_log << output.lines.last.to_s.strip unless output.to_s.strip.empty?
       end
 
       last_problem = "missing=#{missing.join(',')} non_visible=#{non_visible.join(',')}"
-      sleep 0.5
+      sleep 2
     end
 
     fixture_log << "visible_settle_failed=#{last_problem}"
