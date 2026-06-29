@@ -121,7 +121,8 @@ enum MenuBarOperationCoordinator {
               snapshot.startupItemsValid,
               snapshot.visibilityPhase == .hidden,
               snapshot.mainAnchorSource == .live,
-              snapshot.separatorAnchorSource == .cached else {
+              snapshot.separatorAnchorSource == .cached
+        else {
             return false
         }
         guard !MenuBarVisibilityPolicy.shouldRecoverStartupPositions(
@@ -366,6 +367,24 @@ enum MenuBarOperationCoordinator {
                validationContext == .screenParametersChanged ||
                validationContext == .activeSpaceChanged ||
                validationContext == .wakeResume {
+                // #160: on multi-monitor setups the SEPARATOR status-item window
+                // can read not-live for seconds at a time while macOS recomposites
+                // the menu bar across displays (override positions captured in a
+                // mismatched per-display vs global coordinate frame never reconcile),
+                // flapping startupItemsValid false → .unattachedWindows. When the
+                // MAIN item is itself genuinely live and seated (mainAnchorSource
+                // == .live with known coordinates), recreating the whole layout to
+                // chase a not-live separator only produces the visible unfurl→
+                // collapse flash that repeats on every Space switch / app activation
+                // ("the menu pops open every few minutes"). Stand down instead; the
+                // next validation pass re-evaluates. A genuinely detached main item
+                // (mainAnchorSource != .live) or missing/invisible items still fall
+                // through to recovery, so gone-icon repair (#157/#152) is unchanged.
+                if snapshot.structuralState == .unattachedWindows,
+                   snapshot.mainAnchorSource == .live,
+                   snapshot.mainX != nil {
+                    return .stop(recoveryReason)
+                }
                 if recoveryCount == 0 {
                     return .repairPersistedLayoutAndRecreate(recoveryReason)
                 }

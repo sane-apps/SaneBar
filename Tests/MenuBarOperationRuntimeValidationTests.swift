@@ -1,5 +1,5 @@
-import Testing
 @testable import SaneBar
+import Testing
 
 @Suite("Menu Bar Operation — Runtime Validation")
 struct MenuBarOperationRuntimeValidationTests {
@@ -78,6 +78,92 @@ struct MenuBarOperationRuntimeValidationTests {
                 recoveryCount: 2,
                 maxRecoveryCount: 2
             ) == .stop(.invalidGeometry)
+        )
+    }
+
+    @Test("Transient multi-monitor status-item detachment stands down instead of recreating (#160)")
+    func transientUnattachedWindowsDoesNotRecreateOnSteadyStateValidation() {
+        // The MAIN item is genuinely live and seated (mainAnchorSource == .live with
+        // known coordinates); only the separator/window flapped not-live while macOS
+        // recomposited the menu bar on a Space switch / app activation / wake
+        // (.unattachedWindows). Recreating the layout here is the visible
+        // unfurl→collapse flash users see "every few minutes" (#160), so the steady-
+        // state path must stand down — the live main proves the items still exist.
+        let transientlyDetached = MenuBarRuntimeSnapshot(
+            structuralState: .unattachedWindows,
+            separatorAnchorSource: .live,
+            mainAnchorSource: .live,
+            startupItemsValid: false,
+            separatorX: 1442,
+            mainX: 1697,
+            mainRightGap: 223,
+            screenWidth: 1920
+        )
+
+        #expect(
+            MenuBarOperationCoordinator.statusItemRecoveryAction(
+                snapshot: transientlyDetached,
+                context: .positionValidation(.activeSpaceChanged),
+                recoveryCount: 0,
+                maxRecoveryCount: 2
+            ) == .stop(.invalidStatusItems)
+        )
+        #expect(
+            MenuBarOperationCoordinator.statusItemRecoveryAction(
+                snapshot: transientlyDetached,
+                context: .positionValidation(.wakeResume),
+                recoveryCount: 0,
+                maxRecoveryCount: 2
+            ) == .stop(.invalidStatusItems)
+        )
+        #expect(
+            MenuBarOperationCoordinator.statusItemRecoveryAction(
+                snapshot: transientlyDetached,
+                context: .positionValidation(.screenParametersChanged),
+                recoveryCount: 0,
+                maxRecoveryCount: 2
+            ) == .stop(.invalidStatusItems)
+        )
+
+        // Contrast 1 — genuinely gone items (.missingItems) must still recover,
+        // so #157/#152 (icon truly absent) is not weakened by the stand-down.
+        let genuinelyGone = MenuBarRuntimeSnapshot(
+            structuralState: .missingItems,
+            separatorAnchorSource: .missing,
+            mainAnchorSource: .missing,
+            startupItemsValid: false,
+            screenWidth: 1920
+        )
+        #expect(
+            MenuBarOperationCoordinator.statusItemRecoveryAction(
+                snapshot: genuinelyGone,
+                context: .positionValidation(.activeSpaceChanged),
+                recoveryCount: 0,
+                maxRecoveryCount: 2
+            ) == .repairPersistedLayoutAndRecreate(.invalidStatusItems)
+        )
+
+        // Contrast 2 — a genuinely detached MAIN item (mainAnchorSource != .live)
+        // still recovers even with coordinates present: the live-main signal, not
+        // the mere presence of coordinates, gates the stand-down. Keeps genuine
+        // detached-icon recovery (cf. lifecycleValidationRepairsDetachedStatusItems).
+        let detachedMainNotLive = MenuBarRuntimeSnapshot(
+            structuralState: .unattachedWindows,
+            separatorAnchorSource: .missing,
+            mainAnchorSource: .missing,
+            startupItemsValid: false,
+            separatorX: 1442,
+            mainX: 1697,
+            mainRightGap: 223,
+            screenWidth: 1920
+        )
+        #expect(
+            MenuBarOperationCoordinator.statusItemRecoveryAction(
+                snapshot: detachedMainNotLive,
+                context: .positionValidation(.activeSpaceChanged),
+                recoveryCount: 0,
+                maxRecoveryCount: 2
+            ) == .repairPersistedLayoutAndRecreate(.invalidStatusItems)
         )
     }
 
@@ -518,7 +604,7 @@ struct MenuBarOperationRuntimeValidationTests {
         for context in [
             MenuBarOperationCoordinator.PositionValidationContext.screenParametersChanged,
             .activeSpaceChanged,
-            .wakeResume
+            .wakeResume,
         ] {
             #expect(
                 MenuBarOperationCoordinator.statusItemRecoveryAction(
