@@ -313,9 +313,6 @@ class ProjectQA
       'Post-settle move verification drifted',
       'Hidden/Always Hidden round-trip ok'
     ],
-    'Tests/RuntimeGuardMoveQueueXCTests.swift' => [
-      'The move engine should keep queued zone-move planning'
-    ],
     'Scripts/live_zone_smoke.rb' => [
       'assert_zone_stays_stable_after_move',
       'exercise_hidden_always_hidden_round_trip',
@@ -325,7 +322,8 @@ class ProjectQA
     'Tests/SecondMenuBarTests.swift' => [
       'Each item belongs to exactly one zone',
       'Duplicate pin is idempotent',
-      'Item at separator edge respects margin'
+      'Item at separator edge respects margin',
+      'Customer UI move entry points all route through deferred queue path'
     ],
     'Tests/ReleaseRegressionTests.swift' => [
       'Blocked versions are never offered in appcast',
