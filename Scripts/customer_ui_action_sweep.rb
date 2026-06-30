@@ -79,6 +79,7 @@ class CustomerUIActionSweep
   ].freeze
 
   STRICT_MINI_EVIDENCE_TYPES = %w[
+    air_runtime
     mini_click
     mini_automation
     mini_ax
@@ -105,6 +106,7 @@ class CustomerUIActionSweep
   ].freeze
 
   STRICT_MINI_EVIDENCE_PATTERNS = {
+    'air_runtime' => /\A(?:outputs\/runtime-preflight\/sanebar_air_ir_move_receipt\.json|.*\/sanebar_air_ir_move_receipt\.json|air_ir=)/,
     'mini_click' => /\A(?:\/tmp\/sanebar_runtime_|#{DURABLE_RUNTIME_PREFLIGHT_EVIDENCE_PATTERN}|applescript=|settings_ax_tab_index=|settings_tab=|settings_control_hide_new_unlisted_toggle=|icon_hotkeys_groups_|url_route=|runtime_visual=)/,
     'mini_automation' => /\A(?:applescript=|url_route=|settings_ax_tab_index=|icon_hotkeys_groups_)/,
     'mini_ax' => /\Asettings_ax_tab_index=/,
@@ -171,7 +173,7 @@ class CustomerUIActionSweep
       ['UI/Settings/AppearanceSettingsView.swift', 'Custom Appearance'],
       ['Core/Services/MenuBarAppearanceService.swift', 'captureSnapshotPNG'],
       ['Scripts/lib/live_zone_smoke_browse_visual.rb', 'Appearance tint pixels ok'],
-      ['Scripts/lib/live_zone_smoke_browse_visual.rb', 'Visible fullscreen transition contract ok'],
+      ['Scripts/lib/live_zone_smoke_browse_visual.rb', 'Appearance baseline tint ok'],
       ['Tests/RuntimeGuardQASmokeXCTests.swift', 'exercise_appearance_transition_visual_check']
     ],
     shortcuts: [

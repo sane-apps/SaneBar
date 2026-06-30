@@ -230,7 +230,7 @@ class CustomerUIActionSweepTest < Minitest::Test
       ])
     end
 
-    assert_includes error.message, 'full_runtime_completion requires strict Mini runtime evidence'
+    assert_includes error.message, 'full_runtime_completion requires strict runtime evidence'
   end
 
   def test_mini_evidence_rejects_source_guard_placeholder_text
@@ -260,7 +260,7 @@ class CustomerUIActionSweepTest < Minitest::Test
       ])
     end
 
-    assert_includes error.message, 'lacks Mini runtime provenance'
+    assert_includes error.message, 'lacks runtime provenance'
   end
 
   def test_runtime_smoke_marker_counts_as_real_mini_click_evidence
@@ -316,7 +316,33 @@ class CustomerUIActionSweepTest < Minitest::Test
       ])
     end
 
-    assert_includes error.message, 'lacks Mini runtime provenance'
+    assert_includes error.message, 'lacks runtime provenance'
+  end
+
+  def test_air_ir_receipt_marker_counts_as_real_air_runtime_evidence
+    action = {
+      'required_proof_level' => 'full_runtime_completion',
+      'required_evidence_types' => ['air_runtime']
+    }
+
+    @sweep.send(:assert_required_evidence!, 'icon-zone-move-reorder-always-hidden', action, [
+      { type: 'air_runtime', detail: 'outputs/runtime-preflight/sanebar_air_ir_move_receipt.json: Air IR real-input move matrix passed' }
+    ])
+  end
+
+  def test_air_runtime_rejects_non_air_ir_detail
+    action = {
+      'required_proof_level' => 'full_runtime_completion',
+      'required_evidence_types' => ['air_runtime']
+    }
+
+    error = assert_raises(RuntimeError) do
+      @sweep.send(:assert_required_evidence!, 'icon-zone-move-reorder-always-hidden', action, [
+        { type: 'air_runtime', detail: '/tmp/sanebar_runtime_smoke.log: generic move smoke passed' }
+      ])
+    end
+
+    assert_includes error.message, 'lacks runtime provenance'
   end
 
   def test_startup_probe_runtime_provenance_payload_is_required
@@ -476,6 +502,81 @@ class CustomerUIActionSweepTest < Minitest::Test
         assert retained.any? { |path| File.basename(path) == 'runtime-smoke-sanebar_runtime_shared_bundle_smoke.log' && File.file?(path) }
       end
     end
+  end
+
+  def test_runtime_smoke_default_path_does_not_require_applescript_representative_marker
+    smoke_log = '/tmp/sanebar_runtime_smoke.log'
+    startup_log = startup_probe_log_path
+    startup_artifact = startup_probe_artifact_path
+    wake_log = wake_probe_log_path
+    wake_artifact = wake_probe_artifact_path
+    exact_logs = %w[
+      /tmp/sanebar_runtime_strict_fixture_smoke.log
+      /tmp/sanebar_runtime_shared_bundle_smoke.log
+      /tmp/sanebar_runtime_native_apple_smoke.log
+      /tmp/sanebar_runtime_host_exact_id_smoke.log
+    ]
+    old_move_matrix = ENV['SANEBAR_SMOKE_REQUIRE_MOVE_MATRIX']
+    ENV.delete('SANEBAR_SMOKE_REQUIRE_MOVE_MATRIX')
+    preserve_files(smoke_log, startup_log, startup_artifact, wake_log, wake_artifact, *exact_logs) do
+      exact_logs.each { |path| FileUtils.rm_f(path) }
+      seed_running_bundle_from_project!
+      File.write(smoke_log, runtime_log_lines(
+        'Settings window visual check ok',
+        'Browse mode secondMenuBar activation ok',
+        'Browse mode findIcon activation ok',
+        'Live zone smoke passed'
+      ))
+      File.write(startup_log, 'Startup layout probe passed')
+      write_startup_probe_artifact(startup_artifact)
+      File.write(wake_log, 'Wake layout probe passed')
+      write_wake_probe_artifact(wake_artifact)
+
+      @sweep.send(:verify_recent_runtime_smoke)
+
+      transcript = @sweep.instance_variable_get(:@transcript)
+      assert_includes transcript, "runtime_smoke=#{smoke_log} ok"
+    end
+  ensure
+    ENV['SANEBAR_SMOKE_REQUIRE_MOVE_MATRIX'] = old_move_matrix
+  end
+
+  def test_runtime_smoke_move_matrix_requires_representative_marker
+    smoke_log = '/tmp/sanebar_runtime_smoke.log'
+    startup_log = startup_probe_log_path
+    startup_artifact = startup_probe_artifact_path
+    wake_log = wake_probe_log_path
+    wake_artifact = wake_probe_artifact_path
+    shared_log = '/tmp/sanebar_runtime_shared_bundle_smoke.log'
+    old_move_matrix = ENV['SANEBAR_SMOKE_REQUIRE_MOVE_MATRIX']
+    ENV['SANEBAR_SMOKE_REQUIRE_MOVE_MATRIX'] = '1'
+    preserve_files(smoke_log, startup_log, startup_artifact, wake_log, wake_artifact, shared_log) do
+      seed_running_bundle_from_project!
+      File.write(smoke_log, runtime_log_lines(
+        'Settings window visual check ok',
+        'Browse mode secondMenuBar activation ok',
+        'Browse mode findIcon activation ok',
+        'Live zone smoke passed'
+      ))
+      File.write(startup_log, 'Startup layout probe passed')
+      write_startup_probe_artifact(startup_artifact)
+      File.write(wake_log, 'Wake layout probe passed')
+      write_wake_probe_artifact(wake_artifact)
+      File.write(shared_log, runtime_log_lines(
+        'Hidden/Visible move actions ok',
+        'Always Hidden move actions ok',
+        '✅ Candidate set passed: com.sanebar.sharedfixture::axid:com.sanebar.sharedfixture.SBF-A',
+        '✅ Live zone smoke passed'
+      ))
+
+      error = assert_raises(RuntimeError) do
+        @sweep.send(:verify_recent_runtime_smoke)
+      end
+
+      assert_includes error.message, 'Runtime smoke missing marker Representative zone candidates ok'
+    end
+  ensure
+    ENV['SANEBAR_SMOKE_REQUIRE_MOVE_MATRIX'] = old_move_matrix
   end
 
   def test_runtime_evidence_lines_accept_durable_wake_probe_artifact

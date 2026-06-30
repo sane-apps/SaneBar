@@ -78,13 +78,13 @@ class CustomerUIActionSweep
     runtime = [smoke_runtime, safe_read_artifact(startup_log), safe_read_artifact(wake_log), exact_runtime].join("\n")
     required = [
       ['Settings window visual check ok'],
-      ['Representative zone candidates ok'],
       ['Live zone smoke passed']
     ]
     # The move-action markers come only from the AppleScript move-matrix lanes, which are
     # gated off by default — require them only when the move-matrix is enabled (otherwise
     # the smoke legitimately skips them and move coverage is Swift + IRL).
     if move_matrix_required
+      required << ['Representative zone candidates ok']
       required << ['Hidden/Visible move actions ok']
       required << ['Always Hidden move actions ok']
     end
@@ -188,6 +188,15 @@ class CustomerUIActionSweep
 
   def write_receipt
     report = customer_ui_contract_report
+    runtime_results = runtime_state_results(report)
+    failed_runtime_states = runtime_results.select { |row| row[:status].to_s == 'failed' }
+    unless failed_runtime_states.empty?
+      details = failed_runtime_states.map do |row|
+        "#{row[:id]} (#{Array(row[:failure_reasons]).join('; ')})"
+      end.join(' | ')
+      raise "Runtime state evidence failed: #{details}"
+    end
+
     receipt = {
       app: 'SaneBar',
       status: 'passed',
@@ -196,7 +205,7 @@ class CustomerUIActionSweep
       manifest_sha256: report.fetch('manifest_sha256'),
       source_fingerprint: report.fetch('source_fingerprint'),
       tested_action_ids: @action_ids,
-      runtime_state_results: runtime_state_results(report),
+      runtime_state_results: runtime_results,
       action_results: @action_results,
       screenshots: @screenshots.uniq.select { |path| usable_screenshot?(path) },
       evidence: {

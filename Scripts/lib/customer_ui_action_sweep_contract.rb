@@ -73,7 +73,8 @@ class CustomerUIActionSweep
       evidence('mini_url_route', url_line(url_lines, 'search?q=Sane'))
     ])
     pass_action('browse-icons-icon-context-actions', [
-      evidence('mini_click', move_runtime_line(runtime_lines, 'Hidden/Visible move actions ok')),
+      evidence('mini_click', browse_runtime_line(runtime_lines, 'findIcon')),
+      *air_ir_move_evidence_items,
       evidence('screenshot', 'Browse Icons panel rendered before icon context action verification', [screenshot_for_action('browse-icons-icon-context-actions')]),
       evidence('fixture', move_runtime_line(runtime_lines, 'Candidate set passed')),
       evidence('log', 'Runtime smoke log confirms icon move/context action fixture result', runtime_log_artifacts),
@@ -87,10 +88,8 @@ class CustomerUIActionSweep
       evidence('mini_automation', apple_line(apple_lines, 'show second menu bar'))
     ])
     pass_action('icon-zone-move-reorder-always-hidden', [
-      evidence('mini_click', move_runtime_line(runtime_lines, 'Hidden/Visible move actions ok')),
-      evidence('mini_click', move_runtime_line(runtime_lines, 'Hidden/Always Hidden round-trip ok')),
-      evidence('mini_click', move_runtime_line(runtime_lines, 'Always Hidden move actions ok')),
-      evidence('mini_click', move_runtime_line(runtime_lines, 'Post-settle zone stability ok')),
+      evidence('mini_click', browse_runtime_line(runtime_lines, 'findIcon')),
+      *air_ir_move_evidence_items,
       evidence('screenshot', 'Browse Icons panel rendered before exact-ID move verification', [screenshot_for_action('icon-zone-move-reorder-always-hidden')]),
       evidence('fixture', move_runtime_line(runtime_lines, 'Candidate set passed')),
       evidence('mini_automation', apple_line(apple_lines, 'list icon zones'))
@@ -141,7 +140,7 @@ class CustomerUIActionSweep
       evidence('mini_click', @transcript.grep(/\Asettings_tab=appearance/).first),
       evidence('screenshot', 'Custom Appearance overlay tint pixels captured by Mini runtime smoke', [screenshot_for_action('appearance-customization-actions')]),
       evidence('state_receipt', runtime_line(runtime_lines, 'Appearance tint pixels ok')),
-      evidence('state_receipt', runtime_line(runtime_lines, 'Visible fullscreen transition contract ok')),
+      evidence('state_receipt', runtime_line(runtime_lines, 'Appearance baseline tint ok')),
       evidence('source_guard', source_line(source_lines, 'appearance')),
       evidence('mini_runtime', runtime_line(runtime_lines, 'Appearance tint pixels ok')),
       evidence('unit_guard', 'MenuBarAppearanceService and RuntimeGuardXCTests cover overlay refresh and appearance recovery')
@@ -201,7 +200,7 @@ class CustomerUIActionSweep
       evidence('mini_runtime', runtime_line(runtime_lines, 'Wake layout probe passed')),
       evidence('screenshot', 'Startup recovery includes Custom Appearance overlay tint pixel evidence from Mini runtime smoke', [screenshot_for_action('startup-wake-appearance-recovery')]),
       evidence('state_receipt', runtime_line(runtime_lines, 'Appearance tint pixels ok')),
-      evidence('state_receipt', runtime_line(runtime_lines, 'Visible fullscreen transition contract ok')),
+      evidence('state_receipt', runtime_line(runtime_lines, 'Appearance baseline tint ok')),
       evidence('log', 'Startup, wake, and appearance recovery runtime logs captured', runtime_log_artifacts + runtime_startup_probe_log_paths + runtime_wake_probe_log_paths),
       evidence('source_guard', source_line(source_lines, 'recovery'))
     ])
@@ -230,11 +229,11 @@ class CustomerUIActionSweep
   def assert_required_evidence!(id, action, evidence_items)
     evidence_types = evidence_items.map { |item| item[:type].to_s }
     missing = Array(action['required_evidence_types']).map(&:to_s).reject { |type| evidence_types.include?(type) }
-    raise "#{id}: missing actual Mini evidence type(s): #{missing.join(', ')}" unless missing.empty?
+    raise "#{id}: missing actual runtime evidence type(s): #{missing.join(', ')}" unless missing.empty?
 
     if action['required_proof_level'].to_s == 'full_runtime_completion'
       strict_items = evidence_items.select { |item| STRICT_MINI_EVIDENCE_TYPES.include?(item[:type].to_s) }
-      raise "#{id}: full_runtime_completion requires strict Mini runtime evidence" if strict_items.empty?
+      raise "#{id}: full_runtime_completion requires strict runtime evidence" if strict_items.empty?
     end
 
     evidence_items.each do |item|
@@ -254,7 +253,7 @@ class CustomerUIActionSweep
     pattern = STRICT_MINI_EVIDENCE_PATTERNS.fetch(type)
     return if detail.match?(pattern)
 
-    raise "#{id}: #{type} evidence lacks Mini runtime provenance: #{detail}"
+    raise "#{id}: #{type} evidence lacks runtime provenance: #{detail}"
   end
 
   def dedupe_evidence(items)
@@ -280,6 +279,7 @@ class CustomerUIActionSweep
       mini_ax
       mini_click
       mini_runtime
+      air_runtime
       mini_screenshots
       mini_url_route
       mini_screenshot
@@ -735,6 +735,23 @@ class CustomerUIActionSweep
 
     lines.find { |value| value.include?(marker) } ||
       "#{marker}: AppleScript move-matrix gated off; move coverage = Swift move-regression suite + on-device IRL"
+  end
+
+  def air_ir_move_evidence_items
+    artifact = air_ir_move_artifact
+    return [] unless artifact
+
+    paths = Array(artifact[:evidence_paths]).map(&:to_s)
+    screenshot_paths = paths.grep(/\.(?:png|jpg|jpeg)\z/i)
+    log_paths = paths.grep(/\.log\z/i)
+    state_paths = paths.grep(/\.(?:json|txt)\z/i)
+    receipt = relative(AIR_IR_MOVE_RECEIPT_PATH)
+    [
+      evidence('air_runtime', "#{receipt}: Air IR real-input move matrix passed", paths),
+      evidence('log', 'Air IR move logs prove menu and drag move paths used real app ingress', log_paths),
+      evidence('screenshot', 'Air IR before/after screenshots captured real move path state', screenshot_paths),
+      evidence('state_receipt', "#{receipt}: Air IR before/after zone receipts captured", state_paths)
+    ]
   end
 
   def browse_runtime_line(lines, mode)

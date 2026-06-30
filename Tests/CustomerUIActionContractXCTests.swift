@@ -183,12 +183,22 @@ final class CustomerUIActionContractXCTests: XCTestCase {
 
     func testRuntimeMatrixCoversCurrentFullscreenAndWakeFieldGaps() throws {
         let contract = try contract()
+        let sweepSource = try read("Scripts/lib/customer_ui_action_sweep_contract.rb")
 
         // Owner ruling (2026-06-26): the Safari/TextEdit fullscreen/maximize
         // transition scenarios (Dark+Translucent, Reduce Transparency, top-strip
         // shade comparison) were removed from the runtime matrix — they drive
         // external apps to test a long-solved behavior, not SaneBar's own UI.
         // Wake / zone-persistence / drift coverage below stays.
+        XCTAssertTrue(
+            sweepSource.contains("Appearance baseline tint ok"),
+            "Customer UI sweep should require the current SaneBar overlay baseline proof"
+        )
+        XCTAssertFalse(
+            sweepSource.contains("Visible fullscreen transition contract ok"),
+            "Customer UI sweep must not require the retired external fullscreen transition marker"
+        )
+
         for marker in [
             "wake_visible_zone_persistence",
             "fresh authoritative icon-zone snapshot at 15s after wake",
@@ -379,7 +389,7 @@ final class CustomerUIActionContractXCTests: XCTestCase {
     }
 
     private func assertStrictMiniEvidenceIsReal(type: String, detail: String, actionID: String) {
-        let strictTypes: Set = ["mini_click", "mini_automation", "mini_ax", "mini_url_route", "mini_runtime"]
+        let strictTypes: Set = ["air_runtime", "mini_click", "mini_automation", "mini_ax", "mini_url_route", "mini_runtime"]
         guard strictTypes.contains(type) else { return }
 
         let lowercasedDetail = detail.lowercased()
@@ -402,6 +412,7 @@ final class CustomerUIActionContractXCTests: XCTestCase {
             "\(miniRuntimePreflightPath)/sanebar_runtime_wake_probe.log",
         ]
         let allowedPrefixesByType: [String: [String]] = [
+            "air_runtime": ["outputs/runtime-preflight/sanebar_air_ir_move_receipt.json", "\(runtimePreflightPath)/sanebar_air_ir_move_receipt.json", "\(miniRuntimePreflightPath)/sanebar_air_ir_move_receipt.json", "air_ir="],
             "mini_click": ["/tmp/sanebar_runtime_", "applescript=", "settings_ax_tab_index=", "settings_tab=", "settings_control_hide_new_unlisted_toggle=", "icon_hotkeys_groups_", "url_route=", "runtime_visual="],
             "mini_automation": ["applescript=", "url_route=", "settings_ax_tab_index=", "icon_hotkeys_groups_"],
             "mini_ax": ["settings_ax_tab_index="],
@@ -411,14 +422,14 @@ final class CustomerUIActionContractXCTests: XCTestCase {
         let allowedPrefixes = allowedPrefixesByType[type] ?? []
         XCTAssertTrue(
             allowedPrefixes.contains { detail.hasPrefix($0) },
-            "\(actionID) \(type) evidence must come from Mini runtime output, not prose: \(detail)"
+            "\(actionID) \(type) evidence must come from runtime output, not prose: \(detail)"
         )
     }
 
     private func assertPathBackedEvidenceHasArtifact(_ item: [String: Any], type: String, actionID: String) {
         let pathBackedTypes: Set = [
             "actual_output", "api_response", "automation_transcript", "file_state", "fixture", "log",
-            "mini_automation", "mini_ax", "mini_click", "mini_runtime", "mini_screenshots",
+            "air_runtime", "mini_automation", "mini_ax", "mini_click", "mini_runtime", "mini_screenshots",
             "mini_screenshot", "mini_url_route", "model_response", "screenshot", "state_receipt",
             "support_report", "visual_screenshot", "visual_smoke",
         ]
