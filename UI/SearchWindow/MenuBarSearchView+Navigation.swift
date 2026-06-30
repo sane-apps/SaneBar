@@ -81,28 +81,11 @@ extension MenuBarSearchView {
         }
     }
 
-    private func queueMove(_ app: RunningApp, from sourceZone: AppZone, to targetZone: AppZone) -> Bool {
-        BrowsePanelMoveQueue.queueMove(
-            app: app,
-            from: sourceZone,
-            to: targetZone,
-            context: moveContext
-        )
-    }
-
     private func queueMoveAfterDrop(_ app: RunningApp, from sourceZone: AppZone, to targetZone: AppZone) -> Bool {
         BrowsePanelMoveQueue.queueMoveAfterDrop(
             app: app,
             from: sourceZone,
             to: targetZone,
-            context: moveContext
-        )
-    }
-
-    private func queueReorder(_ sourceApp: RunningApp, targetApp: RunningApp) -> Bool {
-        BrowsePanelMoveQueue.queueReorder(
-            sourceApp: sourceApp,
-            targetApp: targetApp,
             context: moveContext
         )
     }

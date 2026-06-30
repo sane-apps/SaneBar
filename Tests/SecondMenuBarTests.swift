@@ -1,4 +1,5 @@
 import CoreGraphics
+import Foundation
 @testable import SaneBar
 import Testing
 
@@ -242,6 +243,57 @@ struct ZoneClassificationTests {
 
 @Suite("Zone Move Switch Tests")
 struct ZoneMoveExhaustivenessTests {
+    private func projectRootURL() -> URL {
+        URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+    }
+
+    private func source(_ relativePath: String) throws -> String {
+        try String(
+            contentsOf: projectRootURL().appendingPathComponent(relativePath),
+            encoding: .utf8
+        )
+    }
+
+    private func secondMenuBarSource() throws -> String {
+        try [
+            "UI/SearchWindow/SecondMenuBarView.swift",
+            "UI/SearchWindow/SecondMenuBarSupport.swift",
+            "UI/SearchWindow/SecondMenuBarPanelIconTile.swift"
+        ]
+        .map(source)
+        .joined(separator: "\n")
+    }
+
+    private func functionBody(_ marker: String, in source: String) throws -> Substring {
+        let start = try #require(source.range(of: marker))
+        let openBrace = try #require(source[start.lowerBound...].firstIndex(of: "{"))
+        var depth = 0
+        var index = openBrace
+        var closeBrace: String.Index?
+
+        while index < source.endIndex {
+            switch source[index] {
+            case "{":
+                depth += 1
+            case "}":
+                depth -= 1
+                if depth == 0 {
+                    closeBrace = index
+                    index = source.endIndex
+                    continue
+                }
+            default:
+                break
+            }
+            index = source.index(after: index)
+        }
+
+        let closingBrace = try #require(closeBrace)
+        return source[start.lowerBound...closingBrace]
+    }
+
     @Test("All zone transitions are covered explicitly")
     func allTransitionsCovered() {
         // SecondMenuBarView.moveIcon switch should handle all 9 combinations.
@@ -273,6 +325,154 @@ struct ZoneMoveExhaustivenessTests {
             }
             #expect(handled, "Transition \(source) → \(target) should be handled")
         }
+    }
+
+    @Test("Shared zone move request mapper covers every customer move transition")
+    func sharedZoneMoveRequestMapperCoversEveryCustomerMoveTransition() {
+        let enabledCases: [(BrowseAppZone, BrowseAppZone, MenuBarZoneMoveRequest?)] = [
+            (.visible, .hidden, .visibleToHidden),
+            (.hidden, .visible, .hiddenToVisible),
+            (.visible, .alwaysHidden, .visibleToAlwaysHidden),
+            (.hidden, .alwaysHidden, .hiddenToAlwaysHidden),
+            (.alwaysHidden, .visible, .alwaysHiddenToVisible),
+            (.alwaysHidden, .hidden, .alwaysHiddenToHidden),
+            (.visible, .visible, nil),
+            (.hidden, .hidden, nil),
+            (.alwaysHidden, .alwaysHidden, nil)
+        ]
+
+        for (source, target, expected) in enabledCases {
+            #expect(BrowsePanelMoveQueue.zoneMoveRequest(
+                from: source,
+                to: target,
+                isAlwaysHiddenEnabled: true
+            ) == expected)
+        }
+
+        #expect(BrowsePanelMoveQueue.zoneMoveRequest(
+            from: .visible,
+            to: .alwaysHidden,
+            isAlwaysHiddenEnabled: false
+        ) == nil)
+        #expect(BrowsePanelMoveQueue.zoneMoveRequest(
+            from: .hidden,
+            to: .alwaysHidden,
+            isAlwaysHiddenEnabled: false
+        ) == nil)
+    }
+
+    @Test("Customer UI move entry points all route through deferred queue path")
+    func customerUIMoveEntryPointsAllRouteThroughDeferredQueuePath() throws {
+        let browseNavigation = try source("UI/SearchWindow/MenuBarSearchView+Navigation.swift")
+        let browseQueue = try source("UI/SearchWindow/BrowsePanelMoveQueue.swift")
+        let browseGrid = try source("UI/SearchWindow/BrowseAppGridView.swift")
+        let browseToolbar = try source("UI/SearchWindow/BrowsePanelToolbarViews.swift")
+        let secondMenuBar = try source("UI/SearchWindow/SecondMenuBarView.swift")
+        let secondMenuBarTile = try source("UI/SearchWindow/SecondMenuBarPanelIconTile.swift")
+        let searchWindowUISources = try [
+            "UI/SearchWindow/MenuBarSearchView+Navigation.swift",
+            "UI/SearchWindow/BrowsePanelMoveQueue.swift",
+            "UI/SearchWindow/SecondMenuBarView.swift"
+        ].map(source).joined(separator: "\n")
+
+        #expect(browseGrid.contains("onToggleHidden: isPro ? makeToggleHiddenAction(app)"))
+        #expect(browseGrid.contains("onMoveToAlwaysHidden: isPro ? makeMoveToAlwaysHiddenAction(app)"))
+        #expect(browseGrid.contains("onMoveToHidden: isPro ? makeMoveToHiddenAction(app)"))
+        #expect(browseToolbar.contains("handleZoneDrop(payloads, segmentMode)"))
+
+        let toggleAction = try functionBody("func makeToggleHiddenAction", in: browseNavigation)
+        let moveToHiddenAction = try functionBody("func makeMoveToHiddenAction", in: browseNavigation)
+        let moveToAlwaysHiddenAction = try functionBody("func makeMoveToAlwaysHiddenAction", in: browseNavigation)
+        let browseZoneDrop = try functionBody("func handleZoneDrop", in: browseNavigation)
+        let browseGridDrop = try functionBody("func handleGridReorderDrop", in: browseNavigation)
+        let browseDeferredMove = try functionBody("static func queueMoveAfterDrop", in: browseQueue)
+        let browseDeferredReorder = try functionBody("static func queueReorderAfterDrop", in: browseQueue)
+
+        #expect(toggleAction.contains("queueMoveAfterDrop"))
+        #expect(moveToHiddenAction.contains("queueMoveAfterDrop"))
+        #expect(moveToAlwaysHiddenAction.contains("queueMoveAfterDrop"))
+        #expect(browseZoneDrop.contains("return queueMoveAfterDrop(sourceApp, from: sourceZone, to: .visible)"))
+        #expect(browseZoneDrop.contains("return queueMoveAfterDrop(sourceApp, from: sourceZone, to: .hidden)"))
+        #expect(browseZoneDrop.contains("return queueMoveAfterDrop(sourceApp, from: sourceZone, to: .alwaysHidden)"))
+        #expect(browseGridDrop.contains("return queueReorderAfterDrop(sourceApp, targetApp: targetApp)"))
+        #expect(browseDeferredMove.contains("await Task.yield()"))
+        #expect(browseDeferredMove.contains("queueZoneMoveAfterDrop"))
+        #expect(browseDeferredReorder.contains("await Task.yield()"))
+
+        #expect(secondMenuBarTile.contains("onMoveToVisible"))
+        #expect(secondMenuBarTile.contains("onMoveToHidden"))
+        #expect(secondMenuBarTile.contains("onMoveToAlwaysHidden"))
+
+        let makeSecondMenuBarTile = try functionBody("private func makeTile", in: secondMenuBar)
+        let secondMenuBarMoveIcon = try functionBody("private func moveIcon", in: secondMenuBar)
+        let secondMenuBarRequest = try functionBody("private func zoneMoveRequest", in: secondMenuBar)
+        let secondMenuBarDeferredMove = try functionBody("private func queueMoveAfterDrop", in: secondMenuBar)
+        let secondMenuBarZoneDrop = try functionBody("private func handleZoneDrop", in: secondMenuBar)
+        let secondMenuBarTileDrop = try functionBody("private func handleTileDrop", in: secondMenuBar)
+        let secondMenuBarReorder = try functionBody("private func handleReorderDrop", in: secondMenuBar)
+
+        #expect(makeSecondMenuBarTile.contains("_ = moveIcon(app, from: zone, to: .visible)"))
+        #expect(makeSecondMenuBarTile.contains("_ = moveIcon(app, from: zone, to: .hidden)"))
+        #expect(makeSecondMenuBarTile.contains("_ = moveIcon(app, from: zone, to: .alwaysHidden)"))
+        #expect(secondMenuBarMoveIcon.contains("return queueMoveAfterDrop(app, from: source, to: target)"))
+        #expect(secondMenuBarRequest.contains("BrowsePanelMoveQueue.zoneMoveRequest"))
+        #expect(secondMenuBarRequest.contains("BrowseAppZone(source)"))
+        #expect(secondMenuBarRequest.contains("BrowseAppZone(target)"))
+        #expect(secondMenuBarDeferredMove.contains("await Task.yield()"))
+        #expect(secondMenuBarDeferredMove.contains("queueZoneMoveAfterDrop"))
+        #expect(secondMenuBarZoneDrop.contains("return queueMoveAfterDrop(source.app, from: source.zone, to: targetZone)"))
+        #expect(secondMenuBarTileDrop.contains("return queueMoveAfterDrop(source.app, from: source.zone, to: targetZone)"))
+        #expect(secondMenuBarTileDrop.contains("return handleReorderDrop(payloads, targetApp: targetApp)"))
+        #expect(secondMenuBarReorder.contains("await Task.yield()"))
+        #expect(secondMenuBarReorder.contains("queueReorderIcon("))
+
+        #expect(!searchWindowUISources.contains("moveQueueWorkflow.queueZoneMove(\n"))
+        #expect(!searchWindowUISources.contains("func queueMove("))
+    }
+
+    @Test("Browse views wait on queued move tasks instead of fixed delays")
+    func browseViewsWaitOnQueuedMoveTasksInsteadOfGuessingWithDelays() throws {
+        let iconPanelSource = try source("UI/SearchWindow/BrowsePanelMoveQueue.swift")
+        let secondMenuBarSource = try secondMenuBarSource()
+        let queueSource = try source("Core/Services/MenuBarMoveQueueWorkflow.swift")
+        let verifierSource = try source("Core/Services/MenuBarMoveVerifier.swift")
+        let taskSource = try source("Core/Services/MenuBarMoveTaskCoordinator.swift")
+
+        #expect(queueSource.contains("MenuBarZoneMoveRequest"))
+        #expect(queueSource.contains("func queueZoneMove("))
+        #expect(queueSource.contains("func queueZoneMoveAfterDrop("))
+        #expect(queueSource.contains("prepareAlwaysHiddenMoveQueueAfterDrop"))
+        #expect(queueSource.contains("ensureAlwaysHiddenSeparatorReadyAfterDrop"))
+        #expect(queueSource.contains("try? await Task.sleep(for: .milliseconds(50))"))
+        #expect(taskSource.contains("enum QueuedAlwaysHiddenMutation"))
+        #expect(taskSource.contains("optimisticAlwaysHiddenMutation"))
+        #expect(verifierSource.contains("classifyItemsForMoveVerification"))
+        #expect(taskSource.contains("applyQueuedAlwaysHiddenMutation(optimisticAlwaysHiddenMutation)"))
+        #expect(taskSource.contains("lastManualZoneMoveSettledAt"))
+
+        #expect(iconPanelSource.contains("queueZoneMoveAfterDrop("))
+        #expect(iconPanelSource.contains("physicalMoveOrigin: .explicitUserAction"))
+        #expect(iconPanelSource.contains("guard let request = zoneMoveRequest("))
+        #expect(iconPanelSource.contains("let moved = await task.value"))
+        #expect(iconPanelSource.contains("queueMoveAfterDrop"))
+        #expect(iconPanelSource.contains("queueReorderAfterDrop"))
+        #expect(iconPanelSource.contains("await Task.yield()"))
+        #expect(!iconPanelSource.contains("moveQueueWorkflow.queueZoneMove(\n"))
+        #expect(!iconPanelSource.contains("pinAlwaysHidden(app: app)"))
+        #expect(!iconPanelSource.contains("unpinAlwaysHidden(app: app)"))
+
+        #expect(secondMenuBarSource.contains("queueZoneMoveAfterDrop("))
+        #expect(secondMenuBarSource.contains("queueReorderIcon("))
+        #expect(secondMenuBarSource.contains("physicalMoveOrigin: .explicitUserAction"))
+        #expect(secondMenuBarSource.contains("guard let request = zoneMoveRequest("))
+        #expect(secondMenuBarSource.contains("let moved = await task.value"))
+        #expect(secondMenuBarSource.contains("applySuccessfulMovePresentation"))
+        #expect(secondMenuBarSource.contains("queueMoveAfterDrop"))
+        #expect(secondMenuBarSource.contains("await Task.yield()"))
+        #expect(!secondMenuBarSource.contains("moveQueueWorkflow.queueZoneMove(\n"))
+        #expect(!secondMenuBarSource.contains("pinAlwaysHidden(app: app)"))
+        #expect(!secondMenuBarSource.contains("unpinAlwaysHidden(app: app)"))
+        #expect(!secondMenuBarSource.contains("DispatchQueue.main.asyncAfter(deadline: .now() + 0.3)"))
     }
 }
 

@@ -4,7 +4,7 @@ struct BrowsePanelMoveContext {
     let isAlwaysHiddenEnabled: Bool
     let manager: MenuBarManager
     let setMovingAppID: (String?) -> Void
-    /// Records the app whose move resolved to a non-silent, retryable failure so
+    /// Records the app whose move resolved to a retryable miss so
     /// the Second Menu Bar can surface a "couldn't move — try again" affordance
     /// instead of silently clearing the in-flight indicator. Informational only:
     /// this never synthesizes input or mutates geometry.
@@ -46,41 +46,11 @@ enum BrowsePanelMoveQueue {
             let moved = await task.value
             if !moved {
                 setMovingAppID(nil)
-                // Non-silent, retryable failure: surface the failed app so the
+                // Retryable miss: surface the app so the
                 // UI can offer a retry. Informational only — no synthetic input.
                 recordFailedMove(appID)
             }
         }
-    }
-
-    @MainActor
-    static func queueMove(
-        app: RunningApp,
-        from sourceZone: BrowseAppZone,
-        to targetZone: BrowseAppZone,
-        context: BrowsePanelMoveContext
-    ) -> Bool {
-        let request = zoneMoveRequest(
-            from: sourceZone,
-            to: targetZone,
-            isAlwaysHiddenEnabled: context.isAlwaysHiddenEnabled
-        )
-
-        guard let request,
-              let task = context.manager.moveQueueWorkflow.queueZoneMove(
-                  app: app,
-                  request: request,
-                  physicalMoveOrigin: .explicitUserAction
-              ) else { return false }
-
-        context.setMovingAppID(app.uniqueId)
-        observeMoveResult(
-            task,
-            appID: app.uniqueId,
-            setMovingAppID: context.setMovingAppID,
-            recordFailedMove: context.recordFailedMove
-        )
-        return true
     }
 
     @MainActor
@@ -119,7 +89,7 @@ enum BrowsePanelMoveQueue {
     }
 
     @MainActor
-    static func queueReorder(
+    private static func queueReorder(
         sourceApp: RunningApp,
         targetApp: RunningApp,
         context: BrowsePanelMoveContext

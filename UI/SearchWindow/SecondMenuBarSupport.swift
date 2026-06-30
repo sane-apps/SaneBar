@@ -2,6 +2,19 @@ enum IconZone {
     case visible, hidden, alwaysHidden
 }
 
+extension BrowseAppZone {
+    init(_ zone: IconZone) {
+        switch zone {
+        case .visible:
+            self = .visible
+        case .hidden:
+            self = .hidden
+        case .alwaysHidden:
+            self = .alwaysHidden
+        }
+    }
+}
+
 enum SecondMenuBarDropResolver {
     static func sourceForDragID(
         _ sourceID: String,

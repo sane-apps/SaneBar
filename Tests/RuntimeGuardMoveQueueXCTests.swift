@@ -191,64 +191,6 @@ final class RuntimeGuardMoveQueueXCTests: RuntimeGuardTestCase {
         )
     }
 
-    func testBrowseViewsWaitOnQueuedMoveTasksInsteadOfGuessingWithDelays() throws {
-        let iconPanelURL = projectRootURL().appendingPathComponent("UI/SearchWindow/BrowsePanelMoveQueue.swift")
-        let iconPanelSource = try String(contentsOf: iconPanelURL, encoding: .utf8)
-        let secondMenuBarSource = try secondMenuBarSource()
-        let queueURL = projectRootURL().appendingPathComponent("Core/Services/MenuBarMoveQueueWorkflow.swift")
-        let queueSource = try String(contentsOf: queueURL, encoding: .utf8)
-        let verifierURL = projectRootURL().appendingPathComponent("Core/Services/MenuBarMoveVerifier.swift")
-        let verifierSource = try String(contentsOf: verifierURL, encoding: .utf8)
-        let taskURL = projectRootURL().appendingPathComponent("Core/Services/MenuBarMoveTaskCoordinator.swift")
-        let taskSource = try String(contentsOf: taskURL, encoding: .utf8)
-
-        XCTAssertTrue(
-            queueSource.contains("MenuBarZoneMoveRequest") &&
-                queueSource.contains("func queueZoneMove(") &&
-                queueSource.contains("func queueZoneMoveAfterDrop(") &&
-                queueSource.contains("prepareAlwaysHiddenMoveQueueAfterDrop") &&
-                queueSource.contains("ensureAlwaysHiddenSeparatorReadyAfterDrop") &&
-                queueSource.contains("try? await Task.sleep(for: .milliseconds(50))") &&
-                taskSource.contains("enum QueuedAlwaysHiddenMutation") &&
-                taskSource.contains("optimisticAlwaysHiddenMutation") &&
-                verifierSource.contains("classifyItemsForMoveVerification") &&
-                taskSource.contains("applyQueuedAlwaysHiddenMutation(optimisticAlwaysHiddenMutation)") &&
-                taskSource.contains("lastManualZoneMoveSettledAt"),
-            "The move engine should keep queued zone-move planning, nonblocking drop preflight, classified physical verification, and post-success always-hidden pin mutation wired together"
-        )
-        XCTAssertTrue(
-            iconPanelSource.contains("queueZoneMove(") &&
-                iconPanelSource.contains("queueZoneMoveAfterDrop(") &&
-                iconPanelSource.contains("physicalMoveOrigin: .explicitUserAction") &&
-                iconPanelSource.contains("guard let request,") &&
-                iconPanelSource.contains("let moved = await task.value") &&
-                iconPanelSource.contains("queueMoveAfterDrop") &&
-                iconPanelSource.contains("queueReorderAfterDrop") &&
-                iconPanelSource.contains("await Task.yield()") &&
-                !iconPanelSource.contains("pinAlwaysHidden(app: app)") &&
-                !iconPanelSource.contains("unpinAlwaysHidden(app: app)"),
-            "Icon panel move flows should delegate queue planning to MenuBarManager and defer drag-drop queueing until after SwiftUI finishes the drop callback"
-        )
-        XCTAssertTrue(
-            secondMenuBarSource.contains("queueZoneMove(") &&
-                secondMenuBarSource.contains("queueZoneMoveAfterDrop(") &&
-                secondMenuBarSource.contains("queueReorderIcon(") &&
-                secondMenuBarSource.contains("physicalMoveOrigin: .explicitUserAction") &&
-                secondMenuBarSource.contains("guard let request = zoneMoveRequest(") &&
-                secondMenuBarSource.contains("let moved = await task.value") &&
-                secondMenuBarSource.contains("applySuccessfulMovePresentation") &&
-                secondMenuBarSource.contains("queueMoveAfterDrop") &&
-                secondMenuBarSource.contains("await Task.yield()") &&
-                !secondMenuBarSource.contains("pinAlwaysHidden(app: app)") &&
-                !secondMenuBarSource.contains("unpinAlwaysHidden(app: app)"),
-            "Second menu bar moves should wait on the shared manager-owned zone move result and defer drag-drop queueing until after SwiftUI finishes the drop callback"
-        )
-        XCTAssertFalse(
-            secondMenuBarSource.contains("DispatchQueue.main.asyncAfter(deadline: .now() + 0.3)"),
-            "Second menu bar should stop guessing move completion with a fixed timer"
-        )
-    }
-
     func testAppleScriptAlwaysHiddenMovesUseManagerOwnedPinMutation() throws {
         let source = try appleScriptCommandSource()
         let managerURL = projectRootURL().appendingPathComponent("Core/Services/MenuBarAlwaysHiddenIconMoveWorkflow.swift")

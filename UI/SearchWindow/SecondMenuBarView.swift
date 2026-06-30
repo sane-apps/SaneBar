@@ -482,7 +482,7 @@ struct SecondMenuBarView: View {
 
     private func moveIcon(_ app: RunningApp, from source: IconZone, to target: IconZone) -> Bool {
         notePanelInteraction()
-        return queueMove(app, from: source, to: target)
+        return queueMoveAfterDrop(app, from: source, to: target)
     }
 
     private func applySuccessfulMovePresentation(for target: IconZone) {
@@ -516,36 +516,11 @@ struct SecondMenuBarView: View {
     }
 
     private func zoneMoveRequest(from source: IconZone, to target: IconZone) -> MenuBarZoneMoveRequest? {
-        switch (source, target) {
-        case (.visible, .hidden):
-            return .visibleToHidden
-        case (.hidden, .visible):
-            return .hiddenToVisible
-        case (.visible, .alwaysHidden):
-            return menuBarManager.settings.alwaysHiddenSectionEnabled ? .visibleToAlwaysHidden : nil
-        case (.hidden, .alwaysHidden):
-            return menuBarManager.settings.alwaysHiddenSectionEnabled ? .hiddenToAlwaysHidden : nil
-        case (.alwaysHidden, .visible):
-            return .alwaysHiddenToVisible
-        case (.alwaysHidden, .hidden):
-            return .alwaysHiddenToHidden
-        case (.visible, .visible), (.hidden, .hidden), (.alwaysHidden, .alwaysHidden):
-            return nil
-        }
-    }
-
-    private func queueMove(_ app: RunningApp, from source: IconZone, to target: IconZone) -> Bool {
-        let request = zoneMoveRequest(from: source, to: target)
-
-        guard let request,
-              let task = menuBarManager.moveQueueWorkflow.queueZoneMove(
-                  app: app,
-                  request: request,
-                  physicalMoveOrigin: .explicitUserAction
-              ) else { return false }
-
-        observeQueuedMoveResult(task, target: target)
-        return true
+        BrowsePanelMoveQueue.zoneMoveRequest(
+            from: BrowseAppZone(source),
+            to: BrowseAppZone(target),
+            isAlwaysHiddenEnabled: menuBarManager.settings.alwaysHiddenSectionEnabled
+        )
     }
 
     private func queueMoveAfterDrop(_ app: RunningApp, from source: IconZone, to target: IconZone) -> Bool {
