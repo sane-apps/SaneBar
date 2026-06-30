@@ -228,6 +228,7 @@
 		EF7A13DFFDE49815F52E5E4C /* MenuBarProfileWorkflow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A40E1E3FC59CB8A0F5CC7FC /* MenuBarProfileWorkflow.swift */; };
 		F0C05D5273D0E6C1B3C5CE38 /* WelcomeWorkflowPages.swift in Sources */ = {isa = PBXBuildFile; fileRef = 097937EE1F2B6415FEB427A1 /* WelcomeWorkflowPages.swift */; };
 		F14FE5231F69C75670B93DD1 /* StatusBarControllerBackupCaptureTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8A13032CA8A01C287DFE9D5 /* StatusBarControllerBackupCaptureTests.swift */; };
+		F1EDC2CB6DF6F22DFF4A82F8 /* HiddenStateReapplyMoveRaceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56FB29477E5190B8BFF9807F /* HiddenStateReapplyMoveRaceTests.swift */; };
 		F23691EDBFA901D3C43DB5D3 /* BrowsePanelToolbarViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FA318EED885E2B0C59BFD7D /* BrowsePanelToolbarViews.swift */; };
 		F2B3FB6C4A975BB22A83EF62 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = FB5A5E19E67E44650AC8FED0 /* Localizable.strings */; };
 		F38C19F2AE8D842D2C3553E9 /* SettingsControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDB8ED02A76F3BA1445FD88C /* SettingsControllerTests.swift */; };
@@ -337,6 +338,7 @@
 		559CC16A1F18750B4B3C5181 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
 		56253053D08930BD23085754 /* IconHotkeysService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconHotkeysService.swift; sourceTree = "<group>"; };
 		56D0729EA40E97348F245329 /* BrowsePanelZoneClassifierTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowsePanelZoneClassifierTests.swift; sourceTree = "<group>"; };
+		56FB29477E5190B8BFF9807F /* HiddenStateReapplyMoveRaceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HiddenStateReapplyMoveRaceTests.swift; sourceTree = "<group>"; };
 		573AF84405505CAE9559B7BD /* DirectDistributionSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DirectDistributionSupport.swift; sourceTree = "<group>"; };
 		578AEA7156691361053823C5 /* SearchWindowLayoutPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchWindowLayoutPolicy.swift; sourceTree = "<group>"; };
 		5809FED6504C908994290E3C /* SaneBarAppIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SaneBarAppIntents.swift; sourceTree = "<group>"; };
@@ -573,8 +575,8 @@
 			children = (
 				0752D3D1CCD73101C00C78C2 /* Assets.xcassets */,
 				F673CE7642E1AAD7BE7ADBCC /* DMGIcon.icns */,
-				FB5A5E19E67E44650AC8FED0 /* Localizable.strings */,
 				375ECF968EBFF6B579A7BD5A /* SaneBar.sdef */,
+				FB5A5E19E67E44650AC8FED0 /* Localizable.strings */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -597,6 +599,7 @@
 				3EB99825F529DDC509157A62 /* DuplicateLaunchDecisionTests.swift */,
 				5368EEC8F1D02FA99E99D307 /* EventTrackerTests.swift */,
 				EF706C16EA8A1E5D13406087 /* GeneralSettingsSimplificationXCTests.swift */,
+				56FB29477E5190B8BFF9807F /* HiddenStateReapplyMoveRaceTests.swift */,
 				B3A01CA95F5F638F8643776B /* HidingServiceTests.swift */,
 				CAA02FC2E1A7F5DD0FD330B5 /* HoverServiceTests.swift */,
 				F54AE3B756A10470B1DA4E12 /* IconHotkeysServiceTests.swift */,
@@ -949,7 +952,6 @@
 				};
 			};
 			buildConfigurationList = 522DFAB53E640DC8E2C4B75C /* Build configuration list for PBXProject "SaneBar" */;
-			compatibilityVersion = "Xcode 14.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -965,6 +967,7 @@
 				156564281362C27A80B884E0 /* XCRemoteSwiftPackageReference "Sparkle" */,
 			);
 			preferredProjectObjectVersion = 77;
+			productRefGroup = D14A5D400198233C0D7C948F /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -1057,6 +1060,7 @@
 				3F98C48511C5026FAFD590B3 /* DuplicateLaunchDecisionTests.swift in Sources */,
 				DCD7859B590532E39241C485 /* EventTrackerTests.swift in Sources */,
 				A7B9A18747BD67B8B2E419AB /* GeneralSettingsSimplificationXCTests.swift in Sources */,
+				F1EDC2CB6DF6F22DFF4A82F8 /* HiddenStateReapplyMoveRaceTests.swift in Sources */,
 				AB4408C25FF0C5FC4F914D66 /* HidingServiceTests.swift in Sources */,
 				959AE6736867A0FC2639D30C /* HoverServiceTests.swift in Sources */,
 				B6A1C5E2259BAA27A624479F /* IconHotkeysServiceTests.swift in Sources */,
