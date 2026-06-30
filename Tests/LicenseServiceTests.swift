@@ -42,11 +42,25 @@ private func makeIsolatedDefaults() -> UserDefaults {
 
 @MainActor
 struct LicenseServiceTests {
+    @Test("Free build (June 2026 MIT) unlocks Pro for everyone with no license or trial")
+    func freeBuildUnlocksProForEveryone() {
+        let keychain = MockKeychainService() // no stored license key
+        let defaults = makeIsolatedDefaults()
+        // Production default: freeBuildUnlock == true. SaneBar is free + open source.
+        let service = LicenseService(keychain: keychain, userDefaults: defaults)
+        service.checkCachedLicense()
+
+        #expect(service.isPro) // the unlock fires for an unlicensed user
+        #expect(service.hasPaidUnlock)
+        #expect(!service.isProTrialActive) // Pro is granted by the free build, not a trial
+        #expect(service.licenseEmail == nil)
+    }
+
     @Test("Fresh install starts the 14-day Pro trial")
     func freshInstallStartsProTrial() throws {
         let keychain = MockKeychainService()
         let defaults = makeIsolatedDefaults()
-        let service = LicenseService(keychain: keychain, userDefaults: defaults)
+        let service = LicenseService(keychain: keychain, userDefaults: defaults, freeBuildUnlock: false)
         service.checkCachedLicense()
 
         #expect(service.isPro)
@@ -69,7 +83,7 @@ struct LicenseServiceTests {
         let fiveDaysAgo = Date().addingTimeInterval(-5 * 86400)
         try keychain.set(ISO8601DateFormatter().string(from: fiveDaysAgo), forKey: "pro_last_validation")
 
-        let service = LicenseService(keychain: keychain, userDefaults: makeIsolatedDefaults())
+        let service = LicenseService(keychain: keychain, userDefaults: makeIsolatedDefaults(), freeBuildUnlock: false)
         service.checkCachedLicense()
 
         #expect(service.isPro)
@@ -83,7 +97,7 @@ struct LicenseServiceTests {
         try keychain.set("paid@example.com", forKey: "pro_license_email")
         try keychain.set(ISO8601DateFormatter().string(from: Date()), forKey: "pro_last_validation")
 
-        let service = LicenseService(keychain: keychain, userDefaults: makeIsolatedDefaults())
+        let service = LicenseService(keychain: keychain, userDefaults: makeIsolatedDefaults(), freeBuildUnlock: false)
         service.checkCachedLicense()
 
         #expect(service.isPro)
@@ -104,7 +118,7 @@ struct LicenseServiceTests {
         try keychain.set("paid@example.com", forKey: "pro_license_email")
         try keychain.set(ISO8601DateFormatter().string(from: Date()), forKey: "pro_last_validation")
 
-        let service = LicenseService(keychain: keychain, userDefaults: makeIsolatedDefaults())
+        let service = LicenseService(keychain: keychain, userDefaults: makeIsolatedDefaults(), freeBuildUnlock: false)
         service.checkCachedLicense()
 
         #expect(service.isPro)
@@ -125,7 +139,7 @@ struct LicenseServiceTests {
         try keychain.set("paid-license-key-456", forKey: "pro_license_key")
         try keychain.set(ISO8601DateFormatter().string(from: Date()), forKey: "pro_last_validation")
 
-        let service = LicenseService(keychain: keychain, userDefaults: makeIsolatedDefaults())
+        let service = LicenseService(keychain: keychain, userDefaults: makeIsolatedDefaults(), freeBuildUnlock: false)
         service.checkCachedLicense()
 
         #expect(service.isPro)
@@ -140,7 +154,7 @@ struct LicenseServiceTests {
         try keychain.set("early-adopter", forKey: "pro_license_key")
         try keychain.set(ISO8601DateFormatter().string(from: Date()), forKey: "pro_last_validation")
 
-        let service = LicenseService(keychain: keychain, userDefaults: makeIsolatedDefaults())
+        let service = LicenseService(keychain: keychain, userDefaults: makeIsolatedDefaults(), freeBuildUnlock: false)
         service.checkCachedLicense()
 
         #expect(service.isPro)
@@ -157,7 +171,7 @@ struct LicenseServiceTests {
         try keychain.set(String(Date().addingTimeInterval(-13 * 86400).timeIntervalSince1970), forKey: "sanebar.pro_trial.started_at")
         try keychain.set(String(Date().addingTimeInterval(2 * 86400).timeIntervalSince1970), forKey: "sanebar.pro_trial.last_seen_at")
 
-        let service = LicenseService(keychain: keychain, userDefaults: makeIsolatedDefaults())
+        let service = LicenseService(keychain: keychain, userDefaults: makeIsolatedDefaults(), freeBuildUnlock: false)
         service.checkCachedLicense()
 
         #expect(!service.isPro)
@@ -175,7 +189,7 @@ struct LicenseServiceTests {
         defaults.set(startedAt, forKey: "sanebar.pro_trial.started_at")
         defaults.set(lastSeenAt, forKey: "sanebar.pro_trial.last_seen_at")
 
-        let service = LicenseService(keychain: keychain, userDefaults: defaults)
+        let service = LicenseService(keychain: keychain, userDefaults: defaults, freeBuildUnlock: false)
         service.checkCachedLicense()
 
         #expect(service.isPro)
@@ -191,7 +205,7 @@ struct LicenseServiceTests {
         try keychain.set("user@test.com", forKey: "pro_license_email")
         try keychain.set(ISO8601DateFormatter().string(from: Date()), forKey: "pro_last_validation")
 
-        let service = LicenseService(keychain: keychain, userDefaults: makeIsolatedDefaults())
+        let service = LicenseService(keychain: keychain, userDefaults: makeIsolatedDefaults(), freeBuildUnlock: false)
         service.checkCachedLicense()
         #expect(service.isPro)
 
@@ -206,7 +220,7 @@ struct LicenseServiceTests {
     @Test("Empty key is rejected without network call")
     func emptyKeyRejected() async {
         let keychain = MockKeychainService()
-        let service = LicenseService(keychain: keychain, userDefaults: makeIsolatedDefaults())
+        let service = LicenseService(keychain: keychain, userDefaults: makeIsolatedDefaults(), freeBuildUnlock: false)
 
         await service.activate(key: "   ")
 
@@ -236,7 +250,7 @@ struct LicenseServiceTests {
         let features: [ProFeature] = [
             .iconActivation, .rightClickFromPanels, .zoneMoves,
             .alwaysHidden, .perIconHotkeys, .iconGroups,
-            .advancedTriggers, .menuBarAppearance, .touchIDProtection
+            .advancedTriggers, .menuBarAppearance, .touchIDProtection,
         ]
 
         for feature in features {
@@ -264,7 +278,7 @@ struct LicenseServiceTests {
         @Test("Setapp build starts in Pro mode")
         func setappBuildStartsInProMode() {
             let keychain = MockKeychainService()
-            let service = LicenseService(keychain: keychain, userDefaults: makeIsolatedDefaults())
+            let service = LicenseService(keychain: keychain, userDefaults: makeIsolatedDefaults(), freeBuildUnlock: false)
 
             service.checkCachedLicense()
 

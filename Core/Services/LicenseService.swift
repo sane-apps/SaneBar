@@ -80,13 +80,17 @@ final class LicenseService: ObservableObject {
 
     private let keychain: KeychainServiceProtocol
     private let userDefaults: UserDefaults
+    /// SaneBar is free + MIT as of June 2026: the production build unlocks Pro for everyone.
+    /// Tests pass `false` to exercise the historical license/trial gating.
+    private let freeBuildUnlock: Bool
     #if canImport(StoreKit)
         private var appStoreProduct: Product?
     #endif
 
-    init(keychain: KeychainServiceProtocol = KeychainService.shared, userDefaults: UserDefaults = .standard) {
+    init(keychain: KeychainServiceProtocol = KeychainService.shared, userDefaults: UserDefaults = .standard, freeBuildUnlock: Bool = true) {
         self.keychain = keychain
         self.userDefaults = userDefaults
+        self.freeBuildUnlock = freeBuildUnlock
         let now = Date()
         proTrialStartedAt = Self.storedTrialDate(userDefaults: userDefaults, keychain: keychain, key: Keys.proTrialStartedAt, now: now, rejectsFutureDate: true)
         proTrialLastSeenAt = Self.storedTrialDate(userDefaults: userDefaults, keychain: keychain, key: Keys.proTrialLastSeenAt, now: now, rejectsFutureDate: false)
@@ -170,11 +174,10 @@ final class LicenseService: ObservableObject {
 
     /// Check cached license on launch. Call from `applicationDidFinishLaunching`.
     func checkCachedLicense() {
-        // SaneBar is free and open source as of June 2026 (MIT). Pro is unlocked for
-        // everyone. Guarded against the test host so the license/trial unit tests still
-        // exercise the gated paths, mirroring the DEBUG auto-grant below.
-        if NSClassFromString("XCTestCase") == nil,
-           ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil {
+        // SaneBar is free and open source as of June 2026 (MIT). The production build
+        // unlocks Pro for everyone. Tests construct the service with freeBuildUnlock=false
+        // to keep exercising the historical license/trial gating.
+        if freeBuildUnlock {
             isPro = true
             hasPaidUnlock = true
             licenseEmail = nil
