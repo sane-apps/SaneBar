@@ -19,6 +19,7 @@
                 </ul>
                 ]]>
             </description>
+            <sparkle:criticalUpdate/>
             <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.86.zip"
                        sparkle:version="2186"
                        sparkle:shortVersionString="2.1.86"
