@@ -170,6 +170,20 @@ final class LicenseService: ObservableObject {
 
     /// Check cached license on launch. Call from `applicationDidFinishLaunching`.
     func checkCachedLicense() {
+        // SaneBar is free and open source as of June 2026 (MIT). Pro is unlocked for
+        // everyone. Guarded against the test host so the license/trial unit tests still
+        // exercise the gated paths, mirroring the DEBUG auto-grant below.
+        if NSClassFromString("XCTestCase") == nil,
+           ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil {
+            isPro = true
+            hasPaidUnlock = true
+            licenseEmail = nil
+            purchaseError = nil
+            validationError = nil
+            licenseLogger.info("SaneBar is free — Pro unlocked for all users")
+            return
+        }
+
         if usesAppStorePurchase {
             Task {
                 await preloadAppStoreProduct()
