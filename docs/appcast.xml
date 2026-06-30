@@ -6,7 +6,27 @@
                                 
         
                                                                                                                                                                                                                                                                                                                                         
-                                                                                                                                <item>
+                                                                                                                                        <item>
+            <title>2.1.87</title>
+            <link>https://sanebar.com/download</link>
+            <pubDate>Tue, 30 Jun 2026 17:28:34 -0400</pubDate>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description>
+                <![CDATA[
+                <h2>What's New</h2>
+                <ul>
+                <li>More reliable icon-moving during display changes, Space switches, and wake. Some notched and multi-display setups still hit macOS limits this cannot fully fix. I will email all paid users soon about macOS 27 and what it means for SaneBar.</li>
+                </ul>
+                ]]>
+            </description>
+            <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.87.zip"
+                       sparkle:version="2187"
+                       sparkle:shortVersionString="2.1.87"
+                       length="9736233"
+                       type="application/octet-stream"
+                       sparkle:edSignature="IZBiPMRzrQM37t6YDug43GRfUaeRuaJwnU8r59R0Cqgid0ncHQatVOngX3rU5D41M9WEQOPVn50Erju/+i61DQ=="/>
+        </item>
+<item>
             <title>2.1.86</title>
             <link>https://sanebar.com/download</link>
             <pubDate>Tue, 30 Jun 2026 12:42:25 -0400</pubDate>
