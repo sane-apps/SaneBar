@@ -1,7 +1,7 @@
 # SaneBar
 
 [![GitHub stars](https://img.shields.io/github/stars/sane-apps/SaneBar?style=flat-square)](https://github.com/sane-apps/SaneBar/stargazers)
-[![License: PolyForm Shield](https://img.shields.io/badge/License-PolyForm%20Shield-blue.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Release](https://img.shields.io/github/v/release/sane-apps/SaneBar)](https://github.com/sane-apps/SaneBar/releases)
 [![macOS 14.0+](https://img.shields.io/badge/macOS-14.0%2B-blue)](https://github.com/sane-apps/SaneBar/releases)
 [![Privacy: On-Device by Default](https://img.shields.io/badge/Privacy-On--Device%20by%20Default-success)](PRIVACY.md)
@@ -346,24 +346,24 @@ Built pair programming with [Claude](https://claude.ai). Wanted a menu bar manag
 | **Second Menu Bar** | Yes | Yes | Yes | No |
 | **Find Icon Search** | Yes | Yes | Yes | No |
 | **AppleScript** | Yes | Yes | No | No |
-| **100% Transparent Code** | [PolyForm Shield](LICENSE) | No | Yes | Yes |
+| **100% Transparent Code** | [MIT](LICENSE) | No | Yes | Yes |
 | **On-Device by Default** | Yes | No (telemetry) | Yes | Yes |
 | **Pricing** | Basic ($0) / Pro $14.99 | $16 | Free | Free |
 | **Active Development** | Yes | Yes | Yes | Abandoned |
 
 ## License
 
-[PolyForm Shield 1.0.0](https://polyformproject.org/licenses/shield/1.0.0) — see [LICENSE](LICENSE)
+[MIT License](https://opensource.org/license/mit) — see [LICENSE](LICENSE)
 
-Copyright (c) 2025-2026 SaneApps. SaneBar is source-available under PolyForm Shield: read it, audit it, learn from it, and use it for personal projects. Do not sell or distribute a competing menu bar manager based on this code.
+Copyright (c) 2025-2026 SaneApps. As of June 2026, SaneBar is free and fully open source under the MIT License: use it, fork it, modify it, redistribute it, even commercially. No restrictions.
 
 ### License FAQ
 
-**Can I fork SaneBar for personal use?** Yes.
+**Can I fork SaneBar for any use?** Yes.
 
 **Can I study the code, audit it, or submit pull requests?** Yes.
 
-**Can I sell a competing product based on this code?** No. The PolyForm Shield license is intentionally source-available, not permissive.
+**Can I build on or redistribute this code, even commercially?** Yes. SaneBar is now MIT licensed, which is fully permissive. The only requirement is that you keep the copyright and license notice.
 
 ## Third-Party Notices
 
