@@ -467,8 +467,8 @@ final class RuntimeGuardQAAndLicensingXCTests: RuntimeGuardTestCase {
                 source.contains("SearchWindowDiscoveryTests.swift") &&
                 source.contains("RuntimeGuardStartupRecoveryXCTests.swift") &&
                 source.contains("RuntimeGuardQASmokeXCTests.swift") &&
-                source.contains("RuntimeGuardMoveQueueXCTests.swift") &&
-                source.contains("The move engine should keep queued zone-move planning") &&
+                source.contains("SecondMenuBarTests.swift") &&
+                source.contains("Customer UI move entry points all route through deferred queue path") &&
                 !source.contains("'Tests/IconMovingTests.swift'") &&
                 !source.contains("'Tests/SearchWindowTests.swift'") &&
                 !source.contains("'Tests/RuntimeGuardXCTests.swift'"),
