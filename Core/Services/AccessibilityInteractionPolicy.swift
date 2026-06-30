@@ -209,15 +209,18 @@ enum AccessibilityInteractionPolicy {
         let frameMinX = frame.minX + frameEdgeInset
         let frameMaxX = frame.maxX - frameEdgeInset
 
-        // An icon that sits ENTIRELY left of the notch (overflow on heavily
-        // populated menu bars, #170) is not under the notch cutout — it has a
-        // perfectly safe area to grab in the left auxiliary band. Only accept
-        // when the frame is wholly contained left of the notch start; a frame
-        // that extends into the notch gap itself falls through to the
-        // right-overlap check below, which correctly refuses it.
-        if let leftSafeArea, frameMaxX <= leftSafeArea.maxX - frameEdgeInset {
+        // Status items can also overflow into the left auxiliary area on
+        // heavily populated notched menu bars (#170): an icon stranded there
+        // is not under the notch cutout, it just has no overlap with the
+        // RIGHT side. Mirror the right-overlap check below — use whatever
+        // overlap the frame has with the left-safe band, the same way a
+        // frame straddling the right side already uses its overlap with
+        // rightSafeArea. `rightAuxiliaryInset` stays the clearance from the
+        // notch-adjacent edge (here, the left band's right/max edge);
+        // `frameEdgeInset` is the clearance from the outer screen edge.
+        if let leftSafeArea {
             let leftMinX = leftSafeArea.minX + frameEdgeInset
-            let leftMaxX = leftSafeArea.maxX - frameEdgeInset
+            let leftMaxX = leftSafeArea.maxX - rightAuxiliaryInset
             let leftLowerBound = max(frameMinX, leftMinX)
             let leftUpperBound = min(frameMaxX, leftMaxX)
             if leftLowerBound <= leftUpperBound {

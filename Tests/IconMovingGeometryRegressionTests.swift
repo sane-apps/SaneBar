@@ -92,9 +92,14 @@ struct IconMovingGrabPointTests {
     /// Real geometry read live off the Air's notched display (M4 MacBook Air,
     /// 13"): `screen.frame` 1470x956, `auxiliaryTopLeftArea.maxX` 646,
     /// `auxiliaryTopRightArea.minX` 825. #170's reporter logged a refused move
-    /// with `beforeMidX=640.0` — cleanly left of this Mac's notch (640 < 646),
-    /// not under it.
-    @Test("Notched visible move accepts an icon cleanly left of the notch (#170)")
+    /// with `beforeMidX=640.0`. At ordinary status-item width (24pt) that
+    /// frame is [628, 652] — its OWN center (640) is actually 2pt past the
+    /// notch boundary (646), so the icon overlaps the left-safe band rather
+    /// than sitting wholly inside it. The drag point is therefore the overlap
+    /// midpoint, mirroring exactly how a frame straddling the RIGHT side
+    /// already resolves to an overlap midpoint, not its own raw center (see
+    /// notchedVisibleMoveUsesRightSafeOverlap above).
+    @Test("Notched visible move accepts an icon overlapping the left side of the notch (#170)")
     func notchedVisibleMoveAcceptsFrameLeftOfNotch() {
         let airScreen = CGRect(x: 0, y: 0, width: 1470, height: 956)
         let rightAuxiliaryArea = CGRect(x: 825, y: 924, width: 645, height: 32)
@@ -111,8 +116,11 @@ struct IconMovingGrabPointTests {
             topSafeInset: 34
         )
 
-        #expect(point != nil, "An icon entirely left of the notch is not under it and should be draggable")
-        #expect(point?.x == strandedFrame.midX, "Frame fits entirely inside the left-safe band, so its own center is safe")
+        #expect(point != nil, "An icon overlapping the left auxiliary band is not under the notch and should be draggable")
+        // Overlap bounds: frameMinX=630, frameMaxX=650; leftMinX=2, leftMaxX=646-8=638.
+        // lowerBound=max(630,2)=630, upperBound=min(650,638)=638. midX(640) > upperBound,
+        // so dragX = 638 - (638-630)*0.5 = 634 — inside both the icon and the safe band.
+        #expect(abs((point?.x ?? 0) - 634) < 0.01)
         #expect(point?.y == strandedFrame.midY)
     }
 
@@ -122,9 +130,9 @@ struct IconMovingGrabPointTests {
         let rightAuxiliaryArea = CGRect(x: 825, y: 924, width: 645, height: 32)
         let leftAuxiliaryArea = CGRect(x: 0, y: 924, width: 646, height: 32)
         // Same notch-gap frame as notchedVisibleMoveRefusesFrameWithoutRightSafeOverlap
-        // (x=720 w=80, maxX=800): extends past leftAux.maxX (646) so it does NOT
-        // qualify for the new left-clean fast path, and has no right-aux overlap
-        // either (frameMaxX 798 < safeMinX 833) — must still return nil.
+        // (x=720 w=80, maxX=800): has NO overlap with the left-safe band
+        // (frameMinX 722 > leftMaxX 638) and no overlap with the right-safe
+        // band either (frameMaxX 798 < safeMinX 833) — must still return nil.
         let notchGapFrame = CGRect(x: 720, y: 4.5, width: 80, height: 24)
 
         let point = AccessibilityInteractionPolicy.notchSafeMenuBarDragPoint(
