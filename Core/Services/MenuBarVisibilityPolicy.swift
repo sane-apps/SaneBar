@@ -135,6 +135,15 @@ enum MenuBarVisibilityPolicy {
         snapshot: MenuBarRuntimeSnapshot,
         requiresLiveGeometryForVisibleAllowList: Bool = false
     ) -> Bool {
+        // Background validation (active-space-changed, wake, etc.) must never
+        // force the delimiter's length while a move is in flight: the move's own
+        // showAll()/drag/restoreFromShowAll() shield temporarily expands the
+        // delimiter to do the drag, and a concurrent reapply here races it,
+        // collapsing the separator mid-resolution. The caller already defers and
+        // retries on the next validation cycle, so this only delays the reapply
+        // until the move (typically <1s) finishes (#166).
+        guard !snapshot.hasActiveMoveTask else { return false }
+
         guard shouldRestoreHiddenAfterStatusItemRecovery(
             hidingState: hidingState,
             shouldSkipHideForExternalMonitor: shouldSkipHideForExternalMonitor
