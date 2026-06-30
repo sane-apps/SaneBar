@@ -140,15 +140,16 @@ final class RuntimeGuardMoveActivationXCTests: RuntimeGuardTestCase {
             "Drag lookup should ignore stale off-screen preferred centers from prior fullscreen/notch layouts"
         )
         XCTAssertTrue(
-            dragSource.contains("AccessibilityInteractionPolicy.frameStartsInNotchUnsafeMenuBarRegion") &&
+            dragSource.contains("AccessibilityInteractionPolicy.notchSafeMenuBarDragPoint") &&
+                dragSource.contains("Adjusted visible drag source to notch-safe point") &&
                 dragSource.contains("Refusing visible move from notch-unsafe drag origin") &&
                 dragSource.contains("notch-unsafe drag source beforeMidX") &&
                 dragSource.contains("AccessibilityMenuBarMoveFailureStore.shared.record") &&
                 dragSource.contains("resolvedTargetLane == .visible || resolvedTargetLane == .visibleFromAlwaysHidden") &&
                 interactionPolicySource.contains("topOriginMenuBandMaxY") &&
                 interactionPolicySource.contains("Status items live in the right auxiliary area on notched MacBooks") &&
-                interactionPolicySource.contains("frame.minX < unsafeRightX + rightAuxiliaryInset"),
-            "Visible return moves must fail closed from top-origin AX menu-bar frames under the MacBook notch"
+                interactionPolicySource.contains("lowerBound <= upperBound"),
+            "Visible return moves should use a safe right-side overlap under the MacBook notch and fail closed only when none exists"
         )
     }
 
@@ -177,9 +178,8 @@ final class RuntimeGuardMoveActivationXCTests: RuntimeGuardTestCase {
         )
         XCTAssertTrue(
             listingSource.contains("@objc(ListIconZoneGeometryCommand)") &&
-                listingSource.contains("auxiliaryTopRightArea") &&
-                listingSource.contains("xPosition < rightArea.minX + rightAuxiliaryInset") &&
-                listingSource.contains("AccessibilityInteractionPolicy.frameStartsInNotchUnsafeMenuBarRegion") &&
+                listingSource.contains("AccessibilityInteractionPolicy.notchSafeMenuBarDragPoint") &&
+                listingSource.contains("safeDragPoint == nil") &&
                 listingSource.contains("dragSourceSafety") &&
                 listingSource.contains("offscreen"),
             "The app should report whether a menu-extra drag source is safe on the current notched or non-notched screen"

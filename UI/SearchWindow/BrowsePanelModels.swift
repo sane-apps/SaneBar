@@ -54,6 +54,16 @@ enum BrowsePanelDropPayload {
 }
 
 enum BrowsePanelZoneClassifier {
+    struct AllTabContext {
+        let classified: SearchClassifiedApps
+        let pinnedIds: Set<String>
+        let allApps: [RunningApp]
+        let separatorRightEdgeX: CGFloat?
+        let separatorOriginX: CGFloat?
+        let alwaysHiddenBoundaryX: CGFloat?
+        let alwaysHiddenOriginX: CGFloat?
+    }
+
     static func separatorBoundaryForAllTab(
         separatorRightEdgeX: CGFloat?,
         separatorOriginX: CGFloat?
@@ -116,31 +126,27 @@ enum BrowsePanelZoneClassifier {
     /// offer impossible moves.
     static func zoneForAllTab(
         app: RunningApp,
-        classified: SearchClassifiedApps,
-        pinnedIds: Set<String>,
-        separatorRightEdgeX: CGFloat?,
-        separatorOriginX: CGFloat?,
-        alwaysHiddenBoundaryX: CGFloat?,
-        alwaysHiddenOriginX: CGFloat?
+        context: AllTabContext
     ) -> BrowseAppZone {
+        let classified = context.classified
         if classified.alwaysHidden.contains(where: { $0.uniqueId == app.uniqueId }) { return .alwaysHidden }
         if classified.hidden.contains(where: { $0.uniqueId == app.uniqueId }) { return .hidden }
         if classified.visible.contains(where: { $0.uniqueId == app.uniqueId }) { return .visible }
 
-        if pinnedIds.contains(app.uniqueId) || pinnedIds.contains(app.bundleId) {
+        if SearchService.pinnedIdsMatch(app: app, allApps: context.allApps, pinnedIds: context.pinnedIds) {
             return .alwaysHidden
         }
 
         guard let xPos = app.xPosition else { return .visible }
         let midX = xPos + ((app.width ?? 22) / 2)
         let separatorBoundaryX = separatorBoundaryForAllTab(
-            separatorRightEdgeX: separatorRightEdgeX,
-            separatorOriginX: separatorOriginX
+            separatorRightEdgeX: context.separatorRightEdgeX,
+            separatorOriginX: context.separatorOriginX
         )
         let resolvedAlwaysHiddenBoundaryX = alwaysHiddenBoundaryForAllTab(
             separatorBoundaryX: separatorBoundaryX,
-            alwaysHiddenBoundaryX: alwaysHiddenBoundaryX,
-            alwaysHiddenOriginX: alwaysHiddenOriginX
+            alwaysHiddenBoundaryX: context.alwaysHiddenBoundaryX,
+            alwaysHiddenOriginX: context.alwaysHiddenOriginX
         )
         return classifyAllTabZone(
             midX: midX,

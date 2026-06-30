@@ -12,6 +12,26 @@ struct BrowsePanelZoneClassifierTests {
         RunningApp(id: id, name: id, icon: nil, menuExtraIdentifier: nil, xPosition: xPosition, width: 20)
     }
 
+    private func makeContext(
+        classified: SearchClassifiedApps,
+        pinnedIds: Set<String> = [],
+        allApps: [RunningApp],
+        separatorRightEdgeX: CGFloat? = nil,
+        separatorOriginX: CGFloat? = nil,
+        alwaysHiddenBoundaryX: CGFloat? = nil,
+        alwaysHiddenOriginX: CGFloat? = nil
+    ) -> BrowsePanelZoneClassifier.AllTabContext {
+        BrowsePanelZoneClassifier.AllTabContext(
+            classified: classified,
+            pinnedIds: pinnedIds,
+            allApps: allApps,
+            separatorRightEdgeX: separatorRightEdgeX,
+            separatorOriginX: separatorOriginX,
+            alwaysHiddenBoundaryX: alwaysHiddenBoundaryX,
+            alwaysHiddenOriginX: alwaysHiddenOriginX
+        )
+    }
+
     @Test("Prefers cached Hidden classification over stale/absent geometry")
     func cachedHiddenWinsOverGeometry() {
         let target = makeApp("com.test.hidden")
@@ -19,12 +39,7 @@ struct BrowsePanelZoneClassifierTests {
         // Geometry unavailable (nil) → the pre-fix path returned .visible.
         let zone = BrowsePanelZoneClassifier.zoneForAllTab(
             app: target,
-            classified: classified,
-            pinnedIds: [],
-            separatorRightEdgeX: nil,
-            separatorOriginX: nil,
-            alwaysHiddenBoundaryX: nil,
-            alwaysHiddenOriginX: nil
+            context: makeContext(classified: classified, allApps: [target])
         )
         #expect(zone == .hidden)
     }
@@ -35,12 +50,7 @@ struct BrowsePanelZoneClassifierTests {
         let classified = SearchClassifiedApps(visible: [], hidden: [], alwaysHidden: [target])
         let zone = BrowsePanelZoneClassifier.zoneForAllTab(
             app: target,
-            classified: classified,
-            pinnedIds: [],
-            separatorRightEdgeX: nil,
-            separatorOriginX: nil,
-            alwaysHiddenBoundaryX: nil,
-            alwaysHiddenOriginX: nil
+            context: makeContext(classified: classified, allApps: [target])
         )
         #expect(zone == .alwaysHidden)
     }
@@ -53,12 +63,14 @@ struct BrowsePanelZoneClassifierTests {
         let classified = SearchClassifiedApps(visible: [target], hidden: [], alwaysHidden: [])
         let zone = BrowsePanelZoneClassifier.zoneForAllTab(
             app: target,
-            classified: classified,
-            pinnedIds: [],
-            separatorRightEdgeX: 1000,
-            separatorOriginX: 980,
-            alwaysHiddenBoundaryX: 500,
-            alwaysHiddenOriginX: 480
+            context: makeContext(
+                classified: classified,
+                allApps: [target],
+                separatorRightEdgeX: 1000,
+                separatorOriginX: 980,
+                alwaysHiddenBoundaryX: 500,
+                alwaysHiddenOriginX: 480
+            )
         )
         #expect(zone == .visible)
     }
@@ -69,14 +81,41 @@ struct BrowsePanelZoneClassifierTests {
         let empty = SearchClassifiedApps(visible: [], hidden: [], alwaysHidden: [])
         let zone = BrowsePanelZoneClassifier.zoneForAllTab(
             app: target,
-            classified: empty,
-            pinnedIds: [],
-            separatorRightEdgeX: nil,
-            separatorOriginX: nil,
-            alwaysHiddenBoundaryX: nil,
-            alwaysHiddenOriginX: nil
+            context: makeContext(classified: empty, allApps: [target])
         )
         // No cache hit, no geometry, no position → documented default.
+        #expect(zone == .visible)
+    }
+
+    @Test("Bundle-level pin does not classify same-bundle precise siblings as Always Hidden")
+    func bundlePinDoesNotPromoteSharedBundleSiblingInAllTab() {
+        let pinned = RunningApp(
+            id: "com.sanebar.fixture",
+            name: "SBF-A",
+            icon: nil,
+            statusItemIndex: 0,
+            xPosition: nil,
+            width: 20
+        )
+        let sibling = RunningApp(
+            id: "com.sanebar.fixture",
+            name: "SBF-B",
+            icon: nil,
+            statusItemIndex: 1,
+            xPosition: nil,
+            width: 20
+        )
+        let empty = SearchClassifiedApps(visible: [], hidden: [], alwaysHidden: [])
+
+        let zone = BrowsePanelZoneClassifier.zoneForAllTab(
+            app: sibling,
+            context: makeContext(
+                classified: empty,
+                pinnedIds: [pinned.bundleId],
+                allApps: [pinned, sibling]
+            )
+        )
+
         #expect(zone == .visible)
     }
 }

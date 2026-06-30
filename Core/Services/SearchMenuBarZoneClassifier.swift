@@ -106,7 +106,8 @@ enum SearchMenuBarZoneClassifier {
             let promoted = SearchService.promotePinnedHiddenAppsToAlwaysHidden(
                 hidden: hidden,
                 alwaysHidden: alwaysHidden,
-                pinnedIds: context.pinnedIds
+                pinnedIds: context.pinnedIds,
+                allApps: items.map(\.app)
             )
             let promotedCount = hidden.count - promoted.hidden.count
             hidden = promoted.hidden

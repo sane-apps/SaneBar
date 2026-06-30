@@ -161,21 +161,38 @@ final class SearchService: SearchServiceProtocol, @unchecked Sendable {
         let pinnedIds = Set(MenuBarManager.shared.settings.alwaysHiddenPinnedItemIds)
         guard !pinnedIds.isEmpty else { return [] }
         let matched = apps.filter { app in
-            pinnedIds.contains(app.uniqueId) || pinnedIds.contains(app.bundleId)
+            Self.pinnedIdsMatch(app: app, allApps: apps, pinnedIds: pinnedIds)
         }
         logger.debug("alwaysHidden fallback: matched \(matched.count, privacy: .public) apps from \(pinnedIds.count, privacy: .public) pinned IDs")
         return matched
     }
 
+    nonisolated static func pinnedIdsMatch(
+        app: RunningApp,
+        allApps: [RunningApp],
+        pinnedIds: Set<String>
+    ) -> Bool {
+        if pinnedIds.contains(app.uniqueId) { return true }
+        guard pinnedIds.contains(app.bundleId) else { return false }
+        guard app.hasPreciseMenuBarIdentity else { return true }
+
+        let preciseSameBundleCount = allApps.filter {
+            $0.bundleId == app.bundleId && $0.hasPreciseMenuBarIdentity
+        }.count
+        return preciseSameBundleCount <= 1
+    }
+
     nonisolated static func promotePinnedHiddenAppsToAlwaysHidden(
         hidden: [RunningApp],
         alwaysHidden: [RunningApp],
-        pinnedIds: Set<String>
+        pinnedIds: Set<String>,
+        allApps: [RunningApp]? = nil
     ) -> (hidden: [RunningApp], alwaysHidden: [RunningApp]) {
         guard !pinnedIds.isEmpty else { return (hidden, alwaysHidden) }
 
+        let identityScope = allApps ?? (hidden + alwaysHidden)
         let promoted = hidden.filter { app in
-            pinnedIds.contains(app.uniqueId) || pinnedIds.contains(app.bundleId)
+            pinnedIdsMatch(app: app, allApps: identityScope, pinnedIds: pinnedIds)
         }
         guard !promoted.isEmpty else { return (hidden, alwaysHidden) }
 

@@ -579,7 +579,14 @@ final class MenuBarStatusItemRecoveryWorkflow {
             manager.isExecutingStatusItemRecovery = true
             manager.positionValidationGeneration += 1
             defer { manager.isExecutingStatusItemRecovery = false }
-            manager.recreateStatusItemsFromPersistedLayout(reason: trigger)
+            manager.recreateStatusItemsFromPersistedLayout(
+                reason: trigger,
+                reanchorUnsafePersistedPositions: MenuBarManager
+                    .shouldReanchorPersistedPositionsForStatusItemRecovery(
+                        isStartupRecovery: trigger.hasPrefix("startup-"),
+                        validationContext: validationContext
+                    )
+            )
             if let validationContext {
                 schedulePositionValidation(context: validationContext, recoveryCount: recoveryCount + 1)
             }

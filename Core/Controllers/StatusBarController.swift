@@ -309,15 +309,17 @@ final class StatusBarController: StatusBarControllerProtocol {
             StatusBarPositionRecoveryStore.seedAlwaysHiddenSeparatorPositionIfNeeded(referenceScreen: resolvedReferenceScreen)
         }
 
-        // FM-2 (#136/#168) chokepoint: if a same-display reanchor/launch-safe pass
-        // laundered the explicit divider into the fresh namespace, restore it before
-        // the items materialize.
-        StatusBarPositionRecoveryStore.restoreExplicitDividerIfLaunderedOnSameDisplay(
-            capturedMain: originalPersistedMain,
-            capturedSeparator: originalPersistedSeparator,
-            calibratedWidth: fm2BumpCalibratedWidth,
-            referenceScreen: resolvedReferenceScreen
-        )
+        // FM-2 (#136/#168) chokepoint: only the wake/Space preserve path may
+        // resurrect an explicit divider. Startup/reset recovery must keep the
+        // launch-safe positions it just wrote.
+        if !reanchorUnsafePersistedPositions {
+            StatusBarPositionRecoveryStore.restoreExplicitDividerIfLaunderedOnSameDisplay(
+                capturedMain: originalPersistedMain,
+                capturedSeparator: originalPersistedSeparator,
+                calibratedWidth: fm2BumpCalibratedWidth,
+                referenceScreen: resolvedReferenceScreen
+            )
+        }
 
         mainItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         Self.enforceNonRemovableBehavior(for: mainItem, role: "main(recreated)")
@@ -399,14 +401,17 @@ final class StatusBarController: StatusBarControllerProtocol {
             )
         }
 
-        // FM-2 (#136/#168) chokepoint: undo a same-display launder before items
-        // materialize, so they are created at the restored explicit divider.
-        StatusBarPositionRecoveryStore.restoreExplicitDividerIfLaunderedOnSameDisplay(
-            capturedMain: fm2CapturedMain,
-            capturedSeparator: fm2CapturedSeparator,
-            calibratedWidth: fm2CalibratedWidth,
-            referenceScreen: resolvedReferenceScreen
-        )
+        // FM-2 (#136/#168) chokepoint: only the wake/Space preserve path may
+        // resurrect an explicit divider. Reset/startup recovery must keep the
+        // launch-safe positions it just wrote.
+        if !reanchorUnsafePersistedPositions {
+            StatusBarPositionRecoveryStore.restoreExplicitDividerIfLaunderedOnSameDisplay(
+                capturedMain: fm2CapturedMain,
+                capturedSeparator: fm2CapturedSeparator,
+                calibratedWidth: fm2CalibratedWidth,
+                referenceScreen: resolvedReferenceScreen
+            )
+        }
 
         mainItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         Self.enforceNonRemovableBehavior(for: mainItem, role: "main(recreated-layout)")

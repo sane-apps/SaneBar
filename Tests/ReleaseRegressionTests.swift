@@ -190,7 +190,6 @@ struct AlwaysHiddenStartupFallbackTests {
 
     @Test("Pinned ID matching works via uniqueId")
     func pinnedIdMatchingByUniqueId() {
-        // Simulates appsMatchingPinnedIds: matches against uniqueId OR bundleId
         let pinnedIds: Set<String> = [
             "com.apple.menuextra.bluetooth",
             "com.spotify.client::axid:NowPlaying",
@@ -215,7 +214,7 @@ struct AlwaysHiddenStartupFallbackTests {
         ]
 
         let matched = apps.filter { app in
-            pinnedIds.contains(app.uniqueId) || pinnedIds.contains(app.bundleId)
+            SearchService.pinnedIdsMatch(app: app, allApps: apps, pinnedIds: pinnedIds)
         }
 
         #expect(matched.count == 3, "Should match exactly the 3 pinned apps")
@@ -235,10 +234,10 @@ struct AlwaysHiddenStartupFallbackTests {
 
         // uniqueId is "com.apple.menuextra.bluetooth", not "com.apple.controlcenter"
         let matchedByUniqueId = pinnedIds.contains(app.uniqueId)
-        let matchedByBundleId = pinnedIds.contains(app.bundleId)
+        let matchedByBundleId = SearchService.pinnedIdsMatch(app: app, allApps: [app], pinnedIds: pinnedIds)
 
         #expect(!matchedByUniqueId, "uniqueId doesn't match the pinned bundleId")
-        #expect(matchedByBundleId, "bundleId fallback catches it")
+        #expect(matchedByBundleId, "bundleId fallback catches single precise items")
     }
 
     @Test("Empty pinned set returns no matches")
@@ -249,10 +248,35 @@ struct AlwaysHiddenStartupFallbackTests {
         ]
 
         let matched = apps.filter { app in
-            pinnedIds.contains(app.uniqueId) || pinnedIds.contains(app.bundleId)
+            SearchService.pinnedIdsMatch(app: app, allApps: apps, pinnedIds: pinnedIds)
         }
 
         #expect(matched.isEmpty, "No pinned IDs = no matches")
+    }
+
+    @Test("Bundle pin does not match multiple precise same-bundle items")
+    func pinnedIdMatchingBundleFallbackDoesNotCrossPreciseSiblings() {
+        let pinnedIds: Set<String> = ["com.sanebar.fixture"]
+        let apps = [
+            RunningApp(
+                id: "com.sanebar.fixture",
+                name: "SBF-A",
+                icon: nil,
+                statusItemIndex: 0
+            ),
+            RunningApp(
+                id: "com.sanebar.fixture",
+                name: "SBF-B",
+                icon: nil,
+                statusItemIndex: 1
+            ),
+        ]
+
+        let matched = apps.filter { app in
+            SearchService.pinnedIdsMatch(app: app, allApps: apps, pinnedIds: pinnedIds)
+        }
+
+        #expect(matched.isEmpty)
     }
 
     @Test("Pinned ID matching is order-independent")
@@ -275,7 +299,7 @@ struct AlwaysHiddenStartupFallbackTests {
         ]
 
         let matched = apps.filter { app in
-            pinnedIds.contains(app.uniqueId) || pinnedIds.contains(app.bundleId)
+            SearchService.pinnedIdsMatch(app: app, allApps: apps, pinnedIds: pinnedIds)
         }
 
         #expect(matched.count == 2, "Both pinned items should match regardless of order")

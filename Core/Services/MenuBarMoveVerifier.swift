@@ -94,9 +94,9 @@ enum MenuBarMoveVerifier {
             }
 
             if attempt == attempts {
-                let classified = await SearchService.shared.refreshClassifiedApps()
+                let refreshedItems = await AccessibilityService.shared.refreshMenuBarItemsWithPositions()
                 let physicalClassified = await MainActor.run {
-                    SearchService.shared.classifyAppsForMoveVerification(classified)
+                    SearchService.shared.classifyItemsForMoveVerification(refreshedItems)
                 }
                 if classifiedMatchesTarget(
                     classified: physicalClassified,

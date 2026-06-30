@@ -791,13 +791,17 @@ final class MenuBarManager: NSObject, ObservableObject {
         try? MenuBarSpacingService.shared.resetToDefaults()
         MenuBarSpacingService.shared.attemptGracefulRefresh()
         clearCachedSeparatorGeometry()
-        recreateStatusItemsFromPersistedLayout(reason: "reset-to-defaults") {
-            StatusBarPositionRecoveryStore.resetPersistentStatusItemState(
-                alwaysHiddenEnabled: self.currentEffectiveAlwaysHiddenSectionEnabled(),
-                referenceScreen: self.statusItemScreen,
-                freshAutosaveNamespace: true
-            )
-        }
+        recreateStatusItemsFromPersistedLayout(
+            reason: "reset-to-defaults",
+            afterRemovingExistingItems: {
+                StatusBarPositionRecoveryStore.resetPersistentStatusItemState(
+                    alwaysHiddenEnabled: self.currentEffectiveAlwaysHiddenSectionEnabled(),
+                    referenceScreen: self.statusItemScreen,
+                    freshAutosaveNamespace: true
+                )
+            },
+            reanchorUnsafePersistedPositions: true
+        )
         schedulePositionValidation(context: .manualLayoutRestore, recoveryCount: 0)
         updateSpacers()
         updateAppearance()
@@ -842,7 +846,7 @@ final class MenuBarManager: NSObject, ObservableObject {
     func recreateStatusItemsFromPersistedLayout(
         reason: String,
         afterRemovingExistingItems: (() -> Void)? = nil,
-        reanchorUnsafePersistedPositions: Bool = true
+        reanchorUnsafePersistedPositions: Bool
     ) {
         geometryCache.clearSeparatorGeometry()
         let (newMain, newSeparator) = statusBarController.recreateItemsFromPersistedPositions(

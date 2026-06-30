@@ -12,12 +12,15 @@ extension MenuBarSearchView {
     func appZone(for app: RunningApp) -> AppZone {
         BrowsePanelZoneClassifier.zoneForAllTab(
             app: app,
-            classified: service.cachedClassifiedApps(),
-            pinnedIds: Set(menuBarManager.settings.alwaysHiddenPinnedItemIds),
-            separatorRightEdgeX: menuBarManager.geometryResolver.separatorRightEdgeX(),
-            separatorOriginX: menuBarManager.geometryResolver.separatorOriginX(),
-            alwaysHiddenBoundaryX: menuBarManager.geometryResolver.alwaysHiddenSeparatorBoundaryX(),
-            alwaysHiddenOriginX: menuBarManager.geometryResolver.alwaysHiddenSeparatorOriginX()
+            context: BrowsePanelZoneClassifier.AllTabContext(
+                classified: service.cachedClassifiedApps(),
+                pinnedIds: Set(menuBarManager.settings.alwaysHiddenPinnedItemIds),
+                allApps: service.cachedMenuBarApps(),
+                separatorRightEdgeX: menuBarManager.geometryResolver.separatorRightEdgeX(),
+                separatorOriginX: menuBarManager.geometryResolver.separatorOriginX(),
+                alwaysHiddenBoundaryX: menuBarManager.geometryResolver.alwaysHiddenSeparatorBoundaryX(),
+                alwaysHiddenOriginX: menuBarManager.geometryResolver.alwaysHiddenSeparatorOriginX()
+            )
         )
     }
 

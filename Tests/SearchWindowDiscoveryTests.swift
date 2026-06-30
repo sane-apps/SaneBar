@@ -80,7 +80,7 @@ struct SearchWindowDiscoveryTests {
     }
 
     @Test("Pinned hidden promotion honors bundle-level fallback for precise extras")
-    func pinnedHiddenAppsPromoteViaBundleFallback() {
+    func pinnedHiddenAppsPromoteViaBundleFallbackForSinglePreciseItem() {
         let helperHosted = RunningApp(
             id: "com.example.helper",
             name: "HelperHosted",
@@ -98,6 +98,36 @@ struct SearchWindowDiscoveryTests {
 
         #expect(promoted.hidden.isEmpty)
         #expect(promoted.alwaysHidden.map(\.uniqueId) == [helperHosted.uniqueId])
+    }
+
+    @Test("Pinned hidden promotion does not bundle-promote precise same-bundle siblings")
+    func pinnedHiddenAppsDoNotPromoteSharedBundleSiblings() {
+        let sbfA = RunningApp(
+            id: "com.sanebar.fixture",
+            name: "SBF-A",
+            icon: nil,
+            statusItemIndex: 0,
+            xPosition: 900,
+            width: 32
+        )
+        let sbfB = RunningApp(
+            id: "com.sanebar.fixture",
+            name: "SBF-B",
+            icon: nil,
+            statusItemIndex: 1,
+            xPosition: 940,
+            width: 32
+        )
+
+        let promoted = SearchService.promotePinnedHiddenAppsToAlwaysHidden(
+            hidden: [sbfA, sbfB],
+            alwaysHidden: [],
+            pinnedIds: [sbfA.bundleId],
+            allApps: [sbfA, sbfB]
+        )
+
+        #expect(promoted.hidden.map(\.uniqueId) == [sbfA.uniqueId, sbfB.uniqueId])
+        #expect(promoted.alwaysHidden.isEmpty)
     }
 
     @Test("Move verification classification does not collapse always-hidden into hidden")

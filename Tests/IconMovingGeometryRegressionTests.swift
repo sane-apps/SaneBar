@@ -38,6 +38,54 @@ struct IconMovingGrabPointTests {
         #expect(grabX == 608, "Narrow icon grab at center")
         #expect(grabY == 16)
     }
+
+    @Test("Notched visible move uses right-side safe overlap for straddling menu item")
+    func notchedVisibleMoveUsesRightSafeOverlap() {
+        let airScreen = CGRect(x: 0, y: 0, width: 1470, height: 956)
+        let rightAuxiliaryArea = CGRect(x: 825, y: 924, width: 645, height: 32)
+        let weatherFrame = CGRect(x: 789, y: 4.5, width: 69.5, height: 24)
+
+        let point = AccessibilityInteractionPolicy.notchSafeMenuBarDragPoint(
+            for: weatherFrame,
+            screenFrame: airScreen,
+            rightSafeArea: rightAuxiliaryArea,
+            topSafeInset: 34
+        )
+
+        #expect(point != nil, "A menu item that overlaps the right auxiliary area should still be draggable")
+        #expect(abs((point?.x ?? 0) - 844.75) < 0.01)
+        #expect(point?.y == weatherFrame.midY)
+    }
+
+    @Test("Notched visible move refuses menu item with no right-side safe overlap")
+    func notchedVisibleMoveRefusesFrameWithoutRightSafeOverlap() {
+        let airScreen = CGRect(x: 0, y: 0, width: 1470, height: 956)
+        let rightAuxiliaryArea = CGRect(x: 825, y: 924, width: 645, height: 32)
+        let notchGapFrame = CGRect(x: 720, y: 4.5, width: 80, height: 24)
+
+        let point = AccessibilityInteractionPolicy.notchSafeMenuBarDragPoint(
+            for: notchGapFrame,
+            screenFrame: airScreen,
+            rightSafeArea: rightAuxiliaryArea,
+            topSafeInset: 34
+        )
+
+        #expect(point == nil)
+    }
+
+    @Test("Non-notched visible move keeps center grab point")
+    func nonNotchedVisibleMoveKeepsCenterGrabPoint() {
+        let iconFrame = CGRect(x: 400, y: 5, width: 22, height: 22)
+
+        let point = AccessibilityInteractionPolicy.notchSafeMenuBarDragPoint(
+            for: iconFrame,
+            screenFrame: CGRect(x: 0, y: 0, width: 1440, height: 900),
+            rightSafeArea: nil,
+            topSafeInset: 0
+        )
+
+        #expect(point == CGPoint(x: iconFrame.midX, y: iconFrame.midY))
+    }
 }
 
 // MARK: - Verification Margin Tests

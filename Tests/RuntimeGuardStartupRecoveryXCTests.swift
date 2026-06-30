@@ -198,8 +198,16 @@ final class RuntimeGuardStartupRecoveryXCTests: RuntimeGuardTestCase {
                 recoverySource.contains("StatusBarPositionRecoveryStore.resetPersistentStatusItemState(") &&
                 recoverySource.contains("freshAutosaveNamespace: true") &&
                 recoverySource.contains("StatusBarPositionRecoveryStore.recoverStartupPositions(") &&
-                recoverySource.contains("recreateStatusItemsFromPersistedLayout(reason: trigger)"),
+                recoverySource.contains("recreateStatusItemsFromPersistedLayout(") &&
+                recoverySource.contains("reanchorUnsafePersistedPositions: !preserveExplicitPositions"),
             "Status-item recovery should hard-reset poisoned startup geometry into a fresh autosave namespace while keeping non-startup geometry recovery on the lighter path"
+        )
+        XCTAssertTrue(
+            recoverySource.contains("case .recreateFromPersistedLayout:") &&
+                recoverySource.contains("reanchorUnsafePersistedPositions: MenuBarManager") &&
+                recoverySource.contains(".shouldReanchorPersistedPositionsForStatusItemRecovery(") &&
+                recoverySource.contains("validationContext: validationContext"),
+            "The recreate-from-persisted executor must use the same provenance gate as bump-autosave recovery instead of relying on an implicit destructive default"
         )
         XCTAssertTrue(
             recoverySource.contains("case .bumpAutosaveVersion:") &&
@@ -229,6 +237,27 @@ final class RuntimeGuardStartupRecoveryXCTests: RuntimeGuardTestCase {
                 controllerSource.contains("MenuBarMoveGeometryPolicy.resolvedScreenFrameForStatusItemWindow(") &&
                 controllerSource.contains("candidateScreenFrames:"),
             "Startup validation must resolve a status-item window's screen against EVERY screen's band (multi-display nil-screen recovery — the #136/#165/#166 external-monitor fix), not a single reference screen"
+        )
+    }
+
+    func testExplicitDividerRestoreDoesNotUndoHardResetRecovery() throws {
+        let controllerURL = projectRootURL().appendingPathComponent("Core/Controllers/StatusBarController.swift")
+        let source = try String(contentsOf: controllerURL, encoding: .utf8)
+        let restoreCall = "StatusBarPositionRecoveryStore.restoreExplicitDividerIfLaunderedOnSameDisplay("
+        let restoreCallCount = source.components(separatedBy: restoreCall).count - 1
+        let guardedRestoreCount = source.components(
+            separatedBy: "if !reanchorUnsafePersistedPositions {\n            \(restoreCall)"
+        ).count - 1
+
+        XCTAssertEqual(
+            restoreCallCount,
+            2,
+            "StatusBarController should only call the FM-2 explicit-divider restore from the two status-item recreate paths"
+        )
+        XCTAssertEqual(
+            guardedRestoreCount,
+            restoreCallCount,
+            "Hard startup/reset recovery must not resurrect a captured explicit divider after writing launch-safe positions"
         )
     }
 

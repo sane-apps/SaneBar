@@ -448,8 +448,9 @@ final class RuntimeGuardAppleScriptMoveXCTests: RuntimeGuardTestCase {
         XCTAssertTrue(
             verifierSource.contains("let scopedItems = await AccessibilityService.shared.scopedMenuBarItemsWithPositions(for: owners)") &&
                 verifierSource.contains("if attempt == attempts") &&
-                verifierSource.contains("let classified = await SearchService.shared.refreshClassifiedApps()"),
-            "Move verification should use scoped owner scans first and reserve the authoritative full classified refresh for the final fallback"
+                verifierSource.contains("let refreshedItems = await AccessibilityService.shared.refreshMenuBarItemsWithPositions()") &&
+                verifierSource.contains("SearchService.shared.classifyItemsForMoveVerification(refreshedItems)"),
+            "Move verification should use scoped owner scans first and reserve a strict physical full scan for the final fallback"
         )
         XCTAssertTrue(
             scanningSource.contains("func scopedMenuBarItemsWithPositions(for owners: [RunningApp]) async -> [MenuBarItemPosition]"),

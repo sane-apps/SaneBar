@@ -334,7 +334,9 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
                 source.contains("MenuBarSpacingService.shared.resetToDefaults()") &&
                 source.contains("MenuBarSpacingService.shared.attemptGracefulRefresh()") &&
                 source.contains("freshAutosaveNamespace: true") &&
-                source.contains("recreateStatusItemsFromPersistedLayout(reason: \"reset-to-defaults\") {") &&
+                source.contains("recreateStatusItemsFromPersistedLayout(") &&
+                source.contains("reason: \"reset-to-defaults\"") &&
+                source.contains("reanchorUnsafePersistedPositions: true") &&
                 source.contains("schedulePositionValidation(context: .manualLayoutRestore, recoveryCount: 0)"),
             "Reset to Defaults should reset host spacing defaults, reset status-item persistence into a fresh autosave namespace, and recreate live menu bar items immediately"
         )
@@ -678,6 +680,39 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
                 visibleBoundaryX: nil
             ),
             "AH-to-Hidden direction verification should not pass when the lane boundary is missing"
+        )
+    }
+
+    func testAlwaysHiddenToHiddenBoundaryDriftIsRetryableBeforeHardFailure() {
+        let beforeFrame = CGRect(x: 903, y: 0, width: 69.5, height: 22) // midX=937.75
+        let afterFrame = CGRect(x: 933, y: 0, width: 69.5, height: 22) // midX=967.75
+
+        XCTAssertFalse(
+            AccessibilityInteractionPolicy.frameIsInTargetLane(
+                afterFrame: afterFrame,
+                targetLane: .hiddenFromAlwaysHidden,
+                separatorX: 1062,
+                visibleBoundaryX: 1002
+            ),
+            "The stale AH boundary should not be accepted as a successful AH-to-Hidden landing"
+        )
+        XCTAssertFalse(
+            AccessibilityInteractionPolicy.hasDirectionMismatch(
+                beforeFrame: beforeFrame,
+                afterFrame: afterFrame,
+                separatorX: 1062,
+                targetLane: .hiddenFromAlwaysHidden,
+                visibleBoundaryX: 1002
+            ),
+            "The drag moved rightward toward the Hidden lane, so the existing retry should be allowed"
+        )
+        XCTAssertTrue(
+            AccessibilityInteractionPolicy.shouldRetryHiddenFromAlwaysHiddenAfterBoundaryRefresh(
+                beforeFrame: beforeFrame,
+                afterFrame: afterFrame,
+                separatorX: 1062,
+                visibleBoundaryX: 1002
+            )
         )
     }
 

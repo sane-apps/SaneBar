@@ -222,19 +222,31 @@ final class AccessibilityMenuBarDragService {
             accessibilityDragLogger.error("🔧 Could not find on-screen icon frame for \(bundleID, privacy: .private) (menuExtraId: \(menuExtraId ?? "nil", privacy: .private))")
             return false
         }
-        if !toHidden,
-           resolvedTargetLane == .visible || resolvedTargetLane == .visibleFromAlwaysHidden,
-           AccessibilityInteractionPolicy.frameStartsInNotchUnsafeMenuBarRegion(
-               iconFrame,
-               preferredScreenFrame: referenceScreenFrame
-           ) {
-            AccessibilityMenuBarMoveFailureStore.shared.record(
-                "notch-unsafe drag source beforeMidX=\(String(format: "%.2f", Double(iconFrame.midX)))"
-            )
-            accessibilityDragLogger.error(
-                "🔧 Refusing visible move from notch-unsafe drag origin: beforeMidX=\(iconFrame.midX, privacy: .public)"
-            )
-            return false
+        let visibleMoveFromNotchedMenuBand =
+            !toHidden &&
+            (resolvedTargetLane == .visible || resolvedTargetLane == .visibleFromAlwaysHidden)
+        let rawFromPoint: CGPoint
+        if visibleMoveFromNotchedMenuBand {
+            guard let safeDragPoint = AccessibilityInteractionPolicy.notchSafeMenuBarDragPoint(
+                for: iconFrame,
+                preferredScreenFrame: referenceScreenFrame
+            ) else {
+                AccessibilityMenuBarMoveFailureStore.shared.record(
+                    "notch-unsafe drag source beforeMidX=\(String(format: "%.2f", Double(iconFrame.midX)))"
+                )
+                accessibilityDragLogger.error(
+                    "🔧 Refusing visible move from notch-unsafe drag origin: beforeMidX=\(iconFrame.midX, privacy: .public)"
+                )
+                return false
+            }
+            rawFromPoint = safeDragPoint
+            if abs(safeDragPoint.x - iconFrame.midX) > 0.5 {
+                accessibilityDragLogger.info(
+                    "🔧 Adjusted visible drag source to notch-safe point: beforeMidX=\(iconFrame.midX, privacy: .public), dragX=\(safeDragPoint.x, privacy: .public)"
+                )
+            }
+        } else {
+            rawFromPoint = CGPoint(x: iconFrame.midX, y: iconFrame.midY)
         }
 
         accessibilityDragLogger.debug("🔧 Icon frame BEFORE: x=\(iconFrame.origin.x, privacy: .public), y=\(iconFrame.origin.y, privacy: .public), w=\(iconFrame.size.width, privacy: .public), h=\(iconFrame.size.height, privacy: .public)")
@@ -254,7 +266,6 @@ final class AccessibilityMenuBarDragService {
 
         // AX and CGEvent Y-axis orientation can differ by OS/build.
         // Normalize both points so drag coordinates stay anchored to the menu bar.
-        let rawFromPoint = CGPoint(x: iconFrame.midX, y: iconFrame.midY)
         let rawToPoint = CGPoint(x: targetX, y: iconFrame.midY)
         let fromPoint = AccessibilityInteractionPolicy.normalizedCGEventPoint(
             fromAccessibilityPoint: rawFromPoint,
@@ -341,7 +352,21 @@ final class AccessibilityMenuBarDragService {
             movedToExpectedSide = false
         }
 
-        if !movedToExpectedSide {
+        let shouldRetryHiddenFromAlwaysHiddenAfterBoundaryRefresh =
+            resolvedTargetLane == .hiddenFromAlwaysHidden &&
+            !directionMismatch &&
+            AccessibilityInteractionPolicy.shouldRetryHiddenFromAlwaysHiddenAfterBoundaryRefresh(
+                beforeFrame: iconFrame,
+                afterFrame: afterFrame,
+                separatorX: separatorX,
+                visibleBoundaryX: visibleBoundaryX
+            )
+
+        if shouldRetryHiddenFromAlwaysHiddenAfterBoundaryRefresh {
+            accessibilityDragLogger.warning(
+                "🔧 AH-to-Hidden verification pending refreshed boundary retry: expected toHidden=\(toHidden, privacy: .public), separatorX=\(separatorX, privacy: .public), visibleBoundaryX=\(visibleBoundaryX ?? -1, privacy: .public), targetX=\(targetX, privacy: .public), beforeX=\(iconFrame.origin.x, privacy: .public), beforeMidX=\(iconFrame.midX, privacy: .public), afterX=\(afterFrame.origin.x, privacy: .public), afterMidX=\(afterFrame.midX, privacy: .public), deltaMidX=\(afterFrame.midX - iconFrame.midX, privacy: .public), preferredCenterX=\(preferredCenterX ?? -1, privacy: .public), statusItemIndex=\(statusItemIndex ?? -1, privacy: .public)"
+            )
+        } else if !movedToExpectedSide {
             accessibilityDragLogger.error(
                 "🔧 Move verification failed: expected toHidden=\(toHidden, privacy: .public), targetLane=\(String(describing: resolvedTargetLane), privacy: .public), separatorX=\(separatorX, privacy: .public), visibleBoundaryX=\(visibleBoundaryX ?? -1, privacy: .public), targetX=\(targetX, privacy: .public), beforeX=\(iconFrame.origin.x, privacy: .public), beforeMidX=\(iconFrame.midX, privacy: .public), afterX=\(afterFrame.origin.x, privacy: .public), afterMidX=\(afterFrame.midX, privacy: .public), deltaMidX=\(afterFrame.midX - iconFrame.midX, privacy: .public), preferredCenterX=\(preferredCenterX ?? -1, privacy: .public), statusItemIndex=\(statusItemIndex ?? -1, privacy: .public)"
             )

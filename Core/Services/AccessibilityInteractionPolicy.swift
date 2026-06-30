@@ -151,22 +151,79 @@ enum AccessibilityInteractionPolicy {
             return false
         }
         guard let rightSafeArea = screen.auxiliaryTopRightArea else { return false }
-        let unsafeRightX = rightSafeArea.minX
-        let menuBandHeight = max(72, screen.safeAreaInsets.top + 24)
-        let bottomOriginMenuBandMinY = screen.frame.maxY - menuBandHeight
+        return notchSafeMenuBarDragPoint(
+            for: frame,
+            screenFrame: screen.frame,
+            rightSafeArea: rightSafeArea,
+            topSafeInset: screen.safeAreaInsets.top
+        ) == nil
+    }
+
+    nonisolated static func notchSafeMenuBarDragPoint(
+        for frame: CGRect,
+        preferredScreenFrame: CGRect? = nil,
+        screens: [NSScreen] = NSScreen.screens
+    ) -> CGPoint? {
+        guard let screen = screens.first(where: { screen in
+            if let preferredScreenFrame, screen.frame.equalTo(preferredScreenFrame) {
+                return true
+            }
+            return screen.frame.insetBy(dx: -2, dy: -2).contains(CGPoint(x: frame.midX, y: frame.midY))
+        }) else {
+            return CGPoint(x: frame.midX, y: frame.midY)
+        }
+        return notchSafeMenuBarDragPoint(
+            for: frame,
+            screenFrame: screen.frame,
+            rightSafeArea: screen.auxiliaryTopRightArea,
+            topSafeInset: screen.safeAreaInsets.top
+        )
+    }
+
+    nonisolated static func notchSafeMenuBarDragPoint(
+        for frame: CGRect,
+        screenFrame: CGRect,
+        rightSafeArea: CGRect?,
+        topSafeInset: CGFloat,
+        rightAuxiliaryInset: CGFloat = 8,
+        frameEdgeInset: CGFloat = 2
+    ) -> CGPoint? {
+        guard let rightSafeArea else {
+            return CGPoint(x: frame.midX, y: frame.midY)
+        }
+        let menuBandHeight = max(72, topSafeInset + 24)
+        let bottomOriginMenuBandMinY = screenFrame.maxY - menuBandHeight
         let topOriginMenuBandMaxY = menuBandHeight
         let appearsInMenuBand =
             frame.midY <= topOriginMenuBandMaxY ||
             frame.minY <= topOriginMenuBandMaxY ||
             frame.midY >= bottomOriginMenuBandMinY ||
             frame.maxY >= bottomOriginMenuBandMinY
-        guard appearsInMenuBand else { return false }
+        guard appearsInMenuBand else {
+            return CGPoint(x: frame.midX, y: frame.midY)
+        }
 
         // Status items live in the right auxiliary area on notched MacBooks.
-        // The left auxiliary area is visible, but it belongs to the app menu;
-        // starting a status-item drag there collides with the notch/menu split.
-        let rightAuxiliaryInset: CGFloat = 8
-        return frame.minX < unsafeRightX + rightAuxiliaryInset || frame.midX > rightSafeArea.maxX
+        // If an icon straddles the notch split, use the pixels that overlap the
+        // right auxiliary area instead of rejecting the whole item.
+        let safeMinX = rightSafeArea.minX + rightAuxiliaryInset
+        let safeMaxX = rightSafeArea.maxX - frameEdgeInset
+        let frameMinX = frame.minX + frameEdgeInset
+        let frameMaxX = frame.maxX - frameEdgeInset
+        let lowerBound = max(frameMinX, safeMinX)
+        let upperBound = min(frameMaxX, safeMaxX)
+        guard lowerBound <= upperBound else {
+            return nil
+        }
+        let dragX: CGFloat
+        if frame.midX < lowerBound {
+            dragX = lowerBound + ((upperBound - lowerBound) * 0.5)
+        } else if frame.midX > upperBound {
+            dragX = upperBound - ((upperBound - lowerBound) * 0.5)
+        } else {
+            dragX = frame.midX
+        }
+        return CGPoint(x: dragX, y: frame.midY)
     }
 
     nonisolated static func normalizedEventY(rawY: CGFloat, globalMaxY: CGFloat, anchorY: CGFloat) -> CGFloat {
@@ -366,6 +423,25 @@ enum AccessibilityInteractionPolicy {
             }
             return deltaX > tolerance
         }
+    }
+
+    nonisolated static func shouldRetryHiddenFromAlwaysHiddenAfterBoundaryRefresh(
+        beforeFrame: CGRect,
+        afterFrame: CGRect,
+        separatorX: CGFloat,
+        visibleBoundaryX: CGFloat?,
+        tolerance: CGFloat = 2
+    ) -> Bool {
+        guard let hiddenBoundaryX = orderedHiddenBoundary(visibleBoundaryX, separatorX: separatorX) else {
+            return false
+        }
+
+        let beforeMidX = beforeFrame.midX
+        let afterMidX = afterFrame.midX
+        return beforeMidX < hiddenBoundaryX &&
+            afterMidX > beforeMidX + tolerance &&
+            afterMidX < hiddenBoundaryX &&
+            afterMidX < separatorX - tolerance
     }
 
     nonisolated static func shouldAcceptVisibleMoveAfterFreshGeometryRecheck(

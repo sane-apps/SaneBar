@@ -40,24 +40,17 @@ private func scriptIconGeometryFields(for item: ScriptZonedIcon) -> ScriptIconGe
         width: resolvedWidth,
         height: menuBandHeight
     )
-    let isNotchUnsafe = AccessibilityInteractionPolicy.frameStartsInNotchUnsafeMenuBarRegion(
-        sourceFrame,
+    let safeDragPoint = AccessibilityInteractionPolicy.notchSafeMenuBarDragPoint(
+        for: sourceFrame,
         preferredScreenFrame: screen.frame,
         screens: NSScreen.screens
     )
-    let isOutsideMenuExtraArea: Bool
-    if let rightArea = screen.auxiliaryTopRightArea {
-        let rightAuxiliaryInset: CGFloat = 8
-        isOutsideMenuExtraArea = xPosition < rightArea.minX + rightAuxiliaryInset || centerX > rightArea.maxX
-    } else {
-        isOutsideMenuExtraArea = false
-    }
 
     return ScriptIconGeometryFields(
         x: String(format: "%.2f", Double(xPosition)),
         width: String(format: "%.2f", Double(resolvedWidth)),
         centerX: String(format: "%.2f", Double(centerX)),
-        dragSourceSafety: isNotchUnsafe || isOutsideMenuExtraArea ? "unsafe" : "safe"
+        dragSourceSafety: safeDragPoint == nil ? "unsafe" : "safe"
     )
 }
 
