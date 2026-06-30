@@ -28,8 +28,8 @@ struct HiddenStateReapplyMoveRaceTests {
             structuralState: .ready,
             separatorAnchorSource: .live,
             mainAnchorSource: .live,
-            hasActiveMoveTask: true,
-            startupItemsValid: true
+            startupItemsValid: true,
+            hasActiveMoveTask: true
         )
         #expect(
             !MenuBarVisibilityPolicy.canApplyHiddenStateAfterStatusItemRecovery(
@@ -45,8 +45,8 @@ struct HiddenStateReapplyMoveRaceTests {
             separatorAnchorSource: .cached,
             mainAnchorSource: .live,
             visibilityPhase: .hidden,
-            hasActiveMoveTask: true,
-            startupItemsValid: true
+            startupItemsValid: true,
+            hasActiveMoveTask: true
         )
         #expect(
             !MenuBarVisibilityPolicy.canApplyHiddenStateAfterStatusItemRecovery(
@@ -66,8 +66,8 @@ struct HiddenStateReapplyMoveRaceTests {
             structuralState: .ready,
             separatorAnchorSource: .live,
             mainAnchorSource: .live,
-            hasActiveMoveTask: false,
-            startupItemsValid: true
+            startupItemsValid: true,
+            hasActiveMoveTask: false
         )
         #expect(
             MenuBarVisibilityPolicy.canApplyHiddenStateAfterStatusItemRecovery(
