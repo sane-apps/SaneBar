@@ -6,7 +6,27 @@
                                 
         
                                                                                                                                                                                                                                                                                                                                         
-                                                                                                                        <item>
+                                                                                                                                <item>
+            <title>2.1.86</title>
+            <link>https://sanebar.com/download</link>
+            <pubDate>Tue, 30 Jun 2026 12:42:25 -0400</pubDate>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description>
+                <![CDATA[
+                <h2>What's New</h2>
+                <ul>
+                <li>Improves moving menu-bar icons between Visible, Hidden, and Always Hidden, especially on notched MacBooks. Moving an icon to the visible area now aims for a safe drag point near the notch instead of giving up. Pinning one app no longer pulls its same-named companions into Always Hidden, and move verification double-checks against the live menu bar. Verified with real moves on a notched display.</li>
+                </ul>
+                ]]>
+            </description>
+            <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.86.zip"
+                       sparkle:version="2186"
+                       sparkle:shortVersionString="2.1.86"
+                       length="9736134"
+                       type="application/octet-stream"
+                       sparkle:edSignature="frFqJrXg6ohtHunENncTwS+qmF+u2M3R4RA/68gUibz8KwdwS3BU1ZLQ5gr18lzctFSog9sufzhFfE0dMqEFCg=="/>
+        </item>
+<item>
             <title>2.1.85</title>
             <link>https://sanebar.com/download</link>
             <pubDate>Mon, 29 Jun 2026 17:37:52 -0400</pubDate>
