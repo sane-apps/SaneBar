@@ -22,7 +22,9 @@ struct FreeVsProPage: View {
         let accent: Color
         let url: URL
 
-        var id: String { name }
+        var id: String {
+            name
+        }
     }
 
     private struct CompanionAppCard: View {
@@ -339,6 +341,33 @@ struct FreeVsProPage: View {
                     .disabled(outboundActionInFlight)
                 }
             }
+
+            Button {
+                runSingleOutboundAction {
+                    NSWorkspace.shared.open(URL(string: "https://github.com/sponsors/MrSaneApps")!)
+                }
+            } label: {
+                HStack(spacing: 7) {
+                    Image(systemName: "heart.fill")
+                        .font(.system(size: 13))
+                        .foregroundStyle(.pink)
+                    Text("Enjoyed SaneBar? Sponsor the developer")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.white)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+                .background(
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(saneAccent.opacity(0.22))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .stroke(saneAccentSoft, lineWidth: 1)
+                        )
+                )
+            }
+            .buttonStyle(.plain)
+            .disabled(licenseService.isPurchasing || outboundActionInFlight)
         }
         .frame(maxWidth: 560)
     }
