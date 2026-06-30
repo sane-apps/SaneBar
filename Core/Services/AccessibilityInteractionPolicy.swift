@@ -155,6 +155,7 @@ enum AccessibilityInteractionPolicy {
             for: frame,
             screenFrame: screen.frame,
             rightSafeArea: rightSafeArea,
+            leftSafeArea: screen.auxiliaryTopLeftArea,
             topSafeInset: screen.safeAreaInsets.top
         ) == nil
     }
@@ -176,6 +177,7 @@ enum AccessibilityInteractionPolicy {
             for: frame,
             screenFrame: screen.frame,
             rightSafeArea: screen.auxiliaryTopRightArea,
+            leftSafeArea: screen.auxiliaryTopLeftArea,
             topSafeInset: screen.safeAreaInsets.top
         )
     }
@@ -184,6 +186,7 @@ enum AccessibilityInteractionPolicy {
         for frame: CGRect,
         screenFrame: CGRect,
         rightSafeArea: CGRect?,
+        leftSafeArea: CGRect? = nil,
         topSafeInset: CGFloat,
         rightAuxiliaryInset: CGFloat = 8,
         frameEdgeInset: CGFloat = 2
@@ -203,25 +206,48 @@ enum AccessibilityInteractionPolicy {
             return CGPoint(x: frame.midX, y: frame.midY)
         }
 
+        let frameMinX = frame.minX + frameEdgeInset
+        let frameMaxX = frame.maxX - frameEdgeInset
+
+        // An icon that sits ENTIRELY left of the notch (overflow on heavily
+        // populated menu bars, #170) is not under the notch cutout — it has a
+        // perfectly safe area to grab in the left auxiliary band. Only accept
+        // when the frame is wholly contained left of the notch start; a frame
+        // that extends into the notch gap itself falls through to the
+        // right-overlap check below, which correctly refuses it.
+        if let leftSafeArea, frameMaxX <= leftSafeArea.maxX - frameEdgeInset {
+            let leftMinX = leftSafeArea.minX + frameEdgeInset
+            let leftMaxX = leftSafeArea.maxX - frameEdgeInset
+            let leftLowerBound = max(frameMinX, leftMinX)
+            let leftUpperBound = min(frameMaxX, leftMaxX)
+            if leftLowerBound <= leftUpperBound {
+                let dragX: CGFloat = if frame.midX < leftLowerBound {
+                    leftLowerBound + ((leftUpperBound - leftLowerBound) * 0.5)
+                } else if frame.midX > leftUpperBound {
+                    leftUpperBound - ((leftUpperBound - leftLowerBound) * 0.5)
+                } else {
+                    frame.midX
+                }
+                return CGPoint(x: dragX, y: frame.midY)
+            }
+        }
+
         // Status items live in the right auxiliary area on notched MacBooks.
         // If an icon straddles the notch split, use the pixels that overlap the
         // right auxiliary area instead of rejecting the whole item.
         let safeMinX = rightSafeArea.minX + rightAuxiliaryInset
         let safeMaxX = rightSafeArea.maxX - frameEdgeInset
-        let frameMinX = frame.minX + frameEdgeInset
-        let frameMaxX = frame.maxX - frameEdgeInset
         let lowerBound = max(frameMinX, safeMinX)
         let upperBound = min(frameMaxX, safeMaxX)
         guard lowerBound <= upperBound else {
             return nil
         }
-        let dragX: CGFloat
-        if frame.midX < lowerBound {
-            dragX = lowerBound + ((upperBound - lowerBound) * 0.5)
+        let dragX: CGFloat = if frame.midX < lowerBound {
+            lowerBound + ((upperBound - lowerBound) * 0.5)
         } else if frame.midX > upperBound {
-            dragX = upperBound - ((upperBound - lowerBound) * 0.5)
+            upperBound - ((upperBound - lowerBound) * 0.5)
         } else {
-            dragX = frame.midX
+            frame.midX
         }
         return CGPoint(x: dragX, y: frame.midY)
     }

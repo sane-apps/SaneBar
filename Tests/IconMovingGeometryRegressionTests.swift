@@ -86,6 +86,76 @@ struct IconMovingGrabPointTests {
 
         #expect(point == CGPoint(x: iconFrame.midX, y: iconFrame.midY))
     }
+
+    // MARK: - #170 — overflow icon stranded left of the notch
+
+    /// Real geometry read live off the Air's notched display (M4 MacBook Air,
+    /// 13"): `screen.frame` 1470x956, `auxiliaryTopLeftArea.maxX` 646,
+    /// `auxiliaryTopRightArea.minX` 825. #170's reporter logged a refused move
+    /// with `beforeMidX=640.0` — cleanly left of this Mac's notch (640 < 646),
+    /// not under it.
+    @Test("Notched visible move accepts an icon cleanly left of the notch (#170)")
+    func notchedVisibleMoveAcceptsFrameLeftOfNotch() {
+        let airScreen = CGRect(x: 0, y: 0, width: 1470, height: 956)
+        let rightAuxiliaryArea = CGRect(x: 825, y: 924, width: 645, height: 32)
+        let leftAuxiliaryArea = CGRect(x: 0, y: 924, width: 646, height: 32)
+        // #170's exact failing frame shape: midX=640.0, ordinary status-item width.
+        let strandedFrame = CGRect(x: 628, y: 4.5, width: 24, height: 24)
+        #expect(strandedFrame.midX == 640)
+
+        let point = AccessibilityInteractionPolicy.notchSafeMenuBarDragPoint(
+            for: strandedFrame,
+            screenFrame: airScreen,
+            rightSafeArea: rightAuxiliaryArea,
+            leftSafeArea: leftAuxiliaryArea,
+            topSafeInset: 34
+        )
+
+        #expect(point != nil, "An icon entirely left of the notch is not under it and should be draggable")
+        #expect(point?.x == strandedFrame.midX, "Frame fits entirely inside the left-safe band, so its own center is safe")
+        #expect(point?.y == strandedFrame.midY)
+    }
+
+    @Test("Notched visible move still refuses a frame genuinely under the notch gap even with left-safe area supplied")
+    func notchedVisibleMoveStillRefusesNotchGapWithLeftSafeAreaPresent() {
+        let airScreen = CGRect(x: 0, y: 0, width: 1470, height: 956)
+        let rightAuxiliaryArea = CGRect(x: 825, y: 924, width: 645, height: 32)
+        let leftAuxiliaryArea = CGRect(x: 0, y: 924, width: 646, height: 32)
+        // Same notch-gap frame as notchedVisibleMoveRefusesFrameWithoutRightSafeOverlap
+        // (x=720 w=80, maxX=800): extends past leftAux.maxX (646) so it does NOT
+        // qualify for the new left-clean fast path, and has no right-aux overlap
+        // either (frameMaxX 798 < safeMinX 833) — must still return nil.
+        let notchGapFrame = CGRect(x: 720, y: 4.5, width: 80, height: 24)
+
+        let point = AccessibilityInteractionPolicy.notchSafeMenuBarDragPoint(
+            for: notchGapFrame,
+            screenFrame: airScreen,
+            rightSafeArea: rightAuxiliaryArea,
+            leftSafeArea: leftAuxiliaryArea,
+            topSafeInset: 34
+        )
+
+        #expect(point == nil, "A frame genuinely under the notch gap must still be refused")
+    }
+
+    @Test("Notched visible move with nil leftSafeArea behaves exactly as before (no left-of-notch acceptance)")
+    func notchedVisibleMoveWithoutLeftSafeAreaUnchanged() {
+        let airScreen = CGRect(x: 0, y: 0, width: 1470, height: 956)
+        let rightAuxiliaryArea = CGRect(x: 825, y: 924, width: 645, height: 32)
+        let strandedFrame = CGRect(x: 628, y: 4.5, width: 24, height: 24)
+
+        // leftSafeArea omitted entirely (defaults to nil) — proves callers that
+        // never learn about the notch (or pass nil deliberately) keep the
+        // original right-only refusal behavior.
+        let point = AccessibilityInteractionPolicy.notchSafeMenuBarDragPoint(
+            for: strandedFrame,
+            screenFrame: airScreen,
+            rightSafeArea: rightAuxiliaryArea,
+            topSafeInset: 34
+        )
+
+        #expect(point == nil, "Without a left-safe area the left-of-notch fast path never fires")
+    }
 }
 
 // MARK: - Verification Margin Tests
@@ -267,8 +337,8 @@ struct SeparatorCachingTests {
 
     @Test("REGRESSION: Always-hidden separator stale/off-screen origin falls back to cached value")
     func alwaysHiddenSeparatorStaleOriginUsesCache() {
-        // Mar 2026 bug: AH separator occasionally reported stale negative origin (e.g. -30)
-        // after relayout, which produced off-screen drag targets.
+        /// Mar 2026 bug: AH separator occasionally reported stale negative origin (e.g. -30)
+        /// after relayout, which produced off-screen drag targets.
         func resolvedAlwaysHiddenOrigin(liveWindowX: CGFloat, cachedX: CGFloat?) -> CGFloat? {
             if liveWindowX > 0 {
                 return liveWindowX
