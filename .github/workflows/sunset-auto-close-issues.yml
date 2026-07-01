@@ -1,8 +1,8 @@
-name: Sunset — auto-close new issues
+name: Sunset auto-close new issues
 
 # SaneBar is sunset (macOS 27 "Golden Gate" breaks menu bar managers) and is now free +
 # MIT, community-maintained. New ISSUES are auto-closed with a friendly note. Pull
-# requests are NOT touched — this triggers on `issues` only, never on `pull_request`.
+# requests are NOT touched; this triggers on `issues` only, never on `pull_request`.
 
 on:
   issues:
@@ -20,13 +20,23 @@ jobs:
         with:
           script: |
             const body = [
-              "Thanks for taking the time to write this. 🙏",
+              "Thanks for opening this, and for using SaneBar. Let me give you the honest story instead of a canned close.",
               "",
-              "SaneBar is now **free and open source under the MIT License**, and it's **community-maintained** — I'm no longer actively developing or triaging it. Apple's macOS 27 (\"Golden Gate\") rebuilds the menu bar and breaks menu bar managers, so SaneBar has been sunset. The full story is here: https://github.com/sane-apps/SaneBar/releases/tag/sunset",
+              "**SaneBar is being sunset, and this issue is one we cannot fix.** Not because we do not want to, but because it is not really a SaneBar bug. With Apple's **next macOS update, menu bar managers as a category effectively stop working** on the Mac. Not just SaneBar, **all of them**. Apple rebuilt the menu bar event model and broke the underlying APIs that *every* menu bar manager depends on to move, hide, and manage icons, ours and everyone else's. Apple's own framework engineers have [confirmed on the developer forums](https://developer.apple.com/forums/thread/832823) that the old approach is no longer viable, so SaneBar is effectively deprecated at the platform level. There is no patch we can ship that survives what changed.",
               "",
-              "Because of that, **issues aren't monitored** and this one will be closed automatically. But the code is all yours: fork it, fix what's bugging you, and open a **pull request** — those I still review and merge.",
+              "So most existing SaneBar issues, including this one, are essentially unsolvable at the app level. We would be patching around a foundation that Apple pulled out.",
               "",
-              "Thank you for using SaneBar. — Mr. Sane",
+              "The good news: **every other SaneApp is alive and actively maintained.** SaneBar is the only one affected, and only because it lives in the one category macOS turned against. You can see the rest of the family at [saneapps.com](https://saneapps.com).",
+              "",
+              "And SaneBar is not dead in spirit. It is now **free and fully open source (MIT), community-maintained.** I am no longer triaging issues, but the door is wide open:",
+              "",
+              "- **[Fork the repo](https://github.com/sane-apps/SaneBar)** and fix what you can for your own setup",
+              "- **Open a pull request.** PRs still get reviewed and merged by real people, so if you land a fix, others will thank you",
+              "- Read the **[full sunset write-up](https://github.com/sane-apps/SaneBar/releases/tag/sunset)** for the whole story",
+              "",
+              "Closing this one out, but the repo stays open in the code. Thanks for caring enough to file it.",
+              "",
+              "**Mr. Sane**",
             ].join("\n");
             await github.rest.issues.createComment({
               owner: context.repo.owner,
