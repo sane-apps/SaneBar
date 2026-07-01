@@ -6,7 +6,28 @@
                                 
         
                                                                                                                                                                                                                                                                                                                                         
-                                                                                                                                        <item>
+                                                                                                                                                <item>
+            <title>2.1.88</title>
+            <link>https://sanebar.com/download</link>
+            <pubDate>Tue, 30 Jun 2026 22:47:36 -0400</pubDate>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description>
+                <![CDATA[
+                <h2>What's New</h2>
+                <ul>
+                <li>SaneBar is now free and fully open source under the MIT License. Every Pro feature is unlocked for everyone — no license key, no trial.</li>
+                <li>SaneBar is being sunset: macOS 27 "Golden Gate" rebuilds the menu bar and breaks menu bar managers. Thank you for everything. Source and contributions: https://github.com/sane-apps/SaneBar</li>
+                </ul>
+                ]]>
+            </description>
+            <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.88.zip"
+                       sparkle:version="2188"
+                       sparkle:shortVersionString="2.1.88"
+                       length="9739414"
+                       type="application/octet-stream"
+                       sparkle:edSignature="+GiWjxql7QFMyP19MBs+85PZuSAd4i+JCpuoj9oDkJlbSddQZVAig3VKks+FeQJQ962Ecl6oXLKdwmzKlWiGBw=="/>
+        </item>
+<item>
             <title>2.1.87</title>
             <link>https://sanebar.com/download</link>
             <pubDate>Tue, 30 Jun 2026 17:28:34 -0400</pubDate>
