@@ -24,4 +24,4 @@ This repository is public. Keep agent instructions public-safe and do not commit
 
 - Do not track `.build-logs`, `DerivedData`, `.claude`, `.agent`, `.gemini`, `SESSION_HANDOFF.md`, generated outputs, or local screenshots.
 - Keep dependency versions reproducible. Do not track internal packages from a moving branch when a revision or tag is available.
-- Use source-available wording for SaneBar. The repo is licensed under PolyForm Shield, not a permissive open-source license.
+- SaneBar is free and fully open source under the MIT License (relicensed June 2026 as part of the sunset). Use open-source/MIT wording; the old "source-available / PolyForm Shield" framing is retired.
