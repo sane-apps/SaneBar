@@ -149,7 +149,7 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
         XCTAssertFalse(security.contains("| 1.0.x"), "Security policy should not advertise stale 1.0.x support")
         XCTAssertTrue(readme.contains("MIT License"), "README should state the current MIT open-source license")
         XCTAssertFalse(readme.contains("source-available under PolyForm Shield"), "README should not advertise the retired PolyForm Shield license after the MIT relicense")
-        XCTAssertTrue(website.contains("transparent source"), "Website metadata should avoid over-broad public-code wording")
+        XCTAssertTrue(website.contains("open source"), "Website should state SaneBar is open source (MIT) after the free relicense")
     }
 
     func testNormalizedEventYKeepsAlreadyFlippedMenuBarY() {
