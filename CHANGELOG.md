@@ -10,6 +10,14 @@ For user-requested features, see [marketing/feature-requests.md](marketing/featu
 
 ---
 
+## [2.1.88] - 2026-06-30
+
+SaneBar is now free and fully open source under the MIT License. Every Pro feature is unlocked for everyone — no license key, no trial.
+
+SaneBar is being sunset: macOS 27 "Golden Gate" rebuilds the menu bar and breaks menu bar managers. Thank you for everything. Source and contributions: https://github.com/sane-apps/SaneBar
+
+---
+
 ## [2.1.87] - 2026-06-30
 
 More reliable icon-moving during display changes, Space switches, and wake. Some notched and multi-display setups still hit macOS limits this cannot fully fix. I will email all paid users soon about macOS 27 and what it means for SaneBar.
