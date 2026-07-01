@@ -1,0 +1,43 @@
+name: Sunset — auto-close new issues
+
+# SaneBar is sunset (macOS 27 "Golden Gate" breaks menu bar managers) and is now free +
+# MIT, community-maintained. New ISSUES are auto-closed with a friendly note. Pull
+# requests are NOT touched — this triggers on `issues` only, never on `pull_request`.
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  issues: write
+
+jobs:
+  auto-close:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Comment and close
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = [
+              "Thanks for taking the time to write this. 🙏",
+              "",
+              "SaneBar is now **free and open source under the MIT License**, and it's **community-maintained** — I'm no longer actively developing or triaging it. Apple's macOS 27 (\"Golden Gate\") rebuilds the menu bar and breaks menu bar managers, so SaneBar has been sunset. The full story is here: https://github.com/sane-apps/SaneBar/releases/tag/sunset",
+              "",
+              "Because of that, **issues aren't monitored** and this one will be closed automatically. But the code is all yours: fork it, fix what's bugging you, and open a **pull request** — those I still review and merge.",
+              "",
+              "Thank you for using SaneBar. — Mr. Sane",
+            ].join("\n");
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body,
+            });
+            await github.rest.issues.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              state: "closed",
+              state_reason: "not_planned",
+            });
