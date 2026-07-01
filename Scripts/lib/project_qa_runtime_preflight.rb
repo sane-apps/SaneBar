@@ -449,6 +449,17 @@ class ProjectQA
         return
       end
 
+      # Wake layout probe retired (owner-directed, 2026-07). SaneBar is being sunset
+      # (macOS 27 "Golden Gate" breaks menu bar managers) and is now free + MIT. This
+      # probe is a flaky, SaneBar-only Mini harness: it sleeps/wakes the Mini display and
+      # failed non-reproducibly across runs (FM-2 divider seed did-not-take, passive
+      # startup cursor-move, SwiftBar visible-zone). Wake behavior is unchanged from the
+      # already-shipped 2.1.87, so it no longer gates the sunset release.
+      if ENV['SANEBAR_RUN_WAKE_PROBE'] != '1'
+        puts '⏭️  Wake layout probe retired for the SaneBar sunset build (set SANEBAR_RUN_WAKE_PROBE=1 to force).'
+        return
+      end
+
       dynamic_helper_ids = ensure_runtime_dynamic_helper_wake_fixture!(target)
       if dynamic_helper_ids.empty?
         @errors << "Wake layout probe had no deterministic dynamic-helper fixture. Lungo-style Hidden-to-Visible wake drift is release-blocking. See #{RUNTIME_DYNAMIC_HELPER_FIXTURE_LOG_PATH}."
