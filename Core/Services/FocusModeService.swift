@@ -53,8 +53,9 @@ final class FocusModeService: NSObject {
         guard !isMonitoring else { return }
 
         isMonitoring = true
+        let startingMode = currentFocusMode ?? "none"
         lastKnownFocusMode = currentFocusMode
-        logger.info("Started Focus Mode monitoring. Current mode: \(currentFocusMode ?? "none")")
+        logger.info("Started Focus Mode monitoring. Current mode: \(startingMode)")
 
         // Monitor Focus Mode changes via DistributedNotificationCenter
         // This notification fires when Focus status changes system-wide
