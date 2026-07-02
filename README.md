@@ -339,6 +339,7 @@ Built pair programming with [Claude](https://claude.ai). Wanted a menu bar manag
 | [CHANGELOG.md](CHANGELOG.md) | Version history |
 | [GitHub Issues](https://github.com/sane-apps/SaneBar/issues) | Bug reports and tracking |
 | [DEVELOPMENT.md](DEVELOPMENT.md) | Development rules and SOP |
+| [docs/NOTCH_MOVE_LIMITATION.md](docs/NOTCH_MOVE_LIMITATION.md) | Why notch-stuck icons can't be moved on macOS 26 (proven platform limit + the privacy trade-off we declined) |
 
 </details>
 
