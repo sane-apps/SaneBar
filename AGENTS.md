@@ -12,10 +12,9 @@ This repository is public. Keep agent instructions public-safe and do not commit
 
 ## Workflow
 
-- Prefer the project wrappers in `scripts/SaneMaster.rb` for build, test, release, preflight, launch, and QA workflows.
-- Do not run raw release steps manually; use the shared `release.sh` flow documented in `DEVELOPMENT.md`.
-- For SaneApps maintainers, use the Mac Mini build server and private local handoff/memory files when available, but keep those files out of the public repository.
-- Before claiming release readiness, run code verification, release preflight, and customer-facing runtime/visual checks for touched surfaces.
+- Prefer the project wrappers in `Scripts/SaneMaster.rb` for build, test, launch, and QA workflows.
+- Releases are signed and published by the repo owner. Pull requests must never touch `docs/appcast.xml`, `docs/_redirects`, or release artifacts.
+- Before claiming a change works, build and test it, and runtime-verify any customer-facing surface you touched.
 - Settings and right-click menu items must be ordered from the customer's most likely/common need to the least likely/most advanced need.
 - Settings text, helper text, highlights, badges, status messages, and subsection text must stay bright white, high contrast, and at least `13pt`.
 - Settings sections should use plain language, balanced spacing, and visual symmetry.

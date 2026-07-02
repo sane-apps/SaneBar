@@ -2,8 +2,6 @@
 
 > [README](README.md) · [ARCHITECTURE](ARCHITECTURE.md) · [DEVELOPMENT](DEVELOPMENT.md) · [PRIVACY](PRIVACY.md) · [SECURITY](SECURITY.md)
 
-Last updated: 2026-02-09
-
 This document explains how SaneBar is structured, how it moves menu bar icons, and how the major services interact. It is written to be useful to any developer (Swift, macOS, or otherwise).
 
 ## Goals and Non-Goals
@@ -239,38 +237,31 @@ See `PRIVACY.md` for details and rationale.
 
 ## Updates and Distribution
 
-- Current public channels are direct download and Setapp:
-  - Sparkle is used for updates (appcast in Info.plist)
-  - update feed: `https://sanebar.com/appcast.xml`
-  - release builds produce a notarized ZIP-first direct-download/Sparkle artifact hosted via Cloudflare R2 at `dist.sanebar.com/updates/SaneBar-X.Y.Z.zip`
-- Basic stays free and Pro is a one-time `$14.99` unlock on direct surfaces.
-- The current full-featured Mac App Store lane is intentionally disabled.
-- Setapp is an active distribution lane. The Setapp build uses the `SaneBarSetapp`
-  scheme, `com.sanebar.app-setapp` bundle ID, Setapp Framework access, Setapp
-  update policy, no Sparkle/direct-pay UI, and Setapp-managed Pro access.
-- Direct Lemon Squeezy sales stay in place for the website/direct channel.
+SaneBar is free, MIT-licensed, and community-maintained (sunset June 2026).
 
-## Build and Release Infrastructure
+- Sparkle handles updates: `SUFeedURL` in `SaneBar/Info.plist` →
+  `https://sanebar.com/appcast.xml`.
+- Historical releases were notarized ZIP-first direct-download/Sparkle
+  artifacts hosted at `dist.sanebar.com/updates/SaneBar-X.Y.Z.zip`, mirrored
+  permanently on GitHub Releases. Sparkle appcast enclosures and website download routes must point to the same versioned ZIP.
+- Updates are EdDSA-signed; the public key ships in Info.plist
+  (`7Pl/8cwfb2vm4Dm65AByslkMCScLJ9tbGlwGGx81qYU=`). The private key stays with
+  the original maintainer, so forks need their own keys and feed URL.
+- The Mac App Store lane never shipped; the Setapp lane is retired (see
+  [Setapp/README.md](Setapp/README.md)). The `SaneBarSetapp` scheme still
+  builds for legacy reasons.
 
-- **SaneProcess integration**: `.saneprocess` in the project root marks this as a SaneProcess-managed project.
-- **ZIP artifacts**: uploaded to Cloudflare R2 bucket `sanebar-downloads` (never committed to GitHub). Sparkle appcast enclosures and website download routes must point to the same versioned ZIP.
-- **Appcast**: Sparkle reads `SUFeedURL` from `SaneBar/Info.plist` → `https://sanebar.com/appcast.xml`.
-- **Sparkle key**: `7Pl/8cwfb2vm4Dm65AByslkMCScLJ9tbGlwGGx81qYU=` (shared across all SaneApps).
-- **Release workflow**: see DEVELOPMENT.md § Release Process and ARCHITECTURE.md § Operations & Scripts Reference.
-- **Setapp lane notes**:
-  - menu bar apps must report Setapp `.userInteraction` events on real menu bar activation
-  - Setapp macOS 13+ updates require `NSUpdateSecurityPolicy` authorizing `com.setapp.DesktopClient.SetappAgent`
-  - if the Setapp build is sandboxed, it needs the `com.setapp.ProvisioningService` Mach lookup exception
-  - Setapp packages must be universal (`arm64` and `x86_64`) and declare matching `MPSupportedArchitectures`
-  - Setapp final ZIP validation must reject Sparkle framework residue, Lemon
-    Squeezy/license-key/checkout strings, and donation/direct-download copy in
-    the uploaded archive
-  - Setapp listing screenshots are manifest-backed assets in
-    `docs/images/setapp/`, derived from owned-site app-in-use screenshots, and
-    must pass 16:10 / 1280x800 validation before upload
-  - Setapp public release notes must be user-facing. Review-team comments,
-    icon geometry, archive/signing details, and direct-channel licensing/update
-    terms belong in private review comments or email, not in Release notes.
+### Licensing (historical)
+
+The paid era's license machinery (`Core/Services/LicenseService.swift`, trial
+logic, upsell UI) is still in the tree, permanently short-circuited: the
+production build passes `freeBuildUnlock: true`, which sets `isPro = true`
+before any keychain/network/trial path runs. Every downstream `isPro` gate is
+therefore constant-true in shipped builds. It is kept because the `isPro`
+plumbing threads through the battle-tested move/zone workflows and old paid
+installs still carry keychain license state — removing it wholesale is riskier
+than the dead weight is worth. Tests exercise the historical paths by passing
+`freeBuildUnlock: false`.
 
 ## Error Handling and Recovery
 
@@ -289,6 +280,10 @@ The recovery contract is:
 - treat missing, unattached, or blocking-mode anchors as recovery input, not as valid layout state
 - rebuild SaneBar-owned anchors or open the Health fallback when live proof cannot be established
 - never use cached geometry alone to silently restore a hidden state after startup, reboot, wake, display changes, or poisoned defaults
+
+The full root-cause history behind this contract lives in
+[docs/GEOMETRY_TRUST_REVIEW_2026-06-10.md](docs/GEOMETRY_TRUST_REVIEW_2026-06-10.md) —
+read it before changing any recovery code.
 
 ## Testing Strategy
 
@@ -401,81 +396,7 @@ third-party item drags.
 
 ## Operations & Scripts Reference
 
-After consolidation (Feb 2026), ~32 active scripts across 4 locations. Dead copies and superseded CI scripts removed.
-
-### SaneBar Project Scripts (`Scripts/`)
-
-The checked-in project helper directory is `Scripts/` with a capital `S`. Default macOS volumes may allow `scripts/`, but docs and durable references should use the portable checked-in casing.
-
-| Script | Purpose | Usage |
-|--------|---------|-------|
-| `SaneMaster.rb` | Project wrapper that hydrates SaneBar metadata/signing context, delegates to SaneProcess when present, and falls back to standalone mode for external contributors | `./Scripts/SaneMaster.rb <command>` |
-| `SaneMaster_standalone.rb` | Minimal build tool for external contributors without SaneProcess infra | `ruby Scripts/SaneMaster_standalone.rb build` |
-| `qa.rb` | Pre-release QA: release guardrails, docs/tooling checks, appcast checks, runtime probe orchestration | `ruby Scripts/qa.rb` |
-| `customer_ui_action_sweep.rb` | Customer-facing action receipt sweep | `ruby Scripts/customer_ui_action_sweep.rb` |
-| `live_zone_smoke.rb` | Mini runtime smoke for browse views, moves, screenshots, and resource checks | `./Scripts/live_zone_smoke.rb` |
-| `startup_layout_probe.rb` | Mini startup recovery probe for poisoned persisted state and live-anchor restoration | `./Scripts/startup_layout_probe.rb` |
-| `wake_layout_probe.rb` | Mini wake/display recovery probe for drift and live-anchor restoration | `./Scripts/wake_layout_probe.rb` |
-| `button_map.rb` | Maps every UI button/toggle to its action handler | `ruby Scripts/button_map.rb` |
-| `marketing_screenshots.rb` | Automates app screenshots for marketing | `ruby Scripts/marketing_screenshots.rb --list` |
-| `stress_test_menubar.swift` | Menu bar stress test | `swift Scripts/stress_test_menubar.swift` |
-| `overflow_test_menubar.swift` | Menu bar overflow edge cases | `swift Scripts/overflow_test_menubar.swift` |
-| `uninstall_sanebar.sh` | Clean uninstall script for users | `bash Scripts/uninstall_sanebar.sh` |
-
-### SaneMaster Commands (via SaneProcess)
-
-The wrapper at `Scripts/SaneMaster.rb` delegates to `SaneProcess/scripts/SaneMaster.rb`. Full help: `./Scripts/SaneMaster.rb help`.
-
-| Category | Commands | Purpose |
-|----------|----------|---------|
-| **build** | `verify`, `clean`, `lint`, `release`, `release_preflight`, `appstore_preflight` | Build, test, release pipeline, App Store compliance |
-| **sales** | `sales`, `sales --products`, `sales --month`, `sales --fees` | LemonSqueezy revenue reporting |
-| **check** | `verify_api`, `dead_code`, `deprecations`, `swift6`, `test_scan`, `structural` | Static analysis, API verification |
-| **debug** | `test_mode` (tm), `logs --follow`, `launch`, `crashes`, `diagnose` | Interactive debugging, crash analysis |
-| **ci** | `enable_ci_tests`, `restore_ci_tests`, `fix_mocks`, `monitor_tests`, `image_info` | CI/CD test helpers |
-| **gen** | `gen_test`, `gen_mock`, `gen_assets`, `template` | Code generation, mocks, assets |
-| **memory** | `mc`, `mr`, `mh`, `mcompact`, `mcleanup`, `session_end`, `reset_breaker` | Cross-session memory, circuit breaker |
-| **env** | `doctor`, `health`, `bootstrap`, `versions`, `reset`, `restore` | Environment setup, health checks |
-| **export** | `export`, `md_export`, `deps`, `quality` | PDF export, dependency graphs |
-
-### Shared Infrastructure (SaneProcess `scripts/`)
-
-These live in `SaneProcess/scripts/` and serve all SaneApps projects.
-
-| Script | Purpose | When to Use |
-|--------|---------|-------------|
-| `release.sh` | Full release pipeline: build + sign + notarize ZIP + Sparkle + R2 + appcast | `release.sh --project $(pwd) --full --version X.Y.Z` |
-| `sane_test.rb` | Unified test launch: kill → build → deploy → launch → logs | `sane_test.rb SaneBar` (uses Mac Mini by default) |
-| `version_bump.rb` | Bump version strings across project files | `ruby version_bump.rb 2.2.0` |
-| `contamination_check.rb` | Detect cross-project reference leaks | `ruby contamination_check.rb --all` |
-| `link_monitor.rb` | Monitor critical URLs (checkout, download, website) | Runs as LaunchAgent daemon |
-| `scaffold.rb` | Create new app project with SaneApps structure | `ruby scaffold.rb NewApp` |
-| `memory_audit.rb` | Find unfixed bugs/unresolved issues in Memory MCP | `ruby memory_audit.rb` |
-| `validation_report.rb` | Measure SaneProcess productivity metrics | `ruby validation_report.rb` |
-| `appstore_submit.rb` | App Store Connect submission (JWT, upload, polling) | `ruby appstore_submit.rb` |
-| `qa_drift_checks.rb` | Catch quality drift between SaneProcess and projects | `ruby qa_drift_checks.rb` |
-| `weaken_sparkle.rb` | Patch Sparkle dylib for App Store builds | `ruby weaken_sparkle.rb` |
-
-### Mac Mini & Automation
-
-Mini scripts live in `SaneProcess/scripts/mini/` (source of truth) and `infra/scripts/` (deployed copies).
-
-| Script | Schedule | Purpose |
-|--------|----------|---------|
-| `mini-nightly.sh` | 2 AM daily | Git sync + build all apps + run tests + system health |
-| `mini-train.sh` | 3 AM daily | MLX LoRA fine-tuning |
-| `mini-build.sh` | On-demand | Remote build trigger |
-| `mini-test-install.sh` | On-demand | Customer archive install verify (ZIP-first, historical DMG fallback) |
-| `mini-sync.sh` | On-demand | Git sync across all repos |
-| `mini-report.sh` | On-demand | Fetch nightly report from Mini |
-| `mini-training-report.sh` | On-demand | Fetch training report from Mini |
-
-Automation scripts (`SaneProcess/scripts/automation/`): `nv-audit.sh`, `nv-relnotes.sh`, `nv-tests.sh`, `nv-buildlog.sh`, `morning-report.sh`, `start-workday.sh` — see `automation/README.md`.
-
-### SOPs
-
-**License issuance:** Real customer license keys come from LemonSqueezy-backed orders and license-key records only. SaneBar validates against LemonSqueezy, so local key generators are not part of the supported workflow.
-
-**Release process:** See `SaneProcess/templates/RELEASE_SOP.md`. Summary: bump version -> `release_preflight` -> `release.sh --full --deploy` -> verify appcast and ZIP-first direct-download/Sparkle artifact -> monitor.
-
-**Customer email:** See `check-inbox.sh` in `infra/scripts/`. Commands: `check`, `review <id>`, `reply <id> <body_file>`, `compose`, `resolve`.
+The checked-in project helper directory is `Scripts/` with a capital `S`.
+See [Scripts/README.md](Scripts/README.md) for the full catalog: the everyday
+build/test commands that work on any clone, and the maintainer-only release
+tooling kept for reference.

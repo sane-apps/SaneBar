@@ -4,11 +4,8 @@
 
 ## Supported Versions
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 2.x     | :white_check_mark: |
-| 1.x     | Security fixes only |
-| < 1.0   | :x:                |
+SaneBar is community-maintained. There is no formal support commitment; only
+the latest release receives fixes, on a best-effort basis.
 
 ---
 
@@ -24,7 +21,7 @@ Include:
 - Potential impact
 - Any suggested fixes (optional)
 
-You should receive a response within 48 hours. We'll work with you to understand and address the issue.
+Reports are read on a best-effort basis — SaneBar is community-maintained, so there is no guaranteed response time.
 
 ---
 
@@ -34,7 +31,7 @@ SaneBar is a **menu bar utility** that:
 
 1. **Requires Accessibility permissions** to read and manipulate menu bar items
 2. **Stores settings locally** in `~/Library/Application Support/SaneBar/`
-3. **Uses limited network requests only when needed** — Sparkle update checks, direct-license validation, and a few simple anonymous app counts
+3. **Uses limited network requests only when needed** — Sparkle update checks and a few simple anonymous app counts
 
 ### Known Limitations
 
@@ -104,7 +101,7 @@ Minor concerns (all documented with mitigations above):
 SaneBar implements:
 
 - **Hardened Runtime** — Required for notarization
-- **No special network entitlements** — Standard outbound macOS networking only for updates, direct-license checks, and a few simple anonymous app counts
+- **No special network entitlements** — Standard outbound macOS networking only for updates and a few simple anonymous app counts
 - **Notarized by Apple** — Scanned for malware before distribution
 - **100% transparent code** — Full source available for inspection on GitHub
 

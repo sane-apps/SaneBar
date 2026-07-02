@@ -369,15 +369,7 @@ After running these commands, the next app launch should recreate fresh window p
 
 ### Prevention
 
-The global hook `SaneProcess/scripts/hooks/sane_launch_guard.rb` (registered in `~/.claude/settings.json`)
-blocks manual `open SaneBar.app` and direct binary execution. Use `sane_test.rb` for all testing.
-
-| Allowed | Blocked |
-|---------|---------|
-| `sane_test.rb SaneBar` | `open SaneBar.app` |
-| `xcodebuild build` | Direct binary execution |
-| `xcodebuild test` | `open -a SaneBar` |
-| `SaneMaster.rb test_mode` | Manual launch commands |
+Prefer `./Scripts/SaneMaster.rb test_mode` over launching stray builds, and never run two SaneBar instances at once — a second instance breaks the Accessibility (TCC) grant.
 
 ### Root Cause (Unknown)
 
@@ -387,3 +379,11 @@ The exact cause is unclear. Theories include:
 - Saved window state incompatibility between build configurations
 
 If you discover the root cause, please document it here.
+
+---
+
+## Hard-won live-testing notes
+
+1. Never run two SaneBar instances at once; it breaks the TCC/Accessibility grant and the symptoms look like app bugs.
+2. The browse panel is transient — script whole interactions in one batch, and verify moves with the AppleScript `list icon zones` output, not the "Move complete" log line.
+3. When streaming logs use `log stream --level info --predicate 'subsystem == "com.sanebar.app"'` from a script file rather than inline in a terminal one-liner (quoting eats the predicate).

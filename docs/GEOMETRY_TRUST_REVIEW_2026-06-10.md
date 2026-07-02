@@ -116,11 +116,6 @@ could not see, now fixed and encoded in tests:
   after the next healthy validation, which covers most cases.
 - The drift-vs-intent tolerance (160pt) and flap thresholds (4 in 10s, 5min
   dormancy) are first guesses; revisit against telemetry in issue reports.
-- SaneProcess verify banner can lie: SaneMaster printed "Tests passed!" over
-  a real Swift Testing failure (and over a 600s timeout). verify.rb is past
-  the 800-line hook split limit; split it, then make the banner reflect the
-  Swift Testing result line ("Test run with N tests ... failed") and the
-  xcodebuild exit code. Until then, trust test_output.txt, not the banner.
 - R4 settings-vocabulary issues (#144, #145): "layout stability", "extra
   dividers" wording still confuses users; not addressed in this pass.
 

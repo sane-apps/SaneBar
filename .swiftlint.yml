@@ -1,9 +1,4 @@
-# SaneApps Canonical SwiftLint Configuration
-# Source of truth: infra/SaneProcess/templates/swiftlint.yml
-# Sync via: ruby scripts/sync_check.rb --fix
-#
-# Per-app overrides: Add an `included:` section if needed.
-# Do NOT change disabled_rules or opt_in_rules per-app.
+# SaneBar SwiftLint configuration
 
 disabled_rules:
   - trailing_whitespace

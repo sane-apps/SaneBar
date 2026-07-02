@@ -3,30 +3,6 @@ import os.log
 
 private let logger = Logger(subsystem: "com.sanebar.app", category: "MenuBarSpacing")
 
-// MARK: - MenuBarSpacingServiceProtocol
-
-/// @mockable
-@MainActor
-protocol MenuBarSpacingServiceProtocol {
-    /// Current spacing value (nil if using system default)
-    func currentSpacing() -> Int?
-
-    /// Current selection padding (nil if using system default)
-    func currentSelectionPadding() -> Int?
-
-    /// Set spacing (1-10, or nil to reset)
-    func setSpacing(_ value: Int?) throws
-
-    /// Set selection padding (1-10, or nil to reset)
-    func setSelectionPadding(_ value: Int?) throws
-
-    /// Reset both to system defaults
-    func resetToDefaults() throws
-
-    /// Attempt graceful refresh (may not work - logout usually required)
-    func attemptGracefulRefresh()
-}
-
 // MARK: - MenuBarSpacingError
 
 enum MenuBarSpacingError: Error, LocalizedError {
@@ -53,7 +29,7 @@ enum MenuBarSpacingError: Error, LocalizedError {
 ///
 /// **Important**: Changes typically require logout/login to take effect.
 @MainActor
-final class MenuBarSpacingService: MenuBarSpacingServiceProtocol {
+final class MenuBarSpacingService {
     // MARK: - Constants
 
     private static let spacingKey = "NSStatusItemSpacing"

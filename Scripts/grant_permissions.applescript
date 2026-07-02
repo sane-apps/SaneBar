@@ -1,1 +1,0 @@
-../../../infra/SaneProcess/scripts/grant_permissions.applescript

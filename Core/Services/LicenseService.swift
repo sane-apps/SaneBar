@@ -9,10 +9,13 @@ import SaneUI
 
 private let licenseLogger = Logger(subsystem: "com.sanebar.app", category: "License")
 
-/// Manages Pro license status. Validates via LemonSqueezy API, caches in Keychain.
+/// Historical license machinery, retained for legacy paid installs and tests.
 ///
-/// Free users can browse panels and search icons. Pro unlocks actions (activate, move,
-/// customize) — see ``ProFeature`` for the full list.
+/// SaneBar is free + MIT as of June 2026: production builds pass
+/// `freeBuildUnlock: true`, which sets `isPro = true` before any
+/// keychain/network/trial path runs, so every downstream Pro gate is
+/// constant-true in shipped builds. The LemonSqueezy/StoreKit/trial paths
+/// below are reachable only from tests that pass `freeBuildUnlock: false`.
 @MainActor
 final class LicenseService: ObservableObject {
     static let shared = LicenseService()

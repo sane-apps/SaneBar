@@ -104,6 +104,12 @@ class ProjectQA
   def check_saneui_guardrails
     print 'Checking SaneUI guardrails... '
 
+    unless File.exist?(File.expand_path('../../infra/SaneProcess/scripts/SaneMaster.rb', PROJECT_ROOT))
+      @warnings << 'SaneUI guard skipped (maintainer-only check; SaneProcess infra not present)'
+      puts '⚠️  skipped (standalone clone)'
+      return
+    end
+
     output, status = Open3.capture2e(SANEMASTER_CLI, 'saneui_guard', PROJECT_ROOT)
     lines = output.lines.map(&:strip).reject(&:empty?)
     if status.success?
@@ -253,8 +259,8 @@ class ProjectQA
 
     script = File.expand_path('../../infra/SaneProcess/scripts/app_test_mode.sh', PROJECT_ROOT)
     unless File.exist?(script)
-      @errors << "Test-mode script missing: #{script}"
-      puts '❌ missing app_test_mode.sh'
+      @warnings << 'Test-mode tooling check skipped (maintainer-only check; SaneProcess infra not present)'
+      puts '⚠️  skipped (standalone clone)'
       return
     end
 

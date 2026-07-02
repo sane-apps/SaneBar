@@ -1,6 +1,6 @@
 AllCops:
   NewCops: enable
-  TargetRubyVersion: 2.6
+  TargetRubyVersion: 3.4
 
 Metrics/MethodLength:
   Enabled: false

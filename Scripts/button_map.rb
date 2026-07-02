@@ -1,10 +1,15 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
+# Source files are UTF-8; without this the scan crashes in non-UTF-8 shells
+# (ssh, CI, launchd).
+Encoding.default_external = Encoding::UTF_8
+Encoding.default_internal = Encoding::UTF_8
+
 # SaneBar Button Map
 # Maps every UI button/toggle to its corresponding action
 #
-# Usage: ./scripts/button_map.rb
+# Usage: ./Scripts/button_map.rb
 
 require 'set'
 

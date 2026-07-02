@@ -183,7 +183,7 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
 
         // Move to /Applications if running from Downloads or other location (Release only)
         #if !DEBUG && !APP_STORE && !SETAPP
-            if SaneAppMover.moveToApplicationsFolderIfNeeded(prompt: .init(
+            if SaneApplicationMover.moveToApplicationsFolderIfNeeded(prompt: .init(
                 messageText: "Move to Applications?",
                 informativeText: "{appName} works best from your Applications folder. Move it there now? You may be asked for your password.",
                 moveButtonTitle: "Move to Applications",

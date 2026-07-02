@@ -61,6 +61,12 @@ Or **[download directly](https://sanebar.com)** · or [build from source](#for-d
 
 SaneBar updates itself automatically via Sparkle. `brew upgrade` works too if you prefer.
 
+### What survives the sunset
+
+- **[GitHub Releases](https://github.com/sane-apps/SaneBar/releases)** mirrors every shipped version — it's the permanent download archive.
+- sanebar.com, the update feed, and the direct-download host stay up on a best-effort basis. If they ever lapse, auto-updates and site downloads simply stop (updates are EdDSA-signed, so the failure mode is silence, not compromise).
+- Forks that want their own auto-updates need their own Sparkle keys and feed URL — see [DEVELOPMENT.md](DEVELOPMENT.md).
+
 ---
 
 ## How It Works
@@ -254,11 +260,10 @@ Prefer crypto? These work too:
 <summary>Build from source</summary>
 
 ### Requirements
-- macOS 14.0+ (Sonoma or later)
+- Xcode 16+ (needs macOS Sequoia or later to build; the app runs on macOS 14.0+)
 - Apple Silicon (arm64) only
-- Xcode 16+
-- Ruby 3.0+
-- [XcodeGen](https://github.com/yonaskolb/XcodeGen)
+- Ruby 3.0+ (for the helper scripts; no gems needed)
+- [XcodeGen](https://github.com/yonaskolb/XcodeGen) — only if you add or remove source files
 
 ### Build
 
@@ -269,7 +274,7 @@ cd SaneBar
 ./Scripts/SaneMaster.rb launch    # build and run
 ```
 
-**External contributors:** `SaneMaster.rb` works standalone — no monorepo required. If the shared infrastructure isn't found, it falls back to direct `xcodebuild` commands. You can also build manually:
+**External contributors:** `SaneMaster.rb` works standalone — no monorepo required. If the shared infrastructure isn't found, it falls back to `Scripts/SaneMaster_standalone.rb`, which wraps plain `xcodebuild`. You can also build manually:
 
 ```bash
 xcodebuild -scheme SaneBar -configuration Debug build
@@ -403,19 +408,18 @@ Bug or idea:
 Please do this for me:
 1) Understand and reproduce the issue (or understand the feature request).
 2) Make the smallest safe fix.
-3) Open a pull request to https://github.com/sane-apps/SaneBar
+3) Open a pull request to https://github.com/sane-apps/SaneBar with a short
+   summary of what changed and why in the PR description.
 4) Give me the pull request link.
-5) Open a GitHub issue in https://github.com/sane-apps/SaneBar/issues/new?template=bug_report.md that includes:
-   - the pull request link
-   - a short summary of what changed and why
-6) Also give me the exact issue link.
 
 Important:
 - Keep it focused on this one issue/idea.
 - Do not make unrelated changes.
+- Do not open a GitHub issue — new issues are auto-closed; the pull request
+  itself is the report.
 ```
 
-I review and test every pull request before merge.
+Pull requests are reviewed and tested before merge.
 
-If your PR is merged, I will publicly give you credit, and you'll have the satisfaction of knowing you helped ship a fix for everyone.
+If your PR is merged, you get public credit, and the satisfaction of knowing you helped ship a fix for everyone.
 <!-- SANEAPPS_AI_CONTRIB_END -->

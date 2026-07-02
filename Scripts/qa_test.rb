@@ -272,6 +272,8 @@ class ProjectQATest < Minitest::Test
 
   def test_shared_sanemaster_wrapper_prelude_owns_signing_policy
     prelude_path = File.expand_path('../../infra/SaneProcess/scripts/sanemaster-wrapper-prelude.sh', ProjectQA::PROJECT_ROOT)
+    skip 'SaneProcess infra not present (maintainer-only check)' unless File.exist?(prelude_path)
+
     prelude_source = File.read(prelude_path)
 
     assert_includes prelude_source, 'saneprocess_prepare_signing_keychain'

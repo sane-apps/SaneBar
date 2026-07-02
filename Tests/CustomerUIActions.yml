@@ -94,7 +94,7 @@ runtime_state_matrix:
     - log
     - screenshot
     - state_receipt
-    runner: scripts/air_ir_test.sh setup + start/finish/validate on the notched MacBook Air
+    runner: manual notched-Mac runtime pass (the historical air_ir_test.sh harness was retired with the sunset)
     required_scenarios:
     - real app ingress used sane_test launch, hotkey, click, right-click menu, and drag tile
     - menu move Hidden to Visible changed authoritative zone
