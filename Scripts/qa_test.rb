@@ -60,6 +60,7 @@ class ProjectQATest < Minitest::Test
   def with_file_backup(path)
     existed = File.exist?(path)
     content = File.binread(path) if existed
+    FileUtils.mkdir_p(File.dirname(path))
     yield
   ensure
     if existed
