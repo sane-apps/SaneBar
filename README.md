@@ -7,13 +7,18 @@
 [![Privacy: On-Device by Default](https://img.shields.io/badge/Privacy-On--Device%20by%20Default-success)](PRIVACY.md)
 [![Listed on awesome-macos](https://img.shields.io/badge/Listed%20on-macOS--apps%20(40k%E2%98%85)-black)](https://github.com/serhii-londar/open-source-mac-os-apps)
 
-> **⭐ Star this repo if it's useful!** · **[Download Basic](https://sanebar.com)** · **[Upgrade to Pro — $14.99 once](https://sanebar.com)** · Keeps development alive
+> ### 🎉 SaneBar is now 100% free and open source
+> Every Pro feature is unlocked for everyone — no license key, no trial, no strings. MIT licensed: use it, fork it, ship your own version. **[Read the full announcement](https://github.com/sane-apps/SaneBar/releases/tag/sunset)** for why (spoiler: macOS 27 breaks every menu bar manager) and what it means for you.
+>
+> SaneBar is community-maintained now. Found a bug and fixed it? **Pull requests are reviewed and merged** — see [Become a Contributor](#become-a-contributor-even-if-you-dont-code) below, even if you don't code.
+>
+> **⭐ [Star this repo](https://github.com/sane-apps/SaneBar/stargazers)** · **[Download](https://sanebar.com)** · **[Sponsor the developer](https://github.com/sponsors/MrSaneApps)**
 
 <a href="https://www.producthunt.com/products/sanebar?utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-sanebar" target="_blank"><img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1067345&theme=light" alt="SaneBar on Product Hunt" width="250" height="54" /></a>
 
 **Hide the apps. Keep the access.**
 
-Hide menu bar apps you do not need right now, keep the important ones visible, and quickly open hidden apps when you need them. Basic is $0. Pro adds Touch ID lock, smart triggers, profiles, and more.
+Hide menu bar apps you do not need right now, keep the important ones visible, and quickly open hidden apps when you need them. Free and open source — Touch ID lock, smart triggers, profiles, and everything else included.
 
 | | |
 |---|---|
@@ -36,9 +41,7 @@ Hide menu bar apps you do not need right now, keep the important ones visible, a
 
 ## Download
 
-**SaneBar Basic is $0.** Hide and show icons, browse your menu bar, search for any icon — all included.
-
-Want more? **[Upgrade to Pro ($14.99 once)](https://sanebar.com)** for Touch ID lock, smart triggers, profiles, custom styling, and more. One-time purchase, no subscriptions.
+**SaneBar is free.** Everything is included — hide and show icons, Touch ID lock, smart triggers, profiles, custom styling, all of it. No license key, no trial, no subscription.
 
 ### Install
 
@@ -72,14 +75,13 @@ Choose the style that suits you — set it during onboarding or change anytime i
 - **Icon Panel** — A compact floating view that is great for searching, filtering, and opening hidden apps fast.
 - **Second Menu Bar** — A full-width row below the real menu bar, which is better when you want to see more apps at once.
 
-Both modes let you browse hidden apps and open them in Basic.
-Pro adds drag reordering, drag moves between **Visible**, **Hidden**, and **Always Hidden**, plus right-click quick move actions.
+Both modes let you browse hidden apps and open them, with drag reordering, drag moves between **Visible**, **Hidden**, and **Always Hidden**, plus right-click quick move actions.
 
 ---
 
 ## Features
 
-### Basic — $0, Everything You Need
+### The Essentials
 
 - **One-click hide/show** — Toggle visibility with a single click or hotkey (default: ⌘\)
 - **⌘+drag to organize** — Choose which icons hide and which stay visible
@@ -89,13 +91,13 @@ Pro adds drag reordering, drag moves between **Visible**, **Hidden**, and **Alwa
 - **Keyboard navigation** — Arrow keys, Enter to select, Escape to close
 - **Auto-rehide** — Hidden icons automatically hide again after a delay
 - **Crowded menu bar handling** — Inline reveal can temporarily hide app menus to make room when your menu bar is full
-- **On-device by default** — No user-content upload. Network use is limited to updates, license checks, and a few simple anonymous app counts.
+- **On-device by default** — No user-content upload. Network use is limited to updates and a few simple anonymous app counts.
 
 ![Privacy Settings](docs/images/settings-general.png)
 
-### Pro — Power User Features ($14.99 once)
+### Power User Features
 
-Everything in Basic, plus:
+All included, free:
 
 - **Touch ID / Password Lock** — The *only* menu bar manager that locks hidden icons behind biometrics. Protect crypto wallets, messaging tools, VPNs.
 - **Always Hidden** — A dedicated section for icons you rarely need, only accessible via Find Icon or Second Menu Bar
@@ -116,7 +118,7 @@ Everything in Basic, plus:
 ![Rules and Automation](docs/images/settings-rules.png)
 ![Appearance Settings](docs/images/settings-appearance.png)
 
-**Enjoy 14 days of Pro with no credit card required.** Paid customers keep Pro with their license key.
+**All of it is free for everyone.** No trial, no license key — former paid customers don't need theirs anymore.
 
 ### Guided Onboarding
 
@@ -126,9 +128,9 @@ A first-run walkthrough gets you set up in under a minute:
 3. **Browse your icons** — See all your menu bar apps at a glance
 4. **Choose your view** — Pick Icon Panel or Second Menu Bar
 5. **Permissions** — Grant Accessibility access (required for menu bar management)
-6. **Basic vs Pro** — See what's included and what Pro unlocks
+6. **Feature tour** — See everything included (it's all free)
 
-Designed for Macs with a notch and crowded menu bars. **Private by default** — no account, no user-content upload, and only limited network requests for updates, license checks, and a few simple anonymous app counts.
+Designed for Macs with a notch and crowded menu bars. **Private by default** — no account, no user-content upload, and only limited network requests for updates and a few simple anonymous app counts.
 
 ---
 
@@ -148,16 +150,16 @@ If your menu bar is completely full, inline reveal can temporarily hide the fron
 - It only affects inline reveal in the main menu bar
 - It does not affect **Icon Panel** or **Second Menu Bar**
 
-### Per-Icon Hotkeys *(Pro)*
+### Per-Icon Hotkeys
 Assign a global hotkey to any menu bar app — press it and SaneBar instantly opens that app's menu.
 1. Open **Find Icon…** → select an app → click **Record Shortcut** → press your key combo
 
-### Always Hidden *(Pro)*
+### Always Hidden
 Icons pinned here never show automatically — only accessible via Find Icon or Second Menu Bar.
 - Right-click any icon → **Pin in Always Hidden**
 - Unpin anytime from the same menu
 
-### Smart Triggers *(Pro)*
+### Smart Triggers
 Auto-show or auto-hide based on context:
 - **Low Battery** — Show when battery drops below threshold
 - **App Launch** — Show when specific apps start
@@ -198,7 +200,7 @@ All settings are in the **Settings** window (click SaneBar icon → Settings, or
 | **Appearance** | Custom menu bar icon, divider style, extra dividers, menu bar styling (tint, opacity per light/dark mode, shadow, border, corners), space analyzer, icon spacing |
 | **Shortcuts** | Global keyboard shortcuts, AppleScript commands |
 | **Health** | Menu bar health status, repair actions, layout rescue, diagnostics, stability/live mode |
-| **License** | Pro status, license activation, restore, and purchase actions |
+| **License** | Confirms every feature is unlocked (SaneBar is free for everyone) |
 | **About** | Version info, privacy badge, licenses, support, report issue |
 
 ### Icon Spacing (Settings → Appearance)
@@ -214,7 +216,7 @@ Reduce the spacing between **all** menu bar icons system-wide to fit more icons 
 
 ## Privacy
 
-**Your data stays on your Mac.** SaneBar does not upload your files, menu bar contents, or personal content. Network use is limited to updates, license validation, and a few simple anonymous app counts such as app version, build, OS version, channel, and update availability.
+**Your data stays on your Mac.** SaneBar does not upload your files, menu bar contents, or personal content. Network use is limited to updates and a few simple anonymous app counts such as app version, build, OS version, channel, and update availability.
 
 ![On-Device Core Behavior](docs/images/settings-about.png)
 
@@ -299,10 +301,10 @@ osascript -e 'tell app "SaneBar" to hide items'
 # List all menu bar icons
 osascript -e 'tell app "SaneBar" to list icons'
 
-# Pro: pin an icon to the Always Hidden zone
+# Pin an icon to the Always Hidden zone
 osascript -e 'tell app "SaneBar" to hide icon "com.example.app"'
 
-# Pro: unpin from the Always Hidden zone
+# Unpin from the Always Hidden zone
 osascript -e 'tell app "SaneBar" to show icon "com.example.app"'
 ```
 
@@ -311,7 +313,7 @@ osascript -e 'tell app "SaneBar" to show icon "com.example.app"'
 <details>
 <summary>The story</summary>
 
-Built pair programming with [Claude](https://claude.ai). Wanted a menu bar manager that wasn't $15, didn't spy on me, and actually worked. Now Basic is $0 for everyone.
+Built pair programming with [Claude](https://claude.ai). Wanted a menu bar manager that wasn't $15, didn't spy on me, and actually worked. Now the whole thing is free and open source for everyone.
 
 </details>
 
@@ -348,8 +350,8 @@ Built pair programming with [Claude](https://claude.ai). Wanted a menu bar manag
 | **AppleScript** | Yes | Yes | No | No |
 | **100% Transparent Code** | [MIT](LICENSE) | No | Yes | Yes |
 | **On-Device by Default** | Yes | No (telemetry) | Yes | Yes |
-| **Pricing** | Basic ($0) / Pro $14.99 | $16 | Free | Free |
-| **Active Development** | Yes | Yes | Yes | Abandoned |
+| **Pricing** | Free (open source, MIT) | $16 | Free | Free |
+| **Active Development** | Community-maintained (PRs welcome) | Yes | Yes | Abandoned |
 
 ## License
 
