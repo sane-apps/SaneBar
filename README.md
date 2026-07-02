@@ -43,6 +43,8 @@ Hide menu bar apps you do not need right now, keep the important ones visible, a
 
 **SaneBar is free.** Everything is included — hide and show icons, Touch ID lock, smart triggers, profiles, custom styling, all of it. No license key, no trial, no subscription.
 
+Feel like paying anyway? **[GitHub Sponsors](https://github.com/sponsors/MrSaneApps)** is the tip jar — donations are what keep indie Mac software like this coming ([more ways to give](#support-development)).
+
 ### Install
 
 ```bash
@@ -224,12 +226,19 @@ Reduce the spacing between **all** menu bar icons system-wide to fit more icons 
 
 ---
 
-## Support
+## Support Development
 
-**⭐ [Star the repo](https://github.com/sane-apps/SaneBar)** if SaneBar helps you. Stars help others discover quality indie software.
+SaneBar used to cost $14.99. Now it's 100% free and MIT licensed — no paywall, no catch. If it saves your menu bar (and your sanity), a donation is the new price tag, and you set it:
+
+**❤️ [Sponsor on GitHub](https://github.com/sponsors/MrSaneApps)** — the single best way to support this app and keep future SaneApps coming.
+
+**⭐ [Star the repo](https://github.com/sane-apps/SaneBar)** if SaneBar helps you. Stars are free and help others discover quality indie software.
 
 **Cloning without starring?** For real bro? Gimme that star!
-### Donations
+
+### Crypto Donations
+
+Prefer crypto? These work too:
 
 | | Address |
 |---|---------|
