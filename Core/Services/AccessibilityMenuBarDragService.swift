@@ -283,7 +283,30 @@ final class AccessibilityMenuBarDragService {
         }
         accessibilityDragLogger.debug("🔧 CGEvent drag from (\(fromPoint.x, privacy: .public), \(fromPoint.y, privacy: .public)) to (\(toPoint.x, privacy: .public), \(toPoint.y, privacy: .public))")
 
-        let didPostEvents = performCmdDrag(from: fromPoint, to: toPoint, eventTap: eventTap, restoreTo: originalMouseLocation)
+        var didPostEvents = false
+        if AccessibilityInteractionPolicy.dragPathCrossesNotchDeadZone(
+            from: rawFromPoint,
+            to: rawToPoint,
+            preferredScreenFrame: referenceScreenFrame
+        ) {
+            accessibilityDragLogger.info(
+                "🔧 Drag path spans the notch dead zone (fromX=\(rawFromPoint.x, privacy: .public), toX=\(rawToPoint.x, privacy: .public)) — using windowID teleport move"
+            )
+            let sourcePID = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID).first?.processIdentifier
+            didPostEvents = performNotchTeleportMove(
+                sourceBundleID: bundleID,
+                sourceMenuExtraId: menuExtraId,
+                sourceStatusItemIndex: statusItemIndex,
+                sourceFrame: iconFrame,
+                sourcePID: sourcePID,
+                to: toPoint,
+                eventTap: eventTap,
+                restoreTo: originalMouseLocation
+            )
+        }
+        if !didPostEvents {
+            didPostEvents = performCmdDrag(from: fromPoint, to: toPoint, eventTap: eventTap, restoreTo: originalMouseLocation)
+        }
         guard didPostEvents else {
             accessibilityDragLogger.error("🔧 Cmd+drag failed: could not post events")
             return false
@@ -414,7 +437,7 @@ final class AccessibilityMenuBarDragService {
         }
     }
 
-    private nonisolated static func postMouseRestoreIfOnScreen(
+    nonisolated static func postMouseRestoreIfOnScreen(
         _ point: CGPoint,
         eventTap: CGEventTapLocation,
         screenFrames: [CGRect],
@@ -620,4 +643,5 @@ final class AccessibilityMenuBarDragService {
             return false
         }
         return result.value
-    }}
+    }
+}

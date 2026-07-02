@@ -87,7 +87,9 @@ final class MenuBarStandardIconMoveWorkflow {
                     : false
 
                 if wasHidden, !shouldSkipHide {
-                    logger.info("Move complete - direct hide from showAll state")
+                    // Shield teardown, not a success claim — this runs whether or
+                    // not the move verified. Success is the workflow's return value.
+                    logger.info("Restoring hidden state after move attempt (shield teardown)")
                     await manager.hidingService.hide()
                     return
                 }

@@ -570,8 +570,8 @@ final class RuntimeGuardQAAndLicensingXCTests: RuntimeGuardTestCase {
             "Hidden-origin move restore path should branch explicitly on wasHidden + external monitor policy"
         )
         XCTAssertTrue(
-            source.contains("Move complete - direct hide from showAll state"),
-            "Hidden-origin move restore path should return directly to hidden before restore fallback"
+            source.contains("Restoring hidden state after move attempt (shield teardown)"),
+            "Hidden-origin move restore path should return directly to hidden before restore fallback (log must not read as a success claim — the move may have failed verification)"
         )
         XCTAssertTrue(
             source.contains("await manager.hidingService.restoreFromShowAll()"),

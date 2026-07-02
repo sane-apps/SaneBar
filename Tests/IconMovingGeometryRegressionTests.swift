@@ -164,6 +164,92 @@ struct IconMovingGrabPointTests {
 
         #expect(point == nil, "Without a left-safe area the left-of-notch fast path never fires")
     }
+
+    @Test("Drag path spanning the notch dead zone is detected (reporter geometry: left-of-notch source, visible-lane target)")
+    func dragPathSpanningNotchDeadZoneDetected() {
+        // Air 13" geometry: leftAux.maxX=646, rightAux.minX=825. #170's move
+        // drags from the notch-safe-adjusted source (x=634) to the visible
+        // lane (~x=1278) — the interpolated path crosses the [646, 825] gap,
+        // which live testing proved WindowServer drops (deltaMidX=0).
+        let leftAuxiliaryArea = CGRect(x: 0, y: 924, width: 646, height: 32)
+        let rightAuxiliaryArea = CGRect(x: 825, y: 924, width: 645, height: 32)
+
+        #expect(
+            AccessibilityInteractionPolicy.dragPathCrossesNotchDeadZone(
+                fromX: 634,
+                toX: 1278,
+                leftSafeArea: leftAuxiliaryArea,
+                rightSafeArea: rightAuxiliaryArea
+            ),
+            "Left-of-notch source to right-side target spans the dead zone"
+        )
+        #expect(
+            AccessibilityInteractionPolicy.dragPathCrossesNotchDeadZone(
+                fromX: 1278,
+                toX: 634,
+                leftSafeArea: leftAuxiliaryArea,
+                rightSafeArea: rightAuxiliaryArea
+            ),
+            "Crossing detection is direction-agnostic (hidden-bound moves cross too)"
+        )
+    }
+
+    @Test("Same-side drag paths never route to the teleport primitive")
+    func sameSideDragPathsDoNotCrossNotchDeadZone() {
+        let leftAuxiliaryArea = CGRect(x: 0, y: 924, width: 646, height: 32)
+        let rightAuxiliaryArea = CGRect(x: 825, y: 924, width: 645, height: 32)
+
+        #expect(
+            !AccessibilityInteractionPolicy.dragPathCrossesNotchDeadZone(
+                fromX: 200,
+                toX: 600,
+                leftSafeArea: leftAuxiliaryArea,
+                rightSafeArea: rightAuxiliaryArea
+            ),
+            "A drag entirely left of the notch keeps the proven cmd-drag path"
+        )
+        #expect(
+            !AccessibilityInteractionPolicy.dragPathCrossesNotchDeadZone(
+                fromX: 900,
+                toX: 1300,
+                leftSafeArea: leftAuxiliaryArea,
+                rightSafeArea: rightAuxiliaryArea
+            ),
+            "A drag entirely right of the notch keeps the proven cmd-drag path"
+        )
+        #expect(
+            !AccessibilityInteractionPolicy.dragPathCrossesNotchDeadZone(
+                fromX: 800,
+                toX: 900,
+                leftSafeArea: leftAuxiliaryArea,
+                rightSafeArea: rightAuxiliaryArea
+            ),
+            "A drag starting inside the gap does not span it — the source gate owns that case"
+        )
+    }
+
+    @Test("Non-notched screens never detect a dead-zone crossing")
+    func nonNotchedScreensNeverDetectDeadZoneCrossing() {
+        #expect(
+            !AccessibilityInteractionPolicy.dragPathCrossesNotchDeadZone(
+                fromX: 100,
+                toX: 1800,
+                leftSafeArea: nil,
+                rightSafeArea: nil
+            ),
+            "Notchless displays (nil aux areas) always use the cmd-drag path"
+        )
+        // Degenerate geometry (bands touching or overlapping) means no gap.
+        #expect(
+            !AccessibilityInteractionPolicy.dragPathCrossesNotchDeadZone(
+                fromX: 100,
+                toX: 1800,
+                leftSafeArea: CGRect(x: 0, y: 924, width: 900, height: 32),
+                rightSafeArea: CGRect(x: 825, y: 924, width: 645, height: 32)
+            ),
+            "Overlapping aux bands (no real gap) must not route to teleport"
+        )
+    }
 }
 
 // MARK: - Verification Margin Tests

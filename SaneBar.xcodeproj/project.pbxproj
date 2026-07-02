@@ -18,6 +18,7 @@
 		08DAB706A1865F8E3B520362 /* OnboardingController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01F25C7DBC9B39EE94549E08 /* OnboardingController.swift */; };
 		099B0030DB1872705EBCED00 /* AppleScriptIconListingCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = D44DF28F242D7D401EBBC851 /* AppleScriptIconListingCommands.swift */; };
 		0CA393F66E301563CB773005 /* RuntimeGuardMoveActivationXCTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0E1CB1BFCC7AC2598F77304 /* RuntimeGuardMoveActivationXCTests.swift */; };
+		0CD563AC7356C78525699965 /* AccessibilityMenuBarTeleportMove.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9DE07B6F2DA0A3F2CBD543A /* AccessibilityMenuBarTeleportMove.swift */; };
 		0CF11CFB8B2FCA5FBF73DAE6 /* MenuBarAppearanceSettingsAndOverlayTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D3EB1B45249EF433EC2A0A /* MenuBarAppearanceSettingsAndOverlayTests.swift */; };
 		0DC1BEFC518AC22B9FFFD11F /* ScheduleTriggerServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD216CE0201AE2468DFE78F4 /* ScheduleTriggerServiceTests.swift */; };
 		0DE723F29A946495E5D47227 /* AccessibilityService+Cache.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF409602E61664453C49CA75 /* AccessibilityService+Cache.swift */; };
@@ -494,6 +495,7 @@
 		F8423463780BFF7B97CAB406 /* StatusBarControllerLifecycleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBarControllerLifecycleTests.swift; sourceTree = "<group>"; };
 		F87FE98EC7C407B889ABCAD4 /* MenuBarVisibilityTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarVisibilityTypes.swift; sourceTree = "<group>"; };
 		F9AD31BCCF737195DBC644A8 /* PersistenceIconGroupTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceIconGroupTests.swift; sourceTree = "<group>"; };
+		F9DE07B6F2DA0A3F2CBD543A /* AccessibilityMenuBarTeleportMove.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccessibilityMenuBarTeleportMove.swift; sourceTree = "<group>"; };
 		F9F27D14054F715EE6BFF0C5 /* KeyboardShortcutsServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardShortcutsServiceTests.swift; sourceTree = "<group>"; };
 		FC16568B5F51F38AE807B7D2 /* RuntimeGuardAppleScriptMoveXCTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuntimeGuardAppleScriptMoveXCTests.swift; sourceTree = "<group>"; };
 		FC1779B5B710715DD106EE34 /* TriggerService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TriggerService.swift; sourceTree = "<group>"; };
@@ -575,8 +577,8 @@
 			children = (
 				0752D3D1CCD73101C00C78C2 /* Assets.xcassets */,
 				F673CE7642E1AAD7BE7ADBCC /* DMGIcon.icns */,
-				FB5A5E19E67E44650AC8FED0 /* Localizable.strings */,
 				375ECF968EBFF6B579A7BD5A /* SaneBar.sdef */,
+				FB5A5E19E67E44650AC8FED0 /* Localizable.strings */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -808,6 +810,7 @@
 				DCC48DFCF3E6CA4C1B3B8F9B /* AccessibilityMenuBarCacheStore.swift */,
 				CB40DF78C8E65CBFE896BA24 /* AccessibilityMenuBarDragService.swift */,
 				E94BEBC468CF924FC325D058 /* AccessibilityMenuBarScanningService.swift */,
+				F9DE07B6F2DA0A3F2CBD543A /* AccessibilityMenuBarTeleportMove.swift */,
 				9C5B4AF92B0A3491FA22A255 /* AccessibilityMenuBarWindowFallbackPolicy.swift */,
 				D9DCC799E5B8EC34F183261C /* AccessibilityMenuExtraFrameResolver.swift */,
 				E0CCC06E09A5C1B4C96ACCA2 /* AccessibilityMenuExtraService.swift */,
@@ -952,7 +955,6 @@
 				};
 			};
 			buildConfigurationList = 522DFAB53E640DC8E2C4B75C /* Build configuration list for PBXProject "SaneBar" */;
-			compatibilityVersion = "Xcode 14.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -968,6 +970,7 @@
 				156564281362C27A80B884E0 /* XCRemoteSwiftPackageReference "Sparkle" */,
 			);
 			preferredProjectObjectVersion = 77;
+			productRefGroup = D14A5D400198233C0D7C948F /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -1143,6 +1146,7 @@
 				FE70A28C884C2374030D7411 /* AccessibilityMenuBarCacheStore.swift in Sources */,
 				141E67F184D7BC4FF3F63238 /* AccessibilityMenuBarDragService.swift in Sources */,
 				3FB615CE5DEBA42434A01BD7 /* AccessibilityMenuBarScanningService.swift in Sources */,
+				0CD563AC7356C78525699965 /* AccessibilityMenuBarTeleportMove.swift in Sources */,
 				49C231978CFCE626654C2E0D /* AccessibilityMenuBarWindowFallbackPolicy.swift in Sources */,
 				4B23671EE8D05E9767F983CA /* AccessibilityMenuExtraFrameResolver.swift in Sources */,
 				5FC2B77C6B04A1C7591A8D30 /* AccessibilityMenuExtraService.swift in Sources */,

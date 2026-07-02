@@ -255,6 +255,48 @@ enum AccessibilityInteractionPolicy {
         return CGPoint(x: dragX, y: frame.midY)
     }
 
+    /// A straight-line cmd-drag whose path spans the notch cutout never lands:
+    /// WindowServer silently drops the reorder (proven live on the notched Air,
+    /// deltaMidX=0 on every accepted cross-notch drag). Detect that span so the
+    /// caller can switch to the windowID-tagged down/up move primitive instead
+    /// of posting a drag path through the dead zone.
+    nonisolated static func dragPathCrossesNotchDeadZone(
+        fromX: CGFloat,
+        toX: CGFloat,
+        leftSafeArea: CGRect?,
+        rightSafeArea: CGRect?
+    ) -> Bool {
+        guard let leftSafeArea, let rightSafeArea else { return false }
+        let gapMinX = leftSafeArea.maxX
+        let gapMaxX = rightSafeArea.minX
+        guard gapMinX < gapMaxX else { return false }
+        let lowerX = min(fromX, toX)
+        let upperX = max(fromX, toX)
+        return lowerX < gapMinX && upperX > gapMaxX
+    }
+
+    nonisolated static func dragPathCrossesNotchDeadZone(
+        from: CGPoint,
+        to: CGPoint,
+        preferredScreenFrame: CGRect? = nil,
+        screens: [NSScreen] = NSScreen.screens
+    ) -> Bool {
+        guard let screen = screens.first(where: { screen in
+            if let preferredScreenFrame, screen.frame.equalTo(preferredScreenFrame) {
+                return true
+            }
+            return screen.frame.insetBy(dx: -2, dy: -2).contains(from)
+        }) else {
+            return false
+        }
+        return dragPathCrossesNotchDeadZone(
+            fromX: from.x,
+            toX: to.x,
+            leftSafeArea: screen.auxiliaryTopLeftArea,
+            rightSafeArea: screen.auxiliaryTopRightArea
+        )
+    }
+
     nonisolated static func normalizedEventY(rawY: CGFloat, globalMaxY: CGFloat, anchorY: CGFloat) -> CGFloat {
         let flippedY = globalMaxY - rawY
 
