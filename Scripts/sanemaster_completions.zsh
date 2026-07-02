@@ -1,1 +1,0 @@
-../../../infra/SaneProcess/scripts/sanemaster_completions.zsh

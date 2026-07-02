@@ -1,12 +1,16 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# Marketing Screenshot Automation (Current UI)
+# Website/Onboarding Screenshot Automation (Current UI)
+#
+# MAINTAINER-ONLY — DO NOT RUN CASUALLY: this writes into docs/images/ (the
+# LIVE sanebar.com website root) and syncs captures into the app's shipped
+# onboarding asset catalogs (Resources/Assets.xcassets).
 #
 # Usage:
-#   ./scripts/marketing_screenshots.rb --list
-#   ./scripts/marketing_screenshots.rb --shot icon-panel
-#   ./scripts/marketing_screenshots.rb
+#   ./Scripts/marketing_screenshots.rb --list
+#   ./Scripts/marketing_screenshots.rb --shot icon-panel
+#   ./Scripts/marketing_screenshots.rb
 #
 # Notes:
 # - This script captures CURRENT settings/image targets used by docs/index.html.

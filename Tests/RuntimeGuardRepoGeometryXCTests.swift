@@ -145,7 +145,7 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
             encoding: .utf8
         )
 
-        XCTAssertTrue(security.contains("| 2.x"), "Security policy should track the current major version")
+        XCTAssertTrue(security.contains("community-maintained"), "Security policy should state the post-sunset support reality")
         XCTAssertFalse(security.contains("| 1.0.x"), "Security policy should not advertise stale 1.0.x support")
         XCTAssertTrue(readme.contains("MIT License"), "README should state the current MIT open-source license")
         XCTAssertFalse(readme.contains("source-available under PolyForm Shield"), "README should not advertise the retired PolyForm Shield license after the MIT relicense")

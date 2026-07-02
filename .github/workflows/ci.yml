@@ -1,6 +1,6 @@
 name: CI
 
-# SANEAPPS_GITHUB_HOSTED_EXCEPTION: SaneBar is a public source-available repo and needs visible build/test signal for outside contributors; this workflow uses no secrets and disables code signing.
+# SANEAPPS_GITHUB_HOSTED_EXCEPTION: SaneBar is a free, MIT-licensed open-source repo and needs visible build/test signal for outside contributors; this workflow uses no secrets and disables code signing.
 on:
   push:
     branches: [main]

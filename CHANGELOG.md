@@ -2,8 +2,6 @@
 
 All notable changes to SaneBar are documented here.
 
-For user-requested features, see [marketing/feature-requests.md](marketing/feature-requests.md).
-
 ---
 
 ## Unreleased

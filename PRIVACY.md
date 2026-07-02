@@ -7,10 +7,10 @@ SaneBar is built with privacy as the foundation. This document explains every pe
 ## The Short Version
 
 - **Your menu bar setup stays on your Mac** - No files, icon names, or menu bar contents are uploaded
-- **Privacy-preserving aggregate counts** - We count things like app version, update status, launches, purchase flow, and whether the app opened in Free or Pro
+- **Privacy-preserving aggregate counts** - We count things like app version, update status, and launches
 - **No user identifiers** - We do not tie those counts to your identity or sell customer data
 - **Local storage only** - Settings saved to `~/Library/Application Support/SaneBar/`
-- **Limited network use** - Update checks, license validation, and those simple app counts
+- **Limited network use** - Update checks and those simple app counts
 
 ---
 
@@ -131,7 +131,7 @@ rm ~/Library/Preferences/com.sanebar.app.plist
 
 ## Privacy-Preserving Aggregate Analytics
 
-SaneBar sends a few privacy-preserving aggregate counts so we can see which versions are in use, whether updates are working, and whether the Basic-to-Pro flow is healthy.
+SaneBar sends a few privacy-preserving aggregate counts so we can see which versions are in use and whether updates are working.
 
 These events may include:
 
@@ -140,9 +140,13 @@ These events may include:
 - app version and build
 - macOS version
 - distribution channel (`direct`, `app_store`, or `setapp`)
-- license tier (`free` or `pro`)
-- broad purchase/update lifecycle events such as buy clicked, purchase started/completed, license activated, update available, or update install started
+- license tier (a legacy field — every current build is fully unlocked, so this no longer distinguishes users)
+- update lifecycle events such as update available or update install started (legacy purchase events no longer occur now that SaneBar is free)
 - update target version/build when Sparkle offers or starts installing an update
+
+The endpoint that receives these counts is operated by the original developer
+and may go dark now that SaneBar is community-maintained. The app functions
+fully without it — a failed count is silently dropped.
 
 These events do **not** include:
 
@@ -169,13 +173,13 @@ Want to verify SaneBar's network behavior? Run this while the app is open:
 sudo lsof -i -P | grep SaneBar
 ```
 
-You'll only see traffic for update checks, license validation, or simple anonymous app counts.
+You'll only see traffic for update checks and simple anonymous app counts (legacy paid installs may also perform a one-time license validation).
 
 ---
 
 ## Transparent Source
 
-SaneBar's source is public and auditable under the PolyForm Shield License:
+SaneBar's source is public and auditable under the MIT License:
 https://github.com/sane-apps/SaneBar
 
 If you find any privacy concern, please open an issue.

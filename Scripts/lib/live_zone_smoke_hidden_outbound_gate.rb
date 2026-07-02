@@ -32,7 +32,7 @@
 #   resting state) was UNSATISFIABLE by correct product design: it fails-closed
 #   forever regardless of whether the move works. That is a BLIND gate (asserts a
 #   proxy that cannot track real behavior), the exact anti-pattern
-#   docs/TEST_BLINDNESS_AUDIT.md and .claude/rules/tests.md forbid.
+#   docs/TEST_BLINDNESS_AUDIT.md and the NO BLIND TESTS rule forbid.
 #
 #   The PRIMARY assertion is now the real zone delta, driven through the actual
 #   product command via `move_and_verify(..., staged_always_hidden_outbound: true)`:

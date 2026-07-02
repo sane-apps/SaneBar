@@ -11,52 +11,37 @@ Thanks for your interest in contributing to SaneBar! This document explains how 
 git clone https://github.com/sane-apps/SaneBar.git
 cd SaneBar
 
-# Install dependencies
-bundle install
-
-# Generate Xcode project and verify build
-./scripts/SaneMaster.rb verify
+# Build and run all tests
+./Scripts/SaneMaster.rb verify
 ```
 
-If everything passes, you're ready to contribute!
+If everything passes, you're ready to contribute! No Ruby gems or other setup
+are needed to build and test — the tracked Xcode project builds as-is.
 
 ---
+
 ## Development Environment
 
 ### Requirements
 
-- **macOS 15.0+** (Sequoia or later)
-- **Xcode 16+**
-- **Ruby 3.0+** (for build scripts)
-- [XcodeGen](https://github.com/yonaskolb/XcodeGen) - installed via `bundle install`
+- **Xcode 16+** (needs macOS 15 Sequoia or later to build; the app itself runs on macOS 14.0+)
+- **Apple Silicon** (arm64 only)
+- **Ruby 3+** for the helper scripts (macOS ships one)
+- [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`) — only needed when you add or remove source files
 
 ### Key Commands
 
 | Command | Purpose |
 |---------|---------|
-| `./scripts/SaneMaster.rb verify` | Build + run all tests |
-| `./scripts/SaneMaster.rb test_mode` | Kill → Build → Launch → Stream logs |
-| `./scripts/SaneMaster.rb logs --follow` | Stream live app logs |
+| `./Scripts/SaneMaster.rb verify` | Build + run all tests |
+| `./Scripts/SaneMaster.rb test_mode` | Kill → Build → Launch → Stream logs |
+| `./Scripts/sanebar_logwatch.sh` | Stream live app logs |
 
-> **Important**: Always use `SaneMaster.rb` instead of raw `xcodebuild`. It handles XcodeGen, signing, and other project-specific configuration.
-
----
-
-## Project Structure
-
-```
-SaneBar/
-├── Core/                   # Business logic
-│   ├── Services/           # AccessibilityService, HoverService, etc.
-│   ├── Controllers/        # StatusBarController, SettingsController
-│   └── Models/             # Data models
-├── UI/                     # SwiftUI views
-│   ├── Settings/           # Settings tabs
-│   └── SearchWindow/       # Find Icon UI
-├── Tests/                  # Unit tests (Swift Testing framework)
-├── scripts/                # Build automation
-└── project.yml             # XcodeGen configuration
-```
+`SaneMaster.rb` falls back to `Scripts/SaneMaster_standalone.rb` (plain
+`xcodebuild`) outside the original maintainer's machines — that fallback is
+the normal path for contributors. See [DEVELOPMENT.md](DEVELOPMENT.md) for the
+full guide, including the project structure and the parts of the codebase
+that are fragile on purpose.
 
 ---
 
@@ -64,23 +49,23 @@ SaneBar/
 
 ### Swift
 
-- **Swift 5.9+** features encouraged
+- **Swift Testing** framework for tests (`import Testing`, `@Test`, `#expect`) — NOT XCTest
 - **@Observable** instead of @StateObject
-- **Swift Testing** framework (`import Testing`, `@Test`, `#expect`) — NOT XCTest
 - **Actors** for services with shared mutable state
-- Keep SwiftUI view bodies under 50 lines
+- Keep SwiftUI view bodies small; extract subviews rather than nesting deeply
 
-### File Organization
+### Adding Files
 
-When creating new files:
+`project.yml` is the source of truth for the Xcode project; the committed
+`.xcodeproj` is a convenience snapshot. CI regenerates the project with
+`xcodegen generate` before building, so a file added only through Xcode's GUI
+will silently vanish from the CI build. After adding or removing files:
 
-1. Run `xcodegen generate` after adding files (or use `./scripts/SaneMaster.rb verify`)
+1. Run `xcodegen generate` and commit the regenerated project
 2. Follow existing naming patterns:
    - Services: `*Service.swift` in `Core/Services/`
    - Models: `*Model.swift` in `Core/Models/`
    - Views: `*View.swift` in `UI/`
-
-For detailed coding rules, see [.claude/rules/README.md](.claude/rules/README.md).
 
 ---
 
@@ -88,18 +73,20 @@ For detailed coding rules, see [.claude/rules/README.md](.claude/rules/README.md
 
 ### Before You Start
 
-1. Check [GitHub Issues](https://github.com/sane-apps/SaneBar/issues) for existing discussions
-2. For significant changes, open an issue first to discuss the approach
+Heads-up: because SaneBar is community-maintained, **new GitHub issues are
+auto-closed by a bot** (with a friendly note explaining why). That's expected.
+Put your reproduction, reasoning, and discussion directly in the pull request
+description instead — the PR is the record.
 
 ### Pull Request Process
 
 1. **Fork** the repository
 2. **Create a branch** from `main` (e.g., `feature/my-feature` or `fix/issue-123`)
 3. **Make your changes** following the coding standards
-4. **Run tests**: `./scripts/SaneMaster.rb verify`
+4. **Run tests**: `./Scripts/SaneMaster.rb verify`
 5. **Submit a PR** with:
    - Clear description of what changed and why
-   - Reference to any related issues
+   - Steps to reproduce the bug it fixes (if a bug fix)
    - Screenshots for UI changes
 
 ### Commit Messages
@@ -110,8 +97,6 @@ Follow conventional commit format:
 type: short description
 
 Longer explanation if needed.
-
-Fixes #123
 ```
 
 Types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`
@@ -136,10 +121,10 @@ func hidesAndShows() async {
 }
 ```
 
-Run tests:
-```bash
-./scripts/SaneMaster.rb verify
-```
+Run tests with `./Scripts/SaneMaster.rb verify`. A test must be able to fail
+for the real bug it guards — see the Testing section of
+[DEVELOPMENT.md](DEVELOPMENT.md), including what to do when a
+`RuntimeGuard*` source-fingerprint test fails after an intentional edit.
 
 ---
 
@@ -149,7 +134,8 @@ SaneBar uses macOS Accessibility APIs extensively. Key things to know:
 
 - The app requires **Accessibility permission** to function
 - Use `AXIsProcessTrusted()` to check permission status
-- Always verify API existence: `./scripts/SaneMaster.rb verify_api <symbol> <framework>`
+- Verify AX API shapes against Apple's documentation before coding — several
+  "obvious" properties don't exist
 
 For deep dives, see [docs/DEBUGGING_MENU_BAR_INTERACTIONS.md](docs/DEBUGGING_MENU_BAR_INTERACTIONS.md).
 
@@ -160,8 +146,8 @@ For deep dives, see [docs/DEBUGGING_MENU_BAR_INTERACTIONS.md](docs/DEBUGGING_MEN
 | Document | Purpose |
 |----------|---------|
 | [README.md](README.md) | User-facing overview |
-| [DEVELOPMENT.md](DEVELOPMENT.md) | Full development SOP |
-| [GitHub Issues](https://github.com/sane-apps/SaneBar/issues) | Bug reports and tracking |
+| [DEVELOPMENT.md](DEVELOPMENT.md) | Build, test, and gotchas |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | How the app works internally |
 
 ---
 
@@ -173,8 +159,9 @@ This project follows the [Contributor Covenant](CODE_OF_CONDUCT.md). Please be r
 
 ## Questions?
 
-- Open a [GitHub Issue](https://github.com/sane-apps/SaneBar/issues/new?template=bug_report.md)
-- Check existing [Discussions](https://github.com/sane-apps/SaneBar/discussions) (if enabled)
+Put questions in your pull request description, or email
+**hi@saneapps.com**. (New GitHub issues are auto-closed by the sunset bot —
+see above.)
 
 Thank you for contributing!
 
@@ -200,21 +187,20 @@ Bug or idea:
 Please do this for me:
 1) Understand and reproduce the issue (or understand the feature request).
 2) Make the smallest safe fix.
-3) Open a pull request to https://github.com/sane-apps/SaneBar
+3) Open a pull request to https://github.com/sane-apps/SaneBar with a short
+   summary of what changed and why in the PR description.
 4) Give me the pull request link.
-5) Open a GitHub issue in https://github.com/sane-apps/SaneBar/issues/new?template=bug_report.md that includes:
-   - the pull request link
-   - a short summary of what changed and why
-6) Also give me the exact issue link.
 
 Important:
 - Keep it focused on this one issue/idea.
 - Do not make unrelated changes.
+- Do not open a GitHub issue — new issues are auto-closed; the pull request
+  itself is the report.
 ```
 
 If needed, you can also just email the pull request link to hi@saneapps.com.
 
-I review and test every pull request before merge.
+Pull requests are reviewed and tested before merge.
 
-If your PR is merged, I will publicly give you credit, and you'll have the satisfaction of knowing you helped ship a fix for everyone.
+If your PR is merged, you get public credit, and the satisfaction of knowing you helped ship a fix for everyone.
 <!-- SANEAPPS_AI_CONTRIB_END -->

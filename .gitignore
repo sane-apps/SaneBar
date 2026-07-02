@@ -1,6 +1,4 @@
-# SaneApps Canonical .gitignore
-# Source of truth: infra/SaneProcess/templates/gitignore
-# Sync via: ruby scripts/sync_check.rb --fix
+# SaneBar .gitignore
 
 # ═══════════════════════════════════════════════════════════════
 # Build artifacts
@@ -145,9 +143,6 @@ TestReports/
 /Screenshots/**/*.jpg
 /Tests/**/*.png
 /Tests/**/*.jpg
-marketing/*.png
-marketing/*.jpg
-!marketing/app-icon.png
 
 # Keep all xcassets (app icons, etc)
 !Resources/Assets.xcassets/**/*.png
@@ -157,12 +152,8 @@ marketing/*.jpg
 # Release tooling
 # ═══════════════════════════════════════════════════════════════
 
-# Fastlane
-fastlane/coverage/
-fastlane/keys/
-fastlane/report.xml
-fastlane/test_output/
-fastlane/gym_output/
+# Generated release receipts (maintainer tooling)
+.sane/
 
 # Code coverage
 *.gcda
@@ -179,15 +170,13 @@ project.yml.ci_backup
 # Sparkle (never commit private key)
 sparkle_private_key.txt
 
-# Local hook overrides
-lefthook-local.yml
-
 # ═══════════════════════════════════════════════════════════════
 # Ephemeral docs (AI-generated, auto-cleaned)
 # ═══════════════════════════════════════════════════════════════
 
 reports/
 *_AUDIT.md
+!docs/TEST_BLINDNESS_AUDIT.md
 *_REVIEW.md
 CODE_REVIEW.md
 WEBSITE_AUDIT.md

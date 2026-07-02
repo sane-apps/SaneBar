@@ -3,18 +3,6 @@ import os.log
 
 private let logger = Logger(subsystem: "com.sanebar.app", category: "FocusMode")
 
-// MARK: - FocusModeServiceProtocol
-
-/// @mockable
-@MainActor
-protocol FocusModeServiceProtocol {
-    var currentFocusMode: String? { get }
-    var isFocusModeActive: Bool { get }
-    func configure(menuBarManager: MenuBarManager)
-    func startMonitoring()
-    func stopMonitoring()
-}
-
 // MARK: - FocusModeService
 
 /// Service that monitors macOS Focus Mode changes and triggers menu bar visibility.
@@ -29,8 +17,7 @@ protocol FocusModeServiceProtocol {
 /// 1. DistributedNotificationCenter for instant change detection
 /// 2. File-based reading for Focus Mode NAME (not just on/off)
 @MainActor
-final class FocusModeService: NSObject, FocusModeServiceProtocol {
-
+final class FocusModeService: NSObject {
     // MARK: - Properties
 
     private var isMonitoring = false
@@ -66,8 +53,9 @@ final class FocusModeService: NSObject, FocusModeServiceProtocol {
         guard !isMonitoring else { return }
 
         isMonitoring = true
+        let startingMode = currentFocusMode ?? "none"
         lastKnownFocusMode = currentFocusMode
-        logger.info("Started Focus Mode monitoring. Current mode: \(self.currentFocusMode ?? "none")")
+        logger.info("Started Focus Mode monitoring. Current mode: \(startingMode)")
 
         // Monitor Focus Mode changes via DistributedNotificationCenter
         // This notification fires when Focus status changes system-wide
@@ -106,7 +94,8 @@ final class FocusModeService: NSObject, FocusModeServiceProtocol {
               let assertions = try? JSONSerialization.jsonObject(with: assertionsData) as? [[String: Any]],
               let firstAssertion = assertions.first,
               let details = firstAssertion["assertionDetails"] as? [String: Any],
-              let modeIdentifier = details["assertionDetailsModeIdentifier"] as? String else {
+              let modeIdentifier = details["assertionDetailsModeIdentifier"] as? String
+        else {
             return nil
         }
 
@@ -115,7 +104,8 @@ final class FocusModeService: NSObject, FocusModeServiceProtocol {
               let configurations = try? JSONSerialization.jsonObject(with: configData) as? [String: Any],
               let modeConfig = configurations[modeIdentifier] as? [String: Any],
               let mode = modeConfig["mode"] as? [String: Any],
-              let modeName = mode["name"] as? String else {
+              let modeName = mode["name"] as? String
+        else {
             // Mode identifier exists but can't find name - return identifier as fallback
             logger.debug("Found Focus identifier but couldn't resolve name: \(modeIdentifier)")
             return modeIdentifier
@@ -156,7 +146,7 @@ final class FocusModeService: NSObject, FocusModeServiceProtocol {
                 profileId: manager.settings.focusTriggerProfileId,
                 reason: "focus:\(mode)"
             )
-        } else if newFocusMode == nil && triggerModes.contains("(Focus Off)") {
+        } else if newFocusMode == nil, triggerModes.contains("(Focus Off)") {
             // Special case: trigger when Focus turns OFF
             logger.info("Focus turned off and '(Focus Off)' is in trigger list")
             manager.profileWorkflow.runTriggerAction(
@@ -174,7 +164,8 @@ final class FocusModeService: NSObject, FocusModeServiceProtocol {
     /// Get list of all configured Focus Modes on this Mac
     func getAvailableFocusModes() -> [String] {
         guard let configData = FileManager.default.contents(atPath: configurationsPath),
-              let configurations = try? JSONSerialization.jsonObject(with: configData) as? [String: Any] else {
+              let configurations = try? JSONSerialization.jsonObject(with: configData) as? [String: Any]
+        else {
             return []
         }
 

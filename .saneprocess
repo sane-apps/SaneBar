@@ -1,4 +1,5 @@
 # SaneProcess compliance manifest
+# Metadata read by Scripts/qa.rb and the (maintainer-only) SaneProcess tooling.
 name: SaneBar
 type: macos_app
 scheme: SaneBar
@@ -16,267 +17,31 @@ release:
   r2_bucket: sanebar-downloads
   use_sparkle: true
   min_system_version: "14.0"
-  reviewed_auto_reconcile_stashes:
-    - stash_sha: "eac8e7000572fa141151aaa51349e92dfabc8ec5"
-      subject: "On main: auto-reconcile-20260508-215519-stephans-mac-mini"
-      decision: superseded
-      reason: "Mini stash audit found hover, rehide, direct-download mover, and classified move verification work represented in current HEAD a186861; no unique release-blocking work remains."
-    - stash_sha: "c0297796a0569708613fe57783d0928bad9621de"
-      subject: "On main: auto-reconcile-20260506-215521-stephans-mac-mini"
-      decision: deferred
-      reason: "Mini stash audit found Setapp, App Store, App Intent, Shortcuts, and Focus-filter lane work that is outside the current direct-download regression release."
-    - stash_sha: "7e7696022de4f5c4667daa4824d964d292a6a245"
-      subject: "On main: auto-reconcile-20260505-215526-stephans-mac-mini"
-      decision: archived
-      reason: "Mini stash audit found outreach-only metadata about deleted competitor-thread posts; it carries no app source or release artifact work."
-    - stash_sha: "d7aed56bd114d8b460a8906b28506df0c304609a"
-      subject: "On main: auto-reconcile-20260430-215517-stephans-mac-mini"
-      decision: superseded
-      reason: "Mini stash audit found Bartender import preview, hide-all-other persistence, profile/export plumbing, and related tests represented in the current tree and handoff."
-    - stash_sha: "5e47aaed184782dfc80e83a83056705c15614d9e"
-      subject: "On main: auto-reconcile-20260430-055519-stephans-mac-mini"
-      decision: superseded
-      reason: "Mini stash audit found this is an older subset of later Bartender import, persistence, and settings UI work already represented in HEAD."
-    - stash_sha: "754c750b407542f72df3473da9f289c86f1885bd"
-      subject: "On main: auto-reconcile-20260429-215516-stephans-mac-mini"
-      decision: deferred
-      reason: "Mini stash audit found Setapp runtime-proof and review-packaging work that should wait for deliberate Setapp lane reactivation."
-    - stash_sha: "54307b5e84fc2eee8fe27b9d9c4c44fc9a277730"
-      subject: "On main: auto-reconcile-20260428-215521-stephans-mac-mini"
-      decision: deferred
-      reason: "Mini stash audit found Setapp activation metadata deferred because SaneBar is currently direct-download only."
-    - stash_sha: "e54e0378b7997c21af02b064f12f3c52f9c4dbcc"
-      subject: "On main: auto-reconcile-20260427-215517-stephans-mac-mini"
-      decision: deferred
-      reason: "Mini stash audit found future degraded-bootstrap and status-recovery architecture; current HEAD has later verified visibility/menu stabilization and passed Mini runtime smoke for this release."
-    - stash_sha: "b9cfad76a5118406bc4275f5ab9f5d7bdad6e9b4"
-      subject: "On main: auto-reconcile-20260425-215520-stephans-mac-mini"
-      decision: recovered
-      reason: "Recovered the missing privacy-preserving aggregate analytics disclosure into PRIVACY.md and docs/privacy.html before marking this Mini stash reviewed."
-    - stash_sha: "637eb6e900e6c64375c7fdd92d7a32f02f429530"
-      subject: "On main: auto-reconcile-20260424-215517-stephans-mac-mini"
-      decision: superseded
-      reason: "Mini stash audit found the SaneBar Pro comparison-table clarification already present in HEAD."
-    - stash_sha: "a01d96dea170fd74a5be2284c17fb7d46a69f24f"
-      subject: "On main: auto-reconcile-20260424-153452-stephans-mac-mini"
-      decision: deferred
-      reason: "Mini stash audit found docs-only legacy onboarding and README guidance; useful for later docs cleanup but not release code."
-    - stash_sha: "151abb115af365fa5b5ff27d3eb2a91de865555a"
-      subject: "On main: auto-reconcile-20260423-215519-stephans-mac-mini"
-      decision: superseded
-      reason: "Mini stash audit found live-anchor wait, right-gap helper, and related recovery tests already present in HEAD."
-    - stash_sha: "5133677643cb35944f00521ff5d09435ad7e1dd2"
-      subject: "On main: auto-reconcile-20260420-215516-stephans-mac-mini"
-      decision: superseded
-      reason: "Mini stash audit found bootstrap and structural runtime snapshot model plus coordinator rejection paths already present in HEAD."
-    - stash_sha: "b4649be0d6efc85939ef3a87d3e116e99c8d717a"
-      subject: "On main: auto-reconcile-20260420-095220-stephans-mac-mini"
-      decision: superseded
-      reason: "Mini stash audit found autosave recovery bypass and broader status-item cleanup already present in HEAD with tests."
-    - stash_sha: "38da933a6b14da28aebb71f05b0bb328986fc23e"
-      subject: "On main: auto-reconcile-20260419-055518-stephans-mac-mini"
-      decision: superseded
-      reason: "Mini stash audit found post-recovery geometry warmup and runtime guard coverage already present in HEAD."
-    - stash_sha: "3da463ae6e27d4f1abb78981cbb065408e8d67f1"
-      subject: "On main: auto-reconcile-20260418-215516-stephans-mac-mini"
-      decision: superseded
-      reason: "Mini stash audit found fresh autosave namespace reset and expanded by-host/app-domain cleanup already present in HEAD."
-    - stash_sha: "9e19085a36a3762c931fd447884ab6415f0ae3f3"
-      subject: "On main: auto-reconcile-20260417-215518-stephans-mac-mini"
-      decision: superseded
-      reason: "Mini stash audit found rehide mouse-location policy, Browse panel Pro gating, and public pricing surfaces already present in HEAD."
-    - stash_sha: "c11fd408dcbae8f6a5ecefb725cd627c853dfdb0"
-      subject: "On main: auto-reconcile-20260417-055518-stephans-mac-mini"
-      decision: archived
-      reason: "Mini stash audit found research-cache-only browse-move notes superseded by later HEAD runtime work."
-    - stash_sha: "8a80f7995891db8f977317177a00345e3908adfa"
-      subject: "On main: auto-reconcile-20260416-055517-stephans-mac-mini"
-      decision: archived
-      reason: "Mini stash audit found stale research-cache-only release context with no source, test, or docs work to recover."
-    - stash_sha: "594a8b785f2e00a19c438343f66e03e3c4a94846"
-      subject: "On main: auto-reconcile-20260415-055522-stephans-mac-mini"
-      decision: superseded
-      reason: "Mini stash audit found price display and dormant Setapp wording already present in HEAD."
-    - stash_sha: "33069574b42c64f0d2cfdc00df8d88dd51d08ab2"
-      subject: "On main: auto-reconcile-20260413-155607-stephans-macbook-air"
-      decision: archived
-      reason: "Mini stash audit found research-cache-only Zoom performance triage with no current release artifact work."
-    - stash_sha: "fedcce969f81c20779b019235f81d8065a450020"
-      subject: "On main: auto-reconcile-20260411-055525-stephans-macbook-air"
-      decision: deferred
-      reason: "Mini stash audit found repo hook/config sync work covered by active user-level hooks and not needed for the current release artifact."
-    - stash_sha: "2726743844e862d381fb5de14c61a5b8f1affbb4"
-      subject: "On main: auto-reconcile-20260508-215529-stephans-macbook-air"
-      decision: recovered
-      reason: "Recovered the shared SaneUI direct-download app mover and confirmed the hover, rehide, tint/fullscreen, shared utility-menu, and settings-copy fixes are represented in the current tree and SaneBar handoff."
-    - stash_sha: "e4b57eb5df25cadea0036285a0510b1695d26f53"
-      subject: "On main: auto-reconcile-20260506-215531-stephans-macbook-air"
-      decision: deferred
-      reason: "Setapp/App Store lane collateral conflicts with the current direct-download-only manifest; active-lane copy and App Store assumptions are deferred until those lanes are deliberately reactivated."
-    - stash_sha: "40f8dee89d23f623a211f30a40a5ba52f0c76c0e"
-      subject: "On main: auto-reconcile-20260430-215529-stephans-macbook-air"
-      decision: deferred
-      reason: "Website and SEO copy improvements are real but not required for the current regression release; direct-download release truth is already represented in the active docs."
-    - stash_sha: "c20fa15c32b778192ccd427d5267a7ff7a26c19d"
-      subject: "On main: auto-reconcile-20260430-055528-stephans-macbook-air"
-      decision: deferred
-      reason: "Bartender import preview, All Other Items persistence, saved-profile, and export plumbing are substantial feature work that is intentionally deferred from this regression release instead of silently discarded."
-    - stash_sha: "5a1ada9fb07d44030528d31e6a1de20cf60db022"
-      subject: "On main: auto-reconcile-20260429-215525-stephans-macbook-air"
-      decision: superseded
-      reason: "Release-lane and project metadata drift is superseded by the current direct-download-only manifest and release SOP; no unique current-regression fix remains in this stash."
-    - stash_sha: "a5f01515277f88000b6181d83d56d5e53478537a"
-      subject: "On main: auto-reconcile-20260428-215531-stephans-macbook-air"
-      decision: deferred
-      reason: "Setapp lane activation metadata and docs are deferred because SaneBar is not currently shipping through Setapp; release-critical direct metadata remains in the active manifest."
-    - stash_sha: "deade8ddfc62c48cea05e26e08592cd2a619bf44"
-      subject: "On main: auto-reconcile-20260427-215526-stephans-macbook-air"
-      decision: superseded
-      reason: "Runtime hardening and research notes are represented by later current-tree fixes and handoff evidence; no unique current-regression release work remains."
-    - stash_sha: "a381a1ccaef0920d60eaba96a978225989691edb"
-      subject: "On main: auto-reconcile-20260425-215529-stephans-macbook-air"
-      decision: recovered
-      reason: "Privacy disclosure expansion is already represented in PRIVACY.md and docs/privacy.html, so this stash no longer carries unrecovered release-critical privacy work."
-    - stash_sha: "f71150f7ebe9f0d2e1f902cb2c0df60875c9b4b3"
-      subject: "On main: auto-reconcile-20260424-153503-stephans-macbook-air"
-      decision: superseded
-      reason: "Direct-download and Homebrew documentation corrections are already represented by the current direct-download release strategy and active docs."
-    - stash_sha: "073ca7625870f40668a2f1740c058e430946d220"
-      subject: "On main: auto-reconcile-20260423-215529-stephans-macbook-air"
-      decision: superseded
-      reason: "Older icon-moving, operation-coordinator, and AppleScript work has been superseded by later verified runtime hardening in the current tree."
-    - stash_sha: "39d7967b032d49a2b2e1c0ea0ade7ccb80a5b300"
-      subject: "On main: auto-reconcile-20260421-215525-stephans-macbook-air"
-      decision: superseded
-      reason: "Older Accessibility interaction and scanning changes are superseded by later current-tree interaction fixes and focused runtime coverage."
-    - stash_sha: "c7ba4796e7fd735d5414ade36202587c1d0e8e99"
-      subject: "On main: auto-reconcile-20260420-215524-stephans-macbook-air"
-      decision: superseded
-      reason: "Older icon-moving and operation-coordinator changes are superseded by later current-tree menu-bar movement hardening and tests."
-    - stash_sha: "054394892e90c3fef66fd81a29bc0a3cf2841d0a"
-      subject: "On main: auto-reconcile-20260418-055526-stephans-macbook-air"
-      decision: deferred
-      reason: "Older docs and guide updates are non-blocking for the current regression release and are deferred for a documentation cleanup pass."
-    - stash_sha: "e4281a8b725a8dbbfe0e8af8045278c702f15c41"
-      subject: "On main: auto-reconcile-20260413-215540-stephans-macbook-air"
-      decision: superseded
-      reason: "Older release collateral is superseded by subsequent shipped releases and current release notes."
-    - stash_sha: "33069574b42c64f0d2cfdc00df8d88dd51d08ab2"
-      subject: "On main: auto-reconcile-20260413-155607-stephans-macbook-air"
-      decision: archived
-      reason: "Research-cache-only stash is archived as non-release source material and does not carry app code needed for the current release."
-    - stash_sha: "fedcce969f81c20779b019235f81d8065a450020"
-      subject: "On main: auto-reconcile-20260411-055525-stephans-macbook-air"
-      decision: superseded
-      reason: "Older local hook/config and lint drift is superseded by current shared SaneProcess hook and release checks."
-  dmg:
-    volume_icon: Resources/DMGIcon.icns
-    file_icon: Resources/DMGIcon.icns
-    window_size: "800 400"
-    app_icon_pos: "200 185"
-    drop_pos: "600 185"
 
 commands:
-  verify: ./scripts/SaneMaster.rb verify
-  test_mode: ./scripts/SaneMaster.rb tm
-  lint: ./scripts/SaneMaster.rb lint
-  clean: ./scripts/SaneMaster.rb clean
-  launch: ./scripts/SaneMaster.rb launch
-  logs: ./scripts/SaneMaster.rb logs
+  verify: ./Scripts/SaneMaster.rb verify
+  test_mode: ./Scripts/SaneMaster.rb tm
+  lint: ./Scripts/SaneMaster.rb lint
+  clean: ./Scripts/SaneMaster.rb clean
+  launch: ./Scripts/SaneMaster.rb launch
+  logs: ./Scripts/SaneMaster.rb logs
 
 docs:
-  - CLAUDE.md
   - README.md
   - DEVELOPMENT.md
   - ARCHITECTURE.md
-  - SESSION_HANDOFF.md
-
-mcps:
-  - apple-docs
-  - context7
-  - github
-  - XcodeBuildMCP
-  - macos-automator
 
 website: true
 website_domain: sanebar.com
 
+# Distribution lanes beyond direct download are retired (sunset, June 2026).
 setapp:
-  enabled: true
-  app_id: "1848"
-  version_id: "46885"
+  enabled: false
   scheme: SaneBarSetapp
   configuration: Release-Setapp
   bundle_id: com.sanebar.app-setapp
   public_key_path: Setapp/setappPublicKey.pem
-  release_notes_public: true
-  review_comments_private: true
-  require_manual_release_confirmation: true
-  listing:
-    setapp_url: "https://setapp.com/apps/sanebar"
-    privacy_policy_url: "https://sanebar.com/privacy"
-    support_url: "https://sanebar.com/support"
-    screenshot_source: "owned-site app-in-use screenshots"
-    screenshot_asset_root: docs/images/setapp
-    screenshot_roles:
-      - core_workflow_icon_panel
-      - core_workflow_second_menu_bar
-      - privacy_touch_id
-      - workflow_browse_icons
-      - settings_appearance
-    screenshots:
-      - docs/images/setapp/sanebar-setapp-01-icon-panel.png
-      - docs/images/setapp/sanebar-setapp-02-second-menu-bar.png
-      - docs/images/setapp/sanebar-setapp-03-touch-id.png
-      - docs/images/setapp/sanebar-setapp-04-browse-icons.png
-      - docs/images/setapp/sanebar-setapp-05-appearance.png
-  restrictions:
-    no_sparkle: true
-    no_direct_checkout: true
-    no_license_keys: true
-    no_donation_ui: true
-    no_demo_or_trial_mode: true
 
 appstore:
   enabled: false
-  # Current strategy: direct-download only.
-  # Do not route the current full-featured build through App Store release automation.
-  # App Store metadata below is retained only as dormant reference and is not an active lane.
-  app_id: "6759464256"
-  product_id: "com.sanebar.app.pro.unlock"
-  configuration: Release-AppStore
-  platforms: [macos]
-  category: public.app-category.utilities
-  age_rating: "4+"
-  privacy_policy_url: "https://sanebar.com/privacy"
-  support_url: "https://sanebar.com/support"
-  marketing_url: "https://sanebar.com"
-  metadata:
-    macos:
-      subtitle: "Hide Menu Bar Clutter"
-      promotional_text: "Hide noisy menu bar icons, keep essentials visible, and reveal hidden apps instantly with hotkeys, hover, or click."
-      description: >-
-        SaneBar keeps your menu bar clean without losing access to the apps you rely on.
-        Hide rarely used icons, keep critical icons visible, and reveal everything instantly when you need it.
-        Works with notch Macs, supports keyboard-first control, and keeps all processing on-device.
-      keywords: "menu bar,hide icons,status bar,productivity,notch,mac utility,focus,desktop"
-      whats_new: "Improved icon move reliability, faster refresh, and stronger stability around launch and permissions."
-      marketing_url: "https://sanebar.com"
-  review_notes: "SaneBar's current public strategy is direct download only. The Mac App Store lane is intentionally inactive for the current full-featured build and should not be submitted from this repo state. If an App Store-safe variant is revisited later, re-validate sandbox-safe behavior, pricing, and reviewer guidance from scratch."
-  accessibility_declarations:
-    publish: true
-    mac:
-      supports_dark_interface: true
-  screenshots:
-    macos: marketing/appstore-images/*.png
-  entitlements: SaneBar/SaneBar-AppStore.entitlements
-  build_flags:
-    - 'INFOPLIST_KEY_SUFeedURL='
-    - 'INFOPLIST_KEY_SUEnableAutomaticChecks='
-    - 'INFOPLIST_KEY_SUPublicEDKey='
-  strip_frameworks:
-    - Sparkle.framework
-  contact:
-    name: "Stephan Joseph"
-    phone: "+1[removed-for-privacy]"
-    email: "hi@saneapps.com"
+  # SaneBar never shipped through the Mac App Store; the lane is dormant.
