@@ -116,8 +116,12 @@ final class GeneralSettingsSimplificationXCTests: XCTestCase {
     }
 
     @MainActor
-    func testLaunchTimeProTrialDoesNotNormalizeRowsBeforeObserversExist() {
-        LicenseService.shared.deactivate()
+    func testLaunchTimeFreeBuildUnlockDoesNotNormalizeRowsBeforeObserversExist() {
+        // Production launch state post-sunset: the free build unlocks Pro for everyone.
+        // The old deactivate()-based Pro-trial setup only passed on machines with
+        // leftover trial state in keychain/defaults; a clean runner came up free and
+        // normalized the rows. checkCachedLicense() is deterministic everywhere.
+        LicenseService.shared.checkCachedLicense()
 
         let persistence = PersistenceServiceProtocolMock()
         let manager = MenuBarManager(
