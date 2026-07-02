@@ -5,6 +5,8 @@ title: "[Bug]: "
 labels: bug
 ---
 
+> **Heads-up:** SaneBar is community-maintained now, so new issues are auto-closed with a note explaining why. **Pull requests are still reviewed and merged** — if you can fix it, please open a PR (the README shows how, even if you do not code).
+
 ## What happened?
 
 <!-- Tell me what you saw in plain language -->

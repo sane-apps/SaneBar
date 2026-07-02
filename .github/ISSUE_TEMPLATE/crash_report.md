@@ -5,6 +5,8 @@ title: "[Crash]: "
 labels: bug, crash
 ---
 
+> **Heads-up:** SaneBar is community-maintained now, so new issues are auto-closed with a note explaining why. **Pull requests are still reviewed and merged** — if you can fix it, please open a PR (the README shows how, even if you do not code).
+
 **SaneBar Version:**
 <!-- e.g. 1.0.17 (check About screen or download filename) -->
 

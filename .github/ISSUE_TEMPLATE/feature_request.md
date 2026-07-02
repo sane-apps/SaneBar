@@ -5,6 +5,8 @@ title: "[Feature]: "
 labels: enhancement
 ---
 
+> **Heads-up:** SaneBar is community-maintained now, so new issues are auto-closed with a note explaining why. **Pull requests are still reviewed and merged** — if you can fix it, please open a PR (the README shows how, even if you do not code).
+
 ## What problem are you trying to solve?
 
 <!-- Describe the pain point in plain language -->
