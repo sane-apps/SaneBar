@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, follow">
+    <title>Thanks for downloading SaneBar</title>
+    <link rel="icon" href="favicon.ico">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #08080c;
+            --bg-card: #16161f;
+            --accent: #4f8ffa;
+            --accent-soft: #3b7ce8;
+            --text-primary: #f5f5f8;
+            --text-muted: #d0d0e0;
+            --border: #252530;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        a { color: var(--accent); text-decoration: none; }
+        .wrap { max-width: 720px; margin: 0 auto; padding: 40px 24px 64px; width: 100%; }
+        .brandbar { padding: 24px; text-align: center; }
+        .brandbar a { color: var(--text-muted); font-weight: 600; letter-spacing: 0.02em; }
+        .hero { text-align: center; padding: 24px 0 8px; }
+        .checkmark {
+            width: 56px; height: 56px; border-radius: 50%;
+            background: rgba(79, 143, 250, 0.12);
+            display: inline-flex; align-items: center; justify-content: center;
+            margin-bottom: 20px;
+            color: var(--accent); font-size: 1.8rem;
+        }
+        h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: 2.1rem; font-weight: 600; margin-bottom: 12px;
+        }
+        .lede { color: var(--text-muted); font-size: 1.05rem; margin-bottom: 28px; }
+        .dl-fallback {
+            display: inline-flex; align-items: center; justify-content: center;
+            background: var(--accent); color: #fff; font-weight: 600;
+            padding: 13px 26px; border-radius: 10px; font-size: 1rem;
+            transition: background 0.15s ease;
+        }
+        .dl-fallback:hover { background: var(--accent-soft); }
+        .dl-note { color: var(--text-muted); font-size: 0.86rem; margin-top: 12px; }
+        .dl-note code {
+            background: var(--bg-card); padding: 3px 9px; border-radius: 6px;
+            font-size: 0.82rem; border: 1px solid var(--border); color: var(--text-muted);
+        }
+        .divider {
+            border: none; border-top: 1px solid var(--border);
+            margin: 44px 0 36px;
+        }
+        .rec-intro { text-align: center; margin-bottom: 24px; }
+        .rec-intro h2 {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.5rem; font-weight: 600; margin-bottom: 8px;
+        }
+        .rec-intro p { color: var(--text-muted); font-size: 0.98rem; }
+        .feature-card {
+            display: flex; gap: 18px; align-items: flex-start;
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 14px; padding: 24px; margin-bottom: 16px;
+            transition: border-color 0.15s ease, transform 0.15s ease;
+        }
+        .feature-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+        .feature-card img { width: 56px; height: 56px; border-radius: 13px; flex-shrink: 0; }
+        .feature-card .body { flex: 1; }
+        .feature-card .name { font-weight: 700; font-size: 1.15rem; color: var(--text-primary); margin-bottom: 4px; }
+        .feature-card .tagline { color: var(--text-muted); font-size: 0.95rem; margin-bottom: 8px; }
+        .feature-card .cta { color: var(--accent); font-weight: 600; font-size: 0.92rem; }
+        .mini-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+        .mini-card {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 12px; padding: 16px 18px;
+            transition: border-color 0.15s ease;
+        }
+        .mini-card:hover { border-color: var(--accent); }
+        .mini-card .name { font-weight: 700; color: var(--text-primary); margin-bottom: 3px; }
+        .mini-card .tagline { color: var(--text-muted); font-size: 0.85rem; }
+        .hub { text-align: center; margin-top: 8px; }
+        .hub a { font-weight: 600; }
+        @media (max-width: 560px) { .mini-grid { grid-template-columns: 1fr; } h1 { font-size: 1.7rem; } }
+    </style>
+</head>
+<body>
+    <div class="brandbar"><a href="/">&larr; SaneBar</a></div>
+    <div class="wrap">
+        <div class="hero">
+            <div class="checkmark">&#10003;</div>
+            <h1>Thanks &mdash; your download is starting</h1>
+            <p class="lede">SaneBar is on its way. It&rsquo;s free and fully open source, with every feature unlocked.</p>
+            <a href="/download" class="dl-fallback" data-cta="thanks_manual_download" id="manualDownload">Download didn&rsquo;t start? Click here</a>
+            <p class="dl-note">Prefer Homebrew? <code>brew install --cask sane-apps/tap/sanebar</code></p>
+        </div>
+
+        <hr class="divider">
+
+        <div class="rec-intro">
+            <h2>While that downloads&hellip;</h2>
+            <p>You like a calmer, more private Mac. These solve other everyday annoyances the same way &mdash; on-device by default, pay once, no subscription.</p>
+        </div>
+
+        <a href="https://saneclip.com" class="feature-card" data-cta="post_download_saneclip">
+            <img src="images/saneclip-icon.png" alt="SaneClip">
+            <div class="body">
+                <div class="name">SaneClip &mdash; the natural next step</div>
+                <div class="tagline">Private clipboard history that never leaves your Mac: Touch ID lock, instant search, and OCR built in. The companion to a tidy menu bar. Free to try, $14.99 once.</div>
+                <span class="cta">Learn more &rarr;</span>
+            </div>
+        </a>
+
+        <div class="mini-grid">
+            <a href="https://saneclick.com" class="mini-card" data-cta="post_download_saneclick">
+                <div class="name">SaneClick</div>
+                <div class="tagline">Useful right-click actions in Finder &mdash; convert files, merge PDFs, run scripts. $14.99 once.</div>
+            </a>
+            <a href="https://sanehosts.com" class="mini-card" data-cta="post_download_sanehosts">
+                <div class="name">SaneHosts</div>
+                <div class="tagline">Block ads and trackers system-wide with a simple local hosts manager.</div>
+            </a>
+        </div>
+
+        <div class="hub"><a href="https://saneapps.com" data-cta="post_download_hub">See all apps at saneapps.com &rarr;</a></div>
+    </div>
+
+    <script>
+        // Start the real download immediately; the visible button is the fallback.
+        // Links to /download (302 → current versioned ZIP), so this page never
+        // needs a version bump.
+        (function () {
+            try {
+                var a = document.createElement('a');
+                a.href = '/download';
+                a.rel = 'noopener';
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+            } catch (e) { /* fallback button remains */ }
+        })();
+    </script>
+</body>
+</html>
