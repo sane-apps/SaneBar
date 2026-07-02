@@ -254,6 +254,20 @@ Prefer crypto? These work too:
 
 ---
 
+## More from the same developer
+
+If SaneBar earned a spot on your Mac, these solve other everyday annoyances the same way — on-device by default, pay once, no subscription:
+
+| App | What it does |
+|-----|--------------|
+| **[SaneClip](https://saneclip.com)** | Clipboard history that stays private — Touch ID lock, instant search, OCR, and quick text tools. The natural companion to a tidy menu bar. |
+| **[SaneClick](https://saneclick.com)** | Useful right-click actions in Finder — convert files, run scripts, merge PDFs — all on-device, no Automator. |
+| **[SaneHosts](https://sanehosts.com)** | Block ads and trackers system-wide with a simple local hosts manager. |
+
+See everything at **[saneapps.com](https://saneapps.com)**.
+
+---
+
 ## For Developers
 
 <details>
