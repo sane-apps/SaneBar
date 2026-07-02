@@ -70,9 +70,9 @@ The full spike — gate fix, dead-zone detection, the teleport primitive, unit
 tests, and probe scripts — lives on branch `fix/170-cross-notch-teleport`
 (commit message has the complete play-by-play). I'm not going to build a
 Screen Recording–gated version myself — it's privacy or nothing for the app I
-ship. But SaneBar is MIT now: if you want this feature badly enough to accept
-that trade-off, fork it and build your own version with Screen Recording
-wired in. I genuinely mean that as an option, not a brush-off.
+ship. But SaneBar is MIT now, so if someone's willing to make that trade-off
+for their own build, forking it and wiring in Screen Recording is a real
+option — I genuinely mean that, not a brush-off.
 
 If you'd rather stay privacy-first and still take a run at it, the other
 honest path is waiting for macOS 27 "Golden Gate", which replaces the
