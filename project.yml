@@ -25,7 +25,7 @@ packages:
     from: 2.8.0
   SaneUI:
     url: https://github.com/sane-apps/SaneUI.git
-    revision: 001fc7f6d1b6666dd447037c94813a116a8ca9be
+    revision: 001fc7f40d8c1315c128ff66c17f2efc3ea0fc96
 settings:
   DEAD_CODE_STRIPPING: YES
   SWIFT_EMIT_LOC_STRINGS: YES
