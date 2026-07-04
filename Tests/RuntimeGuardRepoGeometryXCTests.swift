@@ -54,7 +54,7 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
 
         XCTAssertTrue(project.contains("SaneUI:"), "SaneUI should remain an explicit dependency")
         XCTAssertTrue(
-            project.contains("revision: 6adafae62cfb37b54f2167e70de9fc5e9b4effb9"),
+            project.contains("revision: 001fc7f6d1b6666dd447037c94813a116a8ca9be"),
             "SaneUI should pin the shared settings chrome revision for release reproducibility"
         )
         XCTAssertFalse(
@@ -62,7 +62,7 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
             "SaneUI should not track a moving branch in release configuration"
         )
         XCTAssertTrue(
-            resolved.contains("\"revision\" : \"6adafae62cfb37b54f2167e70de9fc5e9b4effb9\""),
+            resolved.contains("\"revision\" : \"001fc7f6d1b6666dd447037c94813a116a8ca9be\""),
             "Package.resolved should resolve SaneUI to the release-tested revision"
         )
         XCTAssertFalse(
