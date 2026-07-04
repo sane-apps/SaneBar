@@ -51,6 +51,13 @@ final class LicenseService: ObservableObject {
         return url
     }
 
+    static func donationURL() -> URL {
+        guard let url = URL(string: "https://github.com/sponsors/MrSaneApps") else {
+            preconditionFailure("Failed to construct donation URL")
+        }
+        return url
+    }
+
     // MARK: - Published State
 
     @Published private(set) var isPro: Bool = false
@@ -63,6 +70,8 @@ final class LicenseService: ObservableObject {
     /// unlock supersedes the time-limited Pro trial: the badge reads "Pro" instead of
     /// "Pro Trial", and an expired trial never demotes a paying customer to Basic.
     @Published private(set) var hasPaidUnlock: Bool = false
+    /// True only for an actual customer purchase, not the current MIT free unlock.
+    @Published private(set) var hasLegacyPaidUnlock: Bool = false
     private var proTrialLastSeenAt: Date?
     @Published var validationError: String?
     @Published var purchaseError: String?
@@ -98,6 +107,7 @@ final class LicenseService: ObservableObject {
         proTrialStartedAt = Self.storedTrialDate(userDefaults: userDefaults, keychain: keychain, key: Keys.proTrialStartedAt, now: now, rejectsFutureDate: true)
         proTrialLastSeenAt = Self.storedTrialDate(userDefaults: userDefaults, keychain: keychain, key: Keys.proTrialLastSeenAt, now: now, rejectsFutureDate: false)
         hasPaidUnlock = Self.storedPaidLicensePresent(keychain: keychain)
+        hasLegacyPaidUnlock = hasPaidUnlock
     }
 
     nonisolated static func resolvedDistributionChannel(
@@ -239,6 +249,7 @@ final class LicenseService: ObservableObject {
             try? keychain.delete(Keys.licenseKey)
             try? keychain.delete(Keys.lastValidation)
             hasPaidUnlock = false
+            hasLegacyPaidUnlock = false
             startProTrialIfNeeded()
             updateTrialLastSeenAt()
             isPro = isProTrialActive
@@ -250,6 +261,7 @@ final class LicenseService: ObservableObject {
         licenseEmail = try? keychain.string(forKey: Keys.licenseEmail)
         // A real stored license key is a paid unlock — it supersedes any trial.
         hasPaidUnlock = true
+        hasLegacyPaidUnlock = true
 
         // Check offline grace
         if let lastDateString = try? keychain.string(forKey: Keys.lastValidation),
@@ -309,6 +321,7 @@ final class LicenseService: ObservableObject {
                 try keychain.set(ISO8601DateFormatter().string(from: Date()), forKey: Keys.lastValidation)
                 isPro = true
                 hasPaidUnlock = true
+                hasLegacyPaidUnlock = true
                 validationError = nil
                 Task.detached { await EventTracker.log("license_activated") }
                 licenseLogger.info("License activated successfully")
@@ -338,6 +351,7 @@ final class LicenseService: ObservableObject {
         try? keychain.delete(Keys.licenseEmail)
         try? keychain.delete(Keys.lastValidation)
         hasPaidUnlock = false
+        hasLegacyPaidUnlock = false
         updateTrialLastSeenAt()
         isPro = isProTrialActive
         licenseEmail = nil
@@ -471,6 +485,7 @@ final class LicenseService: ObservableObject {
                 break
             }
             isPro = unlocked
+            hasLegacyPaidUnlock = unlocked
             if unlocked {
                 validationError = nil
                 purchaseError = nil
@@ -486,10 +501,12 @@ final class LicenseService: ObservableObject {
                 try? keychain.set(ISO8601DateFormatter().string(from: Date()), forKey: Keys.lastValidation)
                 isPro = true
                 hasPaidUnlock = true
+                hasLegacyPaidUnlock = true
                 licenseLogger.info("Background revalidation succeeded")
             } else {
                 // Key was revoked — revert to free
                 hasPaidUnlock = false
+                hasLegacyPaidUnlock = false
                 updateTrialLastSeenAt()
                 isPro = isProTrialActive
                 licenseLogger.info("Background revalidation failed — reverting to free")

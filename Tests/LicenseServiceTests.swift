@@ -52,8 +52,22 @@ struct LicenseServiceTests {
 
         #expect(service.isPro) // the unlock fires for an unlicensed user
         #expect(service.hasPaidUnlock)
+        #expect(!service.hasLegacyPaidUnlock)
         #expect(!service.isProTrialActive) // Pro is granted by the free build, not a trial
         #expect(service.licenseEmail == nil)
+    }
+
+    @Test("Free build preserves legacy paid unlock distinction")
+    func freeBuildPreservesLegacyPaidUnlockDistinction() throws {
+        let keychain = MockKeychainService()
+        try keychain.set("test-license-key-123", forKey: "pro_license_key")
+
+        let service = LicenseService(keychain: keychain, userDefaults: makeIsolatedDefaults())
+        service.checkCachedLicense()
+
+        #expect(service.isPro)
+        #expect(service.hasPaidUnlock)
+        #expect(service.hasLegacyPaidUnlock)
     }
 
     @Test("Fresh install starts the 14-day Pro trial")
@@ -88,6 +102,7 @@ struct LicenseServiceTests {
 
         #expect(service.isPro)
         #expect(service.licenseEmail == "user@example.com")
+        #expect(service.hasLegacyPaidUnlock)
     }
 
     @Test("Existing paid Pro users stay Pro without trial state")

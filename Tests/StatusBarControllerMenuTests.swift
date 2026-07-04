@@ -27,6 +27,7 @@ struct StatusBarControllerMenuTests {
             @objc func health() {}
             @objc func settings() {}
             @objc func license() {}
+            @objc func donate() {}
             @objc func about() {}
             @objc func checkForUpdates() {}
             @objc func quit() {}
@@ -39,6 +40,7 @@ struct StatusBarControllerMenuTests {
             healthAction: #selector(DummyTarget.health),
             settingsAction: #selector(DummyTarget.settings),
             licenseAction: #selector(DummyTarget.license),
+            donateAction: #selector(DummyTarget.donate),
             aboutAndBugReportAction: #selector(DummyTarget.about),
             showReleaseNotesAction: nil,
             checkForUpdatesAction: #selector(DummyTarget.checkForUpdates),
@@ -46,8 +48,8 @@ struct StatusBarControllerMenuTests {
         ))
 
         // Should have: Browse, Toggle, separator, Arrange, Health, separator,
-        // Settings, License, Updates, About / Report, separator, Quit
-        #expect(menu.items.count == 12, "Menu should have 12 items (9 commands + 3 separators)")
+        // Settings, License, Updates, About / Report, separator, Donate, separator, Quit
+        #expect(menu.items.count == 14, "Menu should have 14 items (10 commands + 4 separators)")
 
         // Use named lookups (resilient to menu reordering)
         let findIconItem = menu.item(titled: "Browse Icons...")
@@ -78,6 +80,9 @@ struct StatusBarControllerMenuTests {
         let aboutItem = menu.item(titled: SaneStandardMenu.aboutAndBugReportTitle)
         #expect(aboutItem != nil, "Menu should have About / Report item")
 
+        let donateItem = menu.item(titled: "Donate...")
+        #expect(donateItem != nil, "Menu should have Donate item")
+
         let quitItem = menu.item(titled: "Quit SaneBar")
         #expect(quitItem != nil, "Menu should have Quit item")
         #expect(quitItem?.keyEquivalent == "q")
@@ -95,6 +100,7 @@ struct StatusBarControllerMenuTests {
             @objc func health() {}
             @objc func settings() {}
             @objc func license() {}
+            @objc func donate() {}
             @objc func about() {}
             @objc func quit() {}
         }
@@ -106,6 +112,7 @@ struct StatusBarControllerMenuTests {
             healthAction: #selector(DummyTarget.health),
             settingsAction: #selector(DummyTarget.settings),
             licenseAction: #selector(DummyTarget.license),
+            donateAction: #selector(DummyTarget.donate),
             aboutAndBugReportAction: #selector(DummyTarget.about),
             showReleaseNotesAction: nil,
             checkForUpdatesAction: nil,
@@ -113,7 +120,7 @@ struct StatusBarControllerMenuTests {
         ))
 
         #expect(menu.item(titled: "Check for Updates...") == nil)
-        #expect(menu.items.count == 11, "Menu should remove only the update command")
+        #expect(menu.items.count == 13, "Menu should remove only the update command")
     }
 
     @Test("createMenu leaves item targets unset")
@@ -128,6 +135,7 @@ struct StatusBarControllerMenuTests {
             @objc func health() {}
             @objc func settings() {}
             @objc func license() {}
+            @objc func donate() {}
             @objc func about() {}
             @objc func checkForUpdates() {}
             @objc func quit() {}
@@ -140,6 +148,7 @@ struct StatusBarControllerMenuTests {
             healthAction: #selector(DummyTarget.health),
             settingsAction: #selector(DummyTarget.settings),
             licenseAction: #selector(DummyTarget.license),
+            donateAction: #selector(DummyTarget.donate),
             aboutAndBugReportAction: #selector(DummyTarget.about),
             showReleaseNotesAction: nil,
             checkForUpdatesAction: #selector(DummyTarget.checkForUpdates),
@@ -166,6 +175,7 @@ struct StatusBarControllerMenuTests {
             var healthCalled = false
             var settingsCalled = false
             var licenseCalled = false
+            var donateCalled = false
             var aboutCalled = false
             var checkForUpdatesCalled = false
             var quitCalled = false
@@ -176,6 +186,7 @@ struct StatusBarControllerMenuTests {
             @objc func health() { healthCalled = true }
             @objc func settings() { settingsCalled = true }
             @objc func license() { licenseCalled = true }
+            @objc func donate() { donateCalled = true }
             @objc func about() { aboutCalled = true }
             @objc func checkForUpdates() { checkForUpdatesCalled = true }
             @objc func quit() { quitCalled = true }
@@ -188,6 +199,7 @@ struct StatusBarControllerMenuTests {
             healthAction: #selector(DummyTarget.health),
             settingsAction: #selector(DummyTarget.settings),
             licenseAction: #selector(DummyTarget.license),
+            donateAction: #selector(DummyTarget.donate),
             aboutAndBugReportAction: #selector(DummyTarget.about),
             showReleaseNotesAction: nil,
             checkForUpdatesAction: #selector(DummyTarget.checkForUpdates),
@@ -203,6 +215,7 @@ struct StatusBarControllerMenuTests {
         let licenseItem = menu.item(titled: SaneStandardMenu.licenseTitle)
         let checkForUpdatesItem = menu.item(titled: "Check for Updates...")
         let aboutItem = menu.item(titled: SaneStandardMenu.aboutAndBugReportTitle)
+        let donateItem = menu.item(titled: "Donate...")
         let quitItem = menu.item(titled: "Quit SaneBar")
 
         #expect(findIconItem?.action == #selector(DummyTarget.findIcon), "Browse Icons item should have findIcon action")
@@ -213,6 +226,7 @@ struct StatusBarControllerMenuTests {
         #expect(licenseItem?.action == #selector(DummyTarget.license), "License item should have license action")
         #expect(checkForUpdatesItem?.action == #selector(DummyTarget.checkForUpdates), "Check for Updates item should have action")
         #expect(aboutItem?.action == #selector(DummyTarget.about), "About / Report item should have about action")
+        #expect(donateItem?.action == #selector(DummyTarget.donate), "Donate item should have donate action")
         #expect(quitItem?.action == #selector(DummyTarget.quit), "Quit item should have quit action")
     }
 
@@ -229,6 +243,7 @@ struct StatusBarControllerMenuTests {
             @objc func health() {}
             @objc func settings() { settingsCalled = true }
             @objc func license() {}
+            @objc func donate() {}
             @objc func about() {}
             @objc func checkForUpdates() {}
             @objc func quit() {}
@@ -242,6 +257,7 @@ struct StatusBarControllerMenuTests {
             healthAction: #selector(DummyTarget.health),
             settingsAction: #selector(DummyTarget.settings),
             licenseAction: #selector(DummyTarget.license),
+            donateAction: #selector(DummyTarget.donate),
             aboutAndBugReportAction: #selector(DummyTarget.about),
             showReleaseNotesAction: nil,
             checkForUpdatesAction: #selector(DummyTarget.checkForUpdates),

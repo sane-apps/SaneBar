@@ -54,7 +54,7 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
 
         XCTAssertTrue(project.contains("SaneUI:"), "SaneUI should remain an explicit dependency")
         XCTAssertTrue(
-            project.contains("revision: 83d825911a53aaa6560fd342969b12d02a364de3"),
+            project.contains("revision: 6adafae62cfb37b54f2167e70de9fc5e9b4effb9"),
             "SaneUI should pin the shared settings chrome revision for release reproducibility"
         )
         XCTAssertFalse(
@@ -62,7 +62,7 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
             "SaneUI should not track a moving branch in release configuration"
         )
         XCTAssertTrue(
-            resolved.contains("\"revision\" : \"83d825911a53aaa6560fd342969b12d02a364de3\""),
+            resolved.contains("\"revision\" : \"6adafae62cfb37b54f2167e70de9fc5e9b4effb9\""),
             "Package.resolved should resolve SaneUI to the release-tested revision"
         )
         XCTAssertFalse(
@@ -71,34 +71,61 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
         )
     }
 
-    func testLocalOnboardingCrossSellStaysDirectAndFocused() throws {
+    func testLocalOnboardingOpenSourceDonationAppealStaysFocused() throws {
         let source = try String(
             contentsOf: projectRootURL().appendingPathComponent("UI/Onboarding/WelcomePlanPage.swift"),
             encoding: .utf8
         )
 
-        XCTAssertTrue(
-            source.contains("!licenseService.usesAppStorePurchase && !licenseService.usesSetappDistribution"),
-            "SaneBar onboarding companion apps should stay direct-download only"
-        )
-        XCTAssertTrue(source.contains("https://saneclip.com?ref=sanebar-app"))
-        XCTAssertTrue(source.contains("https://saneclick.com?ref=sanebar-app"))
-        XCTAssertTrue(source.contains("https://sanehosts.com?ref=sanebar-app"))
-        XCTAssertTrue(source.contains("More helpful SaneApps"))
-        XCTAssertTrue(source.contains("SaneClipCompanionIcon"))
-        XCTAssertTrue(source.contains("SaneClickCompanionIcon"))
-        XCTAssertTrue(source.contains("SaneHostsCompanionIcon"))
-        XCTAssertTrue(source.contains("CompanionAppCard"))
         XCTAssertTrue(source.contains("outboundActionInFlight"))
         XCTAssertTrue(source.contains("runSingleOutboundAction"))
-        XCTAssertTrue(source.contains(".disabled(licenseService.isPurchasing || outboundActionInFlight)"))
-        XCTAssertTrue(source.contains(".buttonStyle(OnboardingSecondaryButtonStyle())"))
+        XCTAssertTrue(source.contains("Mr. Sane here. I need to share an insane stat with you all."))
+        XCTAssertTrue(source.contains("Fewer than 0.5% resulted in a purchase."))
+        XCTAssertTrue(source.contains("Text(\"Donate\")"))
+        XCTAssertTrue(source.contains("if !licenseService.hasLegacyPaidUnlock"))
+        XCTAssertTrue(source.contains("No donation is needed from you."))
+        XCTAssertTrue(source.contains("This does not lock SaneBar. The app remains free."))
+        XCTAssertTrue(source.contains("NSWorkspace.shared.open(LicenseService.donationURL())"))
+        XCTAssertFalse(source.contains("NSWorkspace.shared.open(LicenseService.checkoutURL())"))
+        XCTAssertFalse(source.contains("Restore Purchases"))
+        XCTAssertFalse(source.contains("Unlock Pro"))
+        XCTAssertFalse(source.contains("CompanionAppCard"))
         XCTAssertFalse(source.contains("Also useful"))
         XCTAssertFalse(source.contains(".font(.system(size: 11))"))
+        XCTAssertFalse(source.contains("SaneClipCompanionIcon"))
+        XCTAssertFalse(source.contains("SaneClickCompanionIcon"))
+        XCTAssertFalse(source.contains("SaneHostsCompanionIcon"))
         XCTAssertFalse(source.contains("SaneSales"))
         XCTAssertFalse(source.contains("SaneVideo"))
         XCTAssertFalse(source.contains("Works well with"))
         XCTAssertFalse(source.contains(".buttonStyle(.bordered)"))
+
+        let welcomeSource = try String(
+            contentsOf: projectRootURL().appendingPathComponent("UI/Onboarding/WelcomeView.swift"),
+            encoding: .utf8
+        )
+        XCTAssertTrue(welcomeSource.contains("private var finalButtonLabel: String {\n        \"Get Started\"\n    }"))
+        XCTAssertFalse(welcomeSource.contains("NSWorkspace.shared.open(LicenseService.checkoutURL())"))
+
+        let licenseSource = try String(
+            contentsOf: projectRootURL().appendingPathComponent("Core/Services/LicenseService.swift"),
+            encoding: .utf8
+        )
+        XCTAssertTrue(licenseSource.contains("static func donationURL() -> URL"))
+        XCTAssertTrue(licenseSource.contains("https://github.com/sponsors/MrSaneApps"))
+
+        let menuActionSource = try String(
+            contentsOf: projectRootURL().appendingPathComponent("Core/Services/MenuBarActionWorkflow.swift"),
+            encoding: .utf8
+        )
+        XCTAssertTrue(menuActionSource.contains("@objc func openDonate"))
+        XCTAssertTrue(menuActionSource.contains("NSWorkspace.shared.open(LicenseService.donationURL())"))
+
+        let menuSetupSource = try String(
+            contentsOf: projectRootURL().appendingPathComponent("Core/Services/MenuBarStatusItemSetupWorkflow.swift"),
+            encoding: .utf8
+        )
+        XCTAssertTrue(menuSetupSource.contains("donateAction: #selector(MenuBarActionWorkflow.openDonate(_:))"))
     }
 
     func testLocalOnboardingPrimaryButtonsUseSharedGlassGradient() throws {
