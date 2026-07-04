@@ -6,7 +6,27 @@
                                 
         
                                                                                                                                                                                                                                                                                                                                         
-                                                                                                                                                <item>
+                                                                                                                                                        <item>
+            <title>2.1.89</title>
+            <link>https://sanebar.com/download</link>
+            <pubDate>Sat, 04 Jul 2026 19:40:42 -0400</pubDate>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description>
+                <![CDATA[
+                <h2>What's New</h2>
+                <ul>
+                <li>Donation prompt and onboarding polish for the open-source SaneBar build.</li>
+                </ul>
+                ]]>
+            </description>
+            <enclosure url="https://dist.sanebar.com/updates/SaneBar-2.1.89.zip"
+                       sparkle:version="2189"
+                       sparkle:shortVersionString="2.1.89"
+                       length="8376407"
+                       type="application/octet-stream"
+                       sparkle:edSignature="3dII9UbEtg5c7g/lIjILN+OvhSs33i6C4sWdu6zjCx0VJ++8YqLogfypxtMsqmQjwgt+LNV1PkoHYLndj90VAA=="/>
+        </item>
+<item>
             <title>2.1.88</title>
             <link>https://sanebar.com/download</link>
             <pubDate>Tue, 30 Jun 2026 22:47:36 -0400</pubDate>
