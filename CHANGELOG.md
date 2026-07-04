@@ -8,6 +8,12 @@ All notable changes to SaneBar are documented here.
 
 ---
 
+## [2.1.89] - 2026-07-04
+
+Donation prompt and onboarding polish for the open-source SaneBar build.
+
+---
+
 ## [2.1.88] - 2026-06-30
 
 SaneBar is now free and fully open source under the MIT License. Every Pro feature is unlocked for everyone — no license key, no trial.
