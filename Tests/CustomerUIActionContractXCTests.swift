@@ -301,7 +301,7 @@ final class CustomerUIActionContractXCTests: XCTestCase {
             )
         }
 
-        for label in ["Import Layout", "Import Settings", "Open Accessibility Settings", "Unlock Pro", "Restore Purchases"] {
+        for label in ["Import Layout", "Import Settings", "Open Accessibility Settings", "Donate"] {
             XCTAssertTrue(onboardingSource.contains(label), "Expected onboarding action \(label)")
             XCTAssertTrue(contract.contains(label), "Contract must name onboarding action \(label)")
         }

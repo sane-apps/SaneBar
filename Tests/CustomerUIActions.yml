@@ -1032,27 +1032,24 @@ actions:
     applying.
   - Import Bartender and Import Ice preserve local wizard and rescue state.
 - id: onboarding-basic-pro-permission-actions
-  title: Onboarding covers Basic, Pro, permissions, import, and existing-customer
+  title: Onboarding covers donation support, permissions, import, and existing-customer
     paths
   surfaces:
   - First-launch onboarding window
-  - Plan selection cards
+  - Donation support panel
   - Accessibility step
   - Competitor import step
-  - License entry and restore controls
   steps:
   - Run a clean-state first launch.
   - Navigate Back, Next, and Get Started.
-  - Select Basic and Pro plan cards.
+  - Click Donate without completing an external donation.
   - Click Import Layout or Import Settings for Bartender and Ice paths.
   - Click Open Accessibility Settings.
-  - Click Unlock Pro, Restore Purchases, and existing-customer license entry without
-    completing a real purchase.
   assertions:
   - Every onboarding button is visible and reachable in the fixed window.
   - Accessibility and import flows explain the required action and return safely.
-  - Purchase/restore/license controls are live but do not complete external transactions
-    during QA.
+  - Donation support opens the expected external path but SaneBar remains free and
+    usable when it is dismissed.
   - Completing onboarding shows the Health Wizard when required.
   evidence:
   - Mini clean-state onboarding transcript
@@ -1084,12 +1081,11 @@ actions:
   user_inputs:
   - Run a clean-state first launch.
   - Navigate Back, Next, and Get Started.
-  - Select Basic and Pro plan cards.
+  - Click Donate without completing an external donation.
   expected_outputs:
   - Every onboarding button is visible and reachable in the fixed window.
   - Accessibility and import flows explain the required action and return safely.
-  - Purchase/restore/license controls are live but do not complete external transactions
-    during QA.
+  - Donation support opens the expected external path but does not gate the app.
 - id: license-about-support-actions
   title: License, About, support, and external links are live and cancelable
   surfaces:
