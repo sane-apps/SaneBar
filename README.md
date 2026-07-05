@@ -43,6 +43,8 @@ Hide menu bar apps you do not need right now, keep the important ones visible, a
 
 **SaneBar is free.** Everything is included — hide and show icons, Touch ID lock, smart triggers, profiles, custom styling, all of it. No license key, no trial, no subscription.
 
+Current direct release: **2.1.89**.
+
 Feel like paying anyway? **[GitHub Sponsors](https://github.com/sponsors/MrSaneApps)** is the tip jar — donations are what keep indie Mac software like this coming ([more ways to give](#support-development)).
 
 ### Install
@@ -63,8 +65,8 @@ SaneBar updates itself automatically via Sparkle. `brew upgrade` works too if yo
 
 ### What survives the sunset
 
-- **[GitHub Releases](https://github.com/sane-apps/SaneBar/releases)** mirrors every shipped version — it's the permanent download archive.
-- sanebar.com, the update feed, and the direct-download host stay up on a best-effort basis. If they ever lapse, auto-updates and site downloads simply stop (updates are EdDSA-signed, so the failure mode is silence, not compromise).
+- **[GitHub Releases](https://github.com/sane-apps/SaneBar/releases)** keeps release history and source snapshots. Old binary assets may be pruned; use the current signed build from sanebar.com.
+- sanebar.com, the update feed, and the current direct-download host stay up on a best-effort basis. If they ever lapse, auto-updates and site downloads simply stop (updates are EdDSA-signed, so the failure mode is silence, not compromise).
 - Forks that want their own auto-updates need their own Sparkle keys and feed URL — see [DEVELOPMENT.md](DEVELOPMENT.md).
 
 ---
@@ -240,7 +242,7 @@ SaneBar used to cost $14.99. Now it's 100% free and MIT licensed — no paywall,
 
 **⭐ [Star the repo](https://github.com/sane-apps/SaneBar)** if SaneBar helps you. Stars are free and help others discover quality indie software.
 
-**Cloning without starring?** For real bro? Gimme that star!
+**If SaneBar helps you, star the repo.** Stars are free and help others discover quality indie software.
 
 ### Crypto Donations
 
