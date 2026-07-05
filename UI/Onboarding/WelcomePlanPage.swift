@@ -40,7 +40,7 @@ struct FreeVsProPage: View {
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundStyle(.white)
 
-                    Text("SaneBar is now fully open source and free for everyone. No donation is needed from you.")
+                    Text("SaneBar is now fully open source and free for everyone.")
                         .font(.system(size: 13, weight: .medium))
                         .foregroundStyle(.white)
 
