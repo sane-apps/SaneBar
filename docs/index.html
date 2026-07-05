@@ -595,6 +595,74 @@
             display: block;
         }
 
+        .product-proof-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+            gap: 24px;
+            max-width: 1060px;
+            margin: 0 auto;
+        }
+
+        .product-proof-card {
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+            padding: 22px;
+            background:
+                linear-gradient(180deg, rgba(30, 44, 70, 0.92), rgba(16, 26, 46, 0.94)),
+                var(--bg-card);
+            border: 1px solid rgba(255, 255, 255, 0.09);
+            border-radius: 20px;
+            box-shadow: 0 24px 55px rgba(0, 0, 0, 0.32);
+        }
+
+        .product-proof-card.wide {
+            grid-column: 1 / -1;
+            display: grid;
+            grid-template-columns: minmax(260px, 0.42fr) minmax(0, 0.58fr);
+            align-items: center;
+        }
+
+        .proof-copy {
+            text-align: left;
+        }
+
+        .proof-kicker {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--accent);
+            font-size: 0.76rem;
+            font-weight: 800;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+
+        .product-proof-card h3 {
+            margin-bottom: 8px;
+            font-size: clamp(1.15rem, 2.2vw, 1.55rem);
+            line-height: 1.18;
+        }
+
+        .product-proof-card p {
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        .product-proof-card img {
+            width: 100%;
+            max-height: 470px;
+            object-fit: contain;
+            display: block;
+            border-radius: 14px;
+            background: rgba(6, 12, 24, 0.45);
+            box-shadow: 0 18px 36px rgba(0, 0, 0, 0.32);
+        }
+
+        .product-proof-card.wide img {
+            box-shadow: none;
+            background: transparent;
+        }
+
         .carousel-caption {
             background: var(--accent);
             color: white;
@@ -2161,9 +2229,23 @@
                 display: none !important;
             }
 
-            /* Video demo */
-            .video-demo {
+            /* Product proof */
+            .product-proof {
                 padding: 40px 0 !important;
+            }
+
+            .product-proof-grid {
+                grid-template-columns: 1fr;
+                gap: 18px;
+            }
+
+            .product-proof-card.wide {
+                grid-column: auto;
+                grid-template-columns: 1fr;
+            }
+
+            .product-proof-card {
+                padding: 14px;
             }
 
             /* Features */
@@ -2517,20 +2599,36 @@
         </div>
     </section>
 
-    <!-- Video Demo Section -->
-    <section class="video-demo" id="demo" style="padding: var(--phi-2xl) 0; background: var(--bg-secondary);">
+    <!-- Product Proof Section -->
+    <section class="product-proof" id="demo" style="padding: var(--phi-2xl) 0; background: var(--bg-secondary);">
         <div class="container">
             <h2 class="section-title">See SaneBar in Action</h2>
-            <p class="section-subtitle">Watch how easy it is to hide, organize, and secure your menu bar icons.</p>
-            <div style="max-width: 900px; margin: 0 auto; position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: 20px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); border: 1px solid var(--border); background: var(--bg-card);">
-                <iframe 
-                    src="https://www.youtube.com/embed/I6U3APV-998" 
-                    title="SaneBar Demo" 
-                    frameborder="0" 
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
-                    allowfullscreen 
-                    style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;">
-                </iframe>
+            <p class="section-subtitle">Hide clutter, browse every menu bar app, and switch between the compact panel or second menu bar.</p>
+            <div class="product-proof-grid">
+                <article class="product-proof-card wide">
+                    <div class="proof-copy">
+                        <span class="proof-kicker">Second Menu Bar</span>
+                        <h3>Everything hidden stays one glance away.</h3>
+                        <p>Move noisy icons out of the real menu bar without losing access to the tools you still need.</p>
+                    </div>
+                    <img src="images/second-menu-bar-live-tight.png" alt="SaneBar second menu bar showing hidden menu bar icons">
+                </article>
+                <article class="product-proof-card">
+                    <div class="proof-copy">
+                        <span class="proof-kicker">Icon Panel</span>
+                        <h3>Browse hidden apps visually.</h3>
+                        <p>Search, filter, and reveal icons from a focused panel built for quick cleanup.</p>
+                    </div>
+                    <img src="images/icon-panel-live.png" alt="SaneBar icon panel showing hidden menu bar apps">
+                </article>
+                <article class="product-proof-card">
+                    <div class="proof-copy">
+                        <span class="proof-kicker">Settings</span>
+                        <h3>Choose the workflow that fits.</h3>
+                        <p>Use the icon panel, second menu bar, Touch ID unlock, and startup options from one settings screen.</p>
+                    </div>
+                    <img src="images/browse-settings.png" alt="SaneBar settings with icon panel and second menu bar choices">
+                </article>
             </div>
         </div>
     </section>
