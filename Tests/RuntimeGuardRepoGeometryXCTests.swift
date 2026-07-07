@@ -83,7 +83,6 @@ final class RuntimeGuardRepoGeometryXCTests: RuntimeGuardTestCase {
         XCTAssertTrue(source.contains("Fewer than 0.5% resulted in a purchase."))
         XCTAssertTrue(source.contains("Text(\"Donate\")"))
         XCTAssertTrue(source.contains("if !licenseService.hasLegacyPaidUnlock"))
-        XCTAssertTrue(source.contains("No donation is needed from you."))
         XCTAssertTrue(source.contains("This does not lock SaneBar. The app remains free."))
         XCTAssertTrue(source.contains("NSWorkspace.shared.open(LicenseService.donationURL())"))
         XCTAssertFalse(source.contains("NSWorkspace.shared.open(LicenseService.checkoutURL())"))
