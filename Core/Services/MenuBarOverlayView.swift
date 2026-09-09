@@ -78,9 +78,11 @@ struct MenuBarOverlayView: View {
     private var liquidGlassLayer: some View {
         #if swift(>=6.2)
             if #available(macOS 26.0, *) {
+                // Pass the same shape as clipShape. Default glassEffect uses a Capsule,
+                // which rounded the bar even when Rounded Corners was off (#174).
                 Rectangle()
                     .fill(.clear)
-                    .glassEffect(Glass.regular)
+                    .glassEffect(Glass.regular, in: overlayShape)
                     // Ensure chosen tint color/strength is always applied.
                     // (Glass.tint() doesn't reliably reflect custom colors in all cases.)
                     .overlay(

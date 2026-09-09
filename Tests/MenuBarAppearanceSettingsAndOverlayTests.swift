@@ -205,4 +205,23 @@ struct MenuBarAppearanceSettingsAndOverlayTests {
 
         #expect(currentOverlayWindow(for: service)?.isVisible != true)
     }
+
+    @Test("Liquid Glass uses overlayShape so Rounded Corners can stay square (#174)")
+    func testLiquidGlassBindsShapeInsteadOfDefaultCapsule() throws {
+        let url = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("Core/Services/MenuBarOverlayView.swift")
+        let source = try String(contentsOf: url, encoding: .utf8)
+        #expect(
+            source.contains(".glassEffect(Glass.regular, in: overlayShape)"),
+            "glassEffect must take overlayShape; bare Glass.regular defaults to Capsule and ignores Rounded Corners off"
+        )
+        // Bare `.glassEffect(Glass.regular)` (no `in:`) reintroduces Capsule rounding.
+        let bareGlass = source.range(
+            of: #"\.glassEffect\(Glass\.regular\)(?!\s*,)"#,
+            options: .regularExpression
+        )
+        #expect(bareGlass == nil, "Do not reintroduce unshaped glassEffect(Glass.regular)")
+    }
 }
