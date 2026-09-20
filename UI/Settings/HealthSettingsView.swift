@@ -40,7 +40,7 @@ struct HealthSettingsView: View {
 
     private var structureLabel: String {
         if runtimeSnapshot.likelySystemSuppressedStatusItems {
-            return "Hidden"
+            return "Hidden by macOS"
         }
         return switch runtimeSnapshot.structuralState {
         case .ready: "Ready"

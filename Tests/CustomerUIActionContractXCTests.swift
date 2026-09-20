@@ -311,7 +311,7 @@ final class CustomerUIActionContractXCTests: XCTestCase {
             XCTAssertTrue(aboutSource.contains(label), "Expected shared About action \(label)")
             XCTAssertTrue(contract.contains(label), "Contract must name shared About action \(label)")
         }
-        for label in ["Restore Purchases", "Unlock Pro"] {
+        for label in ["Restore Purchases", "Buy Once"] {
             XCTAssertTrue(licenseSource.contains(label), "Expected shared License action \(label)")
             XCTAssertTrue(contract.contains(label), "Contract must name shared License action \(label)")
         }

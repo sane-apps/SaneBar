@@ -131,7 +131,7 @@ struct ShortcutsSettingsView: View {
                             }
                             SaneInlineHelp(item.command)
                         } else {
-                            proGatedRow(feature: .appleScript, label: item.title)
+                            proAutomationCommandRow(item)
                             SaneInlineHelp(item.command)
                         }
 
@@ -179,6 +179,18 @@ struct ShortcutsSettingsView: View {
 
     private func proLockedRow(feature: ProFeature, label: String) -> some View {
         proGatedRow(feature: feature, label: label)
+    }
+
+    private func proAutomationCommandRow(_ item: AutomationCommand) -> some View {
+        CompactRow(item.title) {
+            Button {
+                proUpsellFeature = .appleScript
+            } label: {
+                ChromeBadge(title: "Pro", systemImage: "lock.fill")
+            }
+            .buttonStyle(.plain)
+            .help("Unlock Pro to copy and use this automation command")
+        }
     }
 
     private func copyToClipboard(_ command: AutomationCommand) {

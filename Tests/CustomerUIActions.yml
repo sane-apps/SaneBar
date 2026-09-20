@@ -1095,7 +1095,7 @@ actions:
   - Feedback/report bug sheet
   steps:
   - Open License from Settings, status menu, Dock menu, and Pro gates.
-  - Click Unlock Pro, Restore Purchases, Enter License Key, Activate, Cancel, and
+  - Click Buy Once, Restore Purchases, Enter License Key, Activate, Cancel, and
     Deactivate where applicable without completing a real purchase.
   - Open About, Licenses, GitHub, View Issues, Report a Bug, add/remove feedback attachments,
     copy report, and cancel.
@@ -1135,7 +1135,7 @@ actions:
     - Tests/Fixtures/customer-ui/sanebar-menu-zones/
   user_inputs:
   - Open License from Settings, status menu, Dock menu, and Pro gates.
-  - Click Unlock Pro, Restore Purchases, Enter License Key, Activate, Cancel, and
+  - Click Buy Once, Restore Purchases, Enter License Key, Activate, Cancel, and
     Deactivate where applicable without completing a real purchase.
   - Open About, Licenses, GitHub, View Issues, Report a Bug, add/remove feedback attachments,
     copy report, and cancel.

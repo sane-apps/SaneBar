@@ -191,12 +191,12 @@ class CustomerUIActionSweep
     onboarding: [
       ['UI/Onboarding/WelcomeActionPage.swift', 'Import Layout'],
       ['UI/Onboarding/WelcomePermissionPage.swift', 'Open Accessibility Settings'],
-      ['UI/Onboarding/WelcomePlanPage.swift', 'Unlock Pro'],
-      ['UI/Onboarding/WelcomePlanPage.swift', 'Restore Purchases']
+      ['UI/Onboarding/WelcomePlanPage.swift', 'Donate'],
+      ['UI/Onboarding/WelcomePlanPage.swift', 'This does not lock SaneBar. The app remains free.']
     ],
     license_about: [
       ['infra/SaneUI/Sources/SaneUI/License/LicenseSettingsView.swift', 'Restore Purchases'],
-      ['infra/SaneUI/Sources/SaneUI/License/LicenseSettingsView.swift', 'Unlock Pro'],
+      ['infra/SaneUI/Sources/SaneUI/License/LicenseSettingsView.swift', 'Buy Once'],
       ['infra/SaneUI/Sources/SaneUI/Components/SaneAboutView.swift', 'Licenses'],
       ['infra/SaneUI/Sources/SaneUI/Components/SaneAboutView.swift', 'Report a Bug']
     ],

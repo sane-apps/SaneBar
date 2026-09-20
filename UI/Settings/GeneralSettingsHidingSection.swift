@@ -121,8 +121,31 @@ struct GeneralSettingsHidingSection: View {
     }
 
     private var hideNewUnlistedToggleRow: some View {
-        CompactToggle(label: "Hide new/unlisted items by default", isOn: hideAllOtherMenuBarItemsBinding)
-            .accessibilityIdentifier("sanebar-hide-new-unlisted-toggle")
+        Button {
+            hideAllOtherMenuBarItemsBinding.wrappedValue.toggle()
+        } label: {
+            HStack {
+                Text("Hide new/unlisted items by default")
+                    .font(SaneTypography.label)
+                    .foregroundStyle(SaneTypography.text)
+                Spacer()
+                Capsule()
+                    .fill(menuBarManager.settings.hideAllOtherMenuBarItems ? Color.accentColor : Color.white.opacity(0.22))
+                    .overlay(alignment: menuBarManager.settings.hideAllOtherMenuBarItems ? .trailing : .leading) {
+                        Circle()
+                            .fill(.white)
+                            .frame(width: 18, height: 18)
+                            .padding(3)
+                    }
+                    .frame(width: 44, height: 24)
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Hide new/unlisted items by default")
+        .accessibilityValue(menuBarManager.settings.hideAllOtherMenuBarItems ? "On" : "Off")
+        .accessibilityIdentifier("sanebar-hide-new-unlisted-toggle")
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
     }
 
     @ViewBuilder

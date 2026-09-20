@@ -600,13 +600,14 @@ enum SettingsOpener {
                 x: 0,
                 y: 0,
                 width: SaneSettingsWindowDefaults.idealWidth,
-                height: SaneSettingsWindowDefaults.idealHeight
+                height: SaneBarSettingsWindowMetrics.idealHeight
             ),
             styleMask: [.titled, .closable, .resizable, .miniaturizable],
             backing: .buffered,
             defer: false
         )
         window.contentViewController = hostingController
+        window.contentMinSize = NSSize(width: SaneSettingsWindowDefaults.minWidth, height: SaneSettingsWindowDefaults.minHeight)
         window.title = "SaneBar Settings"
         window.appearance = NSAppearance(named: .darkAqua)
         window.saneApplySettingsChrome(preferIdealSize: true)
