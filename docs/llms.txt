@@ -1,0 +1,43 @@
+# SaneBar
+
+> SaneBar is a menu bar manager for Mac. It hides menu bar icons you don't need right now and keeps them one click away in an Icon Panel or a Second Menu Bar, with Touch ID or password lock, smart triggers, per-icon hotkeys and import from Bartender or Ice. Free and fully open source (MIT), every feature unlocked, no trial, licence or subscription. macOS 14 Sonoma or later, Apple silicon. Made by SaneApps; now community-maintained.
+
+## Facts
+- Current version: 2.1.90 (direct download)
+- Price: free. Every feature is unlocked for everyone. SaneBar went 100% free and open source in June 2026; former Pro features are included. Sponsoring the developer is optional.
+- Install: direct download from sanebar.com, or Homebrew `brew install --cask sane-apps/tap/sanebar`
+- Requirements: macOS 14.0 Sonoma or later, Apple silicon
+- Privacy: on-device by default. It doesn't upload your files or your menu bar contents. Network use is limited to app updates and a few anonymous app-health counts.
+- Permissions: needs Accessibility access to hide, reveal, move and open menu bar items.
+- Source code: github.com/sane-apps/SaneBar (MIT). Community-maintained: https://github.com/sane-apps/SaneBar/releases/tag/sunset
+
+## Features
+- One-click hide and show (Command-\ toggles)
+- Icon Panel or Second Menu Bar for hidden icons; drag icons between Visible, Hidden and Always Hidden
+- Find Icon search by name, including icons behind the notch (Command-Shift-Space)
+- Touch ID or password lock for hidden icons
+- Smart triggers: battery, Wi-Fi, Focus, app launch, schedule, script
+- Per-icon hotkeys, icon groups, profiles, settings export/import
+- Auto-rehide, gestures (hover, scroll, click), menu bar spacing to recover icons hidden by the notch
+- Custom appearance (tint, Liquid Glass on macOS Tahoe, borders, shadows) and custom menu bar icon
+- AppleScript and Shortcuts automation
+- Import your layout from Bartender or Ice
+
+## Limits (honest)
+- A small number of menu bar apps with unusual custom behaviour can be edge cases.
+
+## Pages
+- Home: https://sanebar.com/
+- Download: https://sanebar.com/download
+- All guides: https://sanebar.com/guides.html
+- Hide menu bar icons on Mac: https://sanebar.com/how-to-hide-menu-bar-icons-mac.html
+- Lock menu bar icons with Touch ID: https://sanebar.com/how-to-lock-menu-bar-icons-touch-id.html
+- Reorder icons and fix spacing: https://sanebar.com/how-to-reorder-menu-bar-icons-mac.html
+- Fix icons hidden behind the notch: https://sanebar.com/how-to-fix-menu-bar-icons-behind-notch-mac.html
+- Automatically show icons (smart triggers): https://sanebar.com/how-to-auto-show-menu-bar-icons-mac.html
+- Automate with AppleScript: https://sanebar.com/how-to-automate-menu-bar-icons-applescript.html
+- Customize menu bar appearance: https://sanebar.com/how-to-customize-menu-bar-appearance-mac.html
+- Migrate from Bartender: https://sanebar.com/how-to-migrate-from-bartender-to-sanebar.html
+- Privacy: https://sanebar.com/privacy.html
+- Source: https://github.com/sane-apps/SaneBar
+- Report an issue: https://github.com/sane-apps/SaneBar/issues/new
