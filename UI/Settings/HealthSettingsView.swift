@@ -397,8 +397,6 @@ struct HealthSettingsView: View {
     }
 
     private func openMenuBarSettings() {
-        // macOS Tahoe manages menu-bar item visibility under Control Center settings.
-        // If the deep link can't resolve, NSWorkspace still opens System Settings.
         let url = URL(string: "x-apple.systempreferences:com.apple.ControlCenter-Settings.extension")
             ?? URL(string: "x-apple.systempreferences:")
         guard let url else { return }

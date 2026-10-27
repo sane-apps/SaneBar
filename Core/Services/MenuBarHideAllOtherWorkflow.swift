@@ -108,8 +108,6 @@ final class MenuBarHideAllOtherWorkflow {
     }
 
     nonisolated static func hideAllOtherReplayMovePriority(shouldShow: Bool) -> Int {
-        // Moving non-allow-listed items can shift the Visible lane. Keep the
-        // user's visible allow-list as the final physical repair in each pass.
         shouldShow ? 1 : 0
     }
 

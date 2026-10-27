@@ -7,7 +7,6 @@ struct AppearanceSettingsView: View {
     @ObservedObject private var licenseService = LicenseService.shared
     @State private var proUpsellFeature: ProFeature?
 
-    // Spacing Bindings (Copied from AdvancedSettingsView)
     private var tighterSpacingEnabled: Binding<Bool> {
         Binding(
             get: { menuBarManager.settings.menuBarSpacing != nil },
@@ -43,7 +42,6 @@ struct AppearanceSettingsView: View {
         )
     }
 
-    // MARK: - User-Friendly Labels (instead of "pt" jargon)
 
     private var cornerRadiusLabel: String {
         let value = Int(menuBarManager.settings.menuBarAppearance.cornerRadius)
@@ -78,7 +76,6 @@ struct AppearanceSettingsView: View {
 
     var body: some View {
         SaneSettingsPage {
-                // 0. Icon Style
                 CompactSection("Menu Bar Icon") {
                     CompactRow("Icon") {
                         Menu {
@@ -116,7 +113,6 @@ struct AppearanceSettingsView: View {
                     }
                 }
 
-                // 1. Divider Style
                 CompactSection("Divider Style") {
                     CompactRow("Style") {
                         Picker("", selection: $menuBarManager.settings.dividerStyle) {
@@ -172,7 +168,6 @@ struct AppearanceSettingsView: View {
                     }
                 }
 
-                // 2. Menu Bar Visuals — Pro
                 CompactSection("Menu Bar Style") {
                     if !licenseService.isPro {
                         proGatedRow(feature: .menuBarAppearance, label: "Custom Appearance")
@@ -258,10 +253,9 @@ struct AppearanceSettingsView: View {
                                 }
                             }
                         }
-                    } // end isPro else
+                    }
                 }
 
-                // 3. Menu Bar Layout — Pro
                 CompactSection("Menu Bar Layout") {
                     if licenseService.isPro {
                         CompactToggle(label: "Reduce space between icons", isOn: tighterSpacingEnabled)
@@ -296,7 +290,6 @@ struct AppearanceSettingsView: View {
         }
     }
 
-    // MARK: - Pro Gating Helper
 
     private func proGatedRow(feature: ProFeature, label: String) -> some View {
         CompactRow(label) {
@@ -309,7 +302,6 @@ struct AppearanceSettingsView: View {
         }
     }
 
-    // MARK: - Helpers
 
     private func applySpacingToSystem() {
         let service = MenuBarSpacingService.shared
@@ -341,7 +333,6 @@ struct AppearanceSettingsView: View {
         panel.canChooseDirectories = false
 
         guard panel.runModal() == .OK, let url = panel.url else {
-            // User cancelled — revert to filter if no custom icon exists
             if PersistenceService.shared.loadCustomIcon() == nil {
                 menuBarManager.settings.menuBarIconStyle = .filter
             }
@@ -358,7 +349,6 @@ struct AppearanceSettingsView: View {
             print("[SaneBar] Failed to save custom icon: \(error)")
         }
 
-        // Trigger icon update by re-setting the style
         menuBarManager.settings.menuBarIconStyle = .custom
     }
 

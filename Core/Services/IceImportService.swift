@@ -3,16 +3,8 @@ import os.log
 
 private let logger = Logger(subsystem: "com.sanebar.app", category: "IceImport")
 
-// MARK: - IceImportService
 
-/// Handles importing Ice menu bar manager settings into SaneBar.
-///
-/// Ice stores settings in `~/Library/Preferences/com.jordanbaird.Ice.plist` as flat
-/// key-value pairs. Unlike Bartender, Ice does NOT persist per-icon section assignments
-/// (it uses runtime position tracking with control items), so we can only import
-/// behavioral settings — not icon layout.
 enum IceImportService {
-    // MARK: - Types
 
     struct ImportedSettings {
         var showOnHover: Bool?
@@ -65,7 +57,6 @@ enum IceImportService {
         }
     }
 
-    // MARK: - Import
 
     @MainActor
     static func importSettings(from url: URL, menuBarManager: MenuBarManager) throws -> ImportSummary {
@@ -84,7 +75,6 @@ enum IceImportService {
         return summary
     }
 
-    // MARK: - Parsing
 
     private static func parsePlist(from data: Data) throws -> [String: Any] {
         var format = PropertyListSerialization.PropertyListFormat.xml
@@ -110,7 +100,6 @@ enum IceImportService {
         )
     }
 
-    // MARK: - Apply
 
     @MainActor
     private static func applySettings(
@@ -180,11 +169,9 @@ enum IceImportService {
         }
 
         if let value = parsed.showSectionDividers, value {
-            // Ice has dividers enabled — SaneBar always shows dividers, so nothing to change
             summary.applied.append("Section dividers: on (matches SaneBar default)")
         }
 
-        // Track settings we recognized but can't import
         if iceRoot["Hotkeys"] != nil {
             summary.skipped.append("Hotkeys (incompatible format)")
         }

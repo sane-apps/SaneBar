@@ -2,7 +2,6 @@ import AppKit
 import SaneUI
 import SwiftUI
 
-// Onboarding palette: softened SaneUI teal accents + navy cards
 let cardBg = Color(red: 0.08, green: 0.10, blue: 0.18)
 let navyBg = Color(red: 0.06, green: 0.08, blue: 0.16)
 let saneAccentDeep = Color.saneAccentDeep
@@ -78,14 +77,12 @@ struct OnboardingSecondaryButtonStyle: ButtonStyle {
     }
 }
 
-// MARK: - Background
 
 struct OnboardingBackground: View {
     var body: some View {
         ZStack {
             VisualEffectBlur(material: .sidebar, blendingMode: .behindWindow, isEmphasized: true)
 
-            // Radial glow (matches website hero)
             RadialGradient(
                 colors: [saneAccentDeep.opacity(0.14), Color.clear],
                 center: .top,

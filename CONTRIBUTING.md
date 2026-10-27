@@ -137,7 +137,7 @@ SaneBar uses macOS Accessibility APIs extensively. Key things to know:
 - Verify AX API shapes against Apple's documentation before coding — several
   "obvious" properties don't exist
 
-For deep dives, see [docs/DEBUGGING_MENU_BAR_INTERACTIONS.md](docs/DEBUGGING_MENU_BAR_INTERACTIONS.md).
+The old deep-dive notes in `docs/` were removed in 2.1.91 and are in git history.
 
 ---
 

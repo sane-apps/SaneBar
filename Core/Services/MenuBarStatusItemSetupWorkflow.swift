@@ -44,9 +44,7 @@ final class MenuBarStatusItemSetupWorkflow {
             licenseAction: #selector(MenuBarActionWorkflow.openLicense(_:)),
             donateAction: #selector(MenuBarActionWorkflow.openDonate(_:)),
             aboutAndBugReportAction: #selector(MenuBarActionWorkflow.openAbout(_:)),
-            showReleaseNotesAction: LicenseService.shared.usesSetappDistribution
-                ? #selector(MenuBarActionWorkflow.showReleaseNotes(_:))
-                : nil,
+            showReleaseNotesAction: nil,
             checkForUpdatesAction: LicenseService.shared.distributionChannel.supportsInAppUpdates
                 ? #selector(MenuBarActionWorkflow.userDidClickCheckForUpdates(_:))
                 : nil,
@@ -258,9 +256,6 @@ final class MenuBarStatusItemSetupWorkflow {
             return
 
         case let .keepExpanded(reason):
-            // Genuine startup recovery: persisted pixel positions may be from a
-            // prior display topology, so reanchoring unsafe explicit positions is
-            // correct here. preserve = false (FM-2 #136/#168).
             manager.alwaysHiddenPinWorkflow.repairSeparatorPositionIfNeeded(
                 reason: "startup",
                 preserveExplicitPersistedPositions: false
@@ -279,8 +274,6 @@ final class MenuBarStatusItemSetupWorkflow {
             return
 
         case .performInitialHide:
-            // Genuine startup recovery: reanchor unsafe explicit positions.
-            // preserve = false (FM-2 #136/#168).
             manager.alwaysHiddenPinWorkflow.repairSeparatorPositionIfNeeded(
                 reason: "startup",
                 preserveExplicitPersistedPositions: false
@@ -348,8 +341,6 @@ final class MenuBarStatusItemSetupWorkflow {
         manager.executeStatusItemRecoveryAction(
             .repairPersistedLayoutAndRecreate(.invalidStatusItems),
             trigger: "unexpected-visibility-loss-\(role.rawValue)",
-            // Keep autonomous visibility-loss repair on the background recovery
-            // track so it cannot surface the manual Health fallback.
             validationContext: .startupFollowUp,
             recoveryCount: 0
         )

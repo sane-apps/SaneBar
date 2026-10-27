@@ -38,10 +38,7 @@ final class AccessibilityMenuBarDragService {
         self.accessibilityService = accessibilityService
     }
 
-    // MARK: - Icon Moving (CGEvent-based)
 
-    /// Move a menu bar icon starting from a known WindowServer frame.
-    /// Used for fallback paths when AX can't resolve an element.
     nonisolated func moveMenuBarIcon(
         fromKnownFrame iconFrame: CGRect,
         toHidden: Bool,
@@ -86,8 +83,6 @@ final class AccessibilityMenuBarDragService {
         return didPostEvents
     }
 
-    /// Reorder one icon relative to another icon using Cmd+drag.
-    /// Returns true when drag events were posted successfully.
     nonisolated func reorderMenuBarIcon(
         sourceBundleID: String,
         sourceMenuExtraID: String? = nil,
@@ -147,10 +142,6 @@ final class AccessibilityMenuBarDragService {
         return didPostEvents
     }
 
-    /// Move a menu bar icon to visible or hidden position using CGEvent Cmd+drag.
-    /// Returns `true` only if post-move verification indicates the icon crossed the separator.
-    /// - Parameter visibleBoundaryX: The left edge of SaneBar's main icon. When moving to visible,
-    ///   the target is clamped to stay LEFT of this position so icons don't overshoot past our icon.
     nonisolated func moveMenuBarIcon(
         bundleID: String,
         menuExtraId: String? = nil,
@@ -188,19 +179,15 @@ final class AccessibilityMenuBarDragService {
             return false
         }
 
-        // Poll until icon is on-screen. After show()/showAll(), macOS WindowServer
-        // re-layouts menu bar items asynchronously. Icons may still be at off-screen
-        // positions (e.g. x=-3455) when the caller's sleep completes. We must wait
-        // for the icon to reach a valid on-screen position before attempting the drag.
         var iconFrame: CGRect?
-        for attempt in 1 ... 30 { // 30 × 100ms = 3s max
+        for attempt in 1 ... 30 {
             guard let frame = AccessibilityMenuExtraService.getMenuBarIconFrame(
                 bundleID: bundleID,
                 menuExtraId: menuExtraId,
                 statusItemIndex: statusItemIndex,
                 preferredCenterX: usablePreferredCenterX
             ) else {
-                break // icon not found at all
+                break
             }
             let center = CGPoint(x: frame.midX, y: frame.midY)
             if AccessibilityInteractionPolicy.isAccessibilityPointOnAnyScreen(
@@ -251,10 +238,6 @@ final class AccessibilityMenuBarDragService {
 
         accessibilityDragLogger.debug("🔧 Icon frame BEFORE: x=\(iconFrame.origin.x, privacy: .public), y=\(iconFrame.origin.y, privacy: .public), w=\(iconFrame.size.width, privacy: .public), h=\(iconFrame.size.height, privacy: .public)")
 
-        // Calculate target position
-        // Hidden: LEFT of separator (into hidden zone) — need enough offset to clearly cross.
-        // Visible: just LEFT of the SaneBar icon — macOS auto-inserts the icon there.
-        //          Never overshoot past SaneBar or the icon lands in the system area.
         let targetX = AccessibilityInteractionPolicy.moveTargetX(
             targetLane: resolvedTargetLane,
             iconWidth: iconFrame.size.width,
@@ -264,8 +247,6 @@ final class AccessibilityMenuBarDragService {
 
         accessibilityDragLogger.debug("🔧 Target X: \(targetX, privacy: .public)")
 
-        // AX and CGEvent Y-axis orientation can differ by OS/build.
-        // Normalize both points so drag coordinates stay anchored to the menu bar.
         let rawToPoint = CGPoint(x: targetX, y: iconFrame.midY)
         let fromPoint = AccessibilityInteractionPolicy.normalizedCGEventPoint(
             fromAccessibilityPoint: rawFromPoint,
@@ -290,11 +271,9 @@ final class AccessibilityMenuBarDragService {
         }
         accessibilityService.automaticMoveGate.recordPostedMove(origin: physicalMoveOrigin)
 
-        // Poll for AX position stability instead of fixed wait.
-        // On slow Macs, 250ms isn't enough; on fast Macs, we finish sooner.
         var afterFrame: CGRect?
         var previousFrame: CGRect?
-        let maxAttempts = 20 // 20 × 50ms = 1s max
+        let maxAttempts = 20
         for attempt in 1 ... maxAttempts {
             Thread.sleep(forTimeInterval: 0.05)
             let currentFrame = AccessibilityMenuExtraService.getMenuBarIconFrame(
@@ -319,9 +298,6 @@ final class AccessibilityMenuBarDragService {
 
         accessibilityDragLogger.debug("🔧 Icon frame AFTER: x=\(afterFrame.origin.x, privacy: .public), y=\(afterFrame.origin.y, privacy: .public), w=\(afterFrame.size.width, privacy: .public), h=\(afterFrame.size.height, privacy: .public)")
 
-        // Verify icon landed in the expected zone using midpoint-based logic.
-        // This aligns with SearchService zone classification and prevents
-        // false negatives when visible moves land close to the separator.
         var movedToExpectedSide = AccessibilityInteractionPolicy.frameIsInTargetLane(
             afterFrame: afterFrame,
             targetLane: resolvedTargetLane,
@@ -329,8 +305,6 @@ final class AccessibilityMenuBarDragService {
             visibleBoundaryX: visibleBoundaryX
         )
 
-        // Guard against stale-boundary false positives/negatives by ensuring motion
-        // direction matches intent before accepting the separator-side check.
         let directionMismatch = AccessibilityInteractionPolicy.hasDirectionMismatch(
             beforeFrame: iconFrame,
             afterFrame: afterFrame,
@@ -375,8 +349,6 @@ final class AccessibilityMenuBarDragService {
         return movedToExpectedSide
     }
 
-    /// Returns current AX width for a specific menu bar item, if available.
-    /// Used by move guardrails to avoid unsafe drags for unusually wide items.
     nonisolated func currentMenuBarIconWidth(
         bundleID: String,
         menuExtraId: String? = nil,
@@ -392,7 +364,6 @@ final class AccessibilityMenuBarDragService {
         return frame.width
     }
 
-    /// Thread-safe box for cross-thread value passing (semaphore provides synchronization)
     private final class ResultBox: @unchecked Sendable {
         var value: Bool = false
     }
@@ -439,9 +410,6 @@ final class AccessibilityMenuBarDragService {
         }
     }
 
-    /// Perform a Cmd+drag operation using CGEvent (runs on background thread).
-    /// Uses human-like timing (Ice-style): pre-position cursor, hide cursor,
-    /// slow multi-step drag, dual event tap posting for reliability.
     private nonisolated func performCmdDrag(
         from: CGPoint,
         to: CGPoint,
@@ -459,7 +427,6 @@ final class AccessibilityMenuBarDragService {
                 return
             }
 
-            // Verify both from and to are on valid screens
             let screens = NSScreen.screens
             guard !screens.isEmpty else {
                 accessibilityDragLogger.warning("🔧 performCmdDrag(\(tapName, privacy: .public)): no screens available — aborting")
@@ -489,7 +456,6 @@ final class AccessibilityMenuBarDragService {
                 return
             }
 
-            // 1. Pre-position cursor at the icon (like a human would)
             guard !timeoutState.shouldStop else {
                 semaphore.signal()
                 return
@@ -501,19 +467,16 @@ final class AccessibilityMenuBarDragService {
                 mouseButton: .left
             ) {
                 moveToStart.post(tap: eventTap)
-                Thread.sleep(forTimeInterval: 0.06) // Let cursor settle
+                Thread.sleep(forTimeInterval: 0.06)
             }
             guard !timeoutState.shouldStop else {
                 semaphore.signal()
                 return
             }
 
-            // 2. Hide cursor during drag (Ice-style: prevents visual glitches
-            //    and may improve drag recognition by WindowServer)
             CGDisplayHideCursor(CGMainDisplayID())
             defer { CGDisplayShowCursor(CGMainDisplayID()) }
 
-            // 3. Cmd+mouseDown at icon position
             guard let mouseDown = CGEvent(
                 mouseEventSource: nil,
                 mouseType: .leftMouseDown,
@@ -526,7 +489,7 @@ final class AccessibilityMenuBarDragService {
             }
             mouseDown.flags = .maskCommand
             mouseDown.post(tap: eventTap)
-            Thread.sleep(forTimeInterval: 0.08) // Hold before dragging (human-like)
+            Thread.sleep(forTimeInterval: 0.08)
             guard !timeoutState.shouldStop else {
                 if let forceUp = CGEvent(mouseEventSource: nil, mouseType: .leftMouseUp, mouseCursorPosition: from, mouseButton: .left) {
                     forceUp.post(tap: eventTap)
@@ -535,8 +498,6 @@ final class AccessibilityMenuBarDragService {
                 return
             }
 
-            // 4. Multi-step drag with human-like timing
-            // Use fewer steps for short drags but keep a bounded, human-like path.
             let dragDistance = hypot(to.x - from.x, to.y - from.y)
             let steps = AccessibilityInteractionPolicy.cmdDragStepCount(distance: dragDistance)
             for i in 1 ... steps {
@@ -564,7 +525,6 @@ final class AccessibilityMenuBarDragService {
                 }
             }
 
-            // 5. Cmd+mouseUp at destination
             guard !timeoutState.shouldStop else {
                 if let forceUp = CGEvent(mouseEventSource: nil, mouseType: .leftMouseUp, mouseCursorPosition: to, mouseButton: .left) {
                     forceUp.post(tap: eventTap)
@@ -584,13 +544,12 @@ final class AccessibilityMenuBarDragService {
             }
             mouseUp.flags = .maskCommand
             mouseUp.post(tap: eventTap)
-            Thread.sleep(forTimeInterval: 0.14) // Let the 'drop' settle
+            Thread.sleep(forTimeInterval: 0.14)
             guard !timeoutState.shouldStop else {
                 semaphore.signal()
                 return
             }
 
-            // 6. Restore cursor position
             Self.postMouseRestoreIfOnScreen(
                 originalCGPoint,
                 eventTap: eventTap,
@@ -611,11 +570,9 @@ final class AccessibilityMenuBarDragService {
         if waitResult == .timedOut {
             timeoutState.markTimedOut()
             accessibilityDragLogger.error("🔧 performCmdDrag(\(tapName, privacy: .public)): semaphore timed out — forcing mouseUp to prevent stuck cursor")
-            // force-release mouse button to prevent cursor being stuck in drag state
             if let forceUp = CGEvent(mouseEventSource: nil, mouseType: .leftMouseUp, mouseCursorPosition: to, mouseButton: .left) {
                 forceUp.post(tap: eventTap)
             }
-            // Restore cursor position even on timeout
             Self.postMouseRestoreIfOnScreen(originalCGPoint, eventTap: eventTap, screenFrames: NSScreen.screens.map(\.frame), globalMaxY: NSScreen.screens.map(\.frame.maxY).max() ?? 0)
             return false
         }

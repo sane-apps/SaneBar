@@ -2,7 +2,6 @@ import AppKit
 import SaneUI
 import SwiftUI
 
-/// A picker that shows running apps instead of requiring bundle IDs
 struct AppPickerView: View {
     @Binding var selectedBundleIDs: [String]
     let title: String
@@ -93,7 +92,7 @@ struct AppPickerView: View {
                     }
                 }
                 .buttonStyle(.plain)
-                .contentShape(Rectangle()) // Make full row clickable
+                .contentShape(Rectangle())
             }
             .listStyle(.plain)
         }

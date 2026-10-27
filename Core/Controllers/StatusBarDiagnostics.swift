@@ -146,24 +146,6 @@ enum StatusBarDiagnostics {
     nonisolated static func hiddenCollapsedSeparatorIsStructurallyHealthy(
         _ input: HiddenCollapsedSeparatorHealthInput
     ) -> Bool {
-        // In the hidden state the divider is parked off-screen (length 10000), so this
-        // check governs STRUCTURAL validity only — that the items exist, are visible,
-        // and are ordered correctly — NOT positional drift.
-        //
-        // Gating structural validity on positional drift (the old
-        // !shouldRecoverStartupPositions + near-Control-Center/persisted-intent checks)
-        // made startupItemsValid flap false whenever the divider drifted while hidden.
-        // That triggered the recovery loop, which CANNOT correct the position while
-        // hidden — so it churned (24+ attempts, autosave-version bumping; this is #160)
-        // and never resolved, and it blocked the customer-UI receipt. Recovery wasn't
-        // fixing the drift anyway, so gating on it only produced churn. Positional drift
-        // is corrected when the geometry is reliable again (on un-hide / shown state),
-        // where the restore mechanisms actually work.
-        //
-        // Genuine STRUCTURAL failures are still caught: a main item macOS never placed
-        // (#157, default window y=-22) fails `mainWindowValid` (validateItemPosition
-        // already guarantees a valid on-screen menu-bar frame); a missing or misordered
-        // separator fails the visibility / `separatorX < mainX` invariants.
         guard input.hidingState == .hidden else { return false }
         guard input.mainWindowValid, input.separatorVisible == true else { return false }
         guard let separatorX = input.separatorX, let mainX = input.mainX, separatorX < mainX else { return false }

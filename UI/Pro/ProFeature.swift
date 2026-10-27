@@ -1,7 +1,5 @@
 import Foundation
 
-/// Features gated behind Pro. Each case maps to a user-visible action
-/// that free users can see but not perform.
 enum ProFeature: String, Identifiable, CaseIterable {
     case iconActivation = "Activate Icons from Panels"
     case rightClickFromPanels = "Right-Click from Panels"

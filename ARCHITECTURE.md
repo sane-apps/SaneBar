@@ -247,9 +247,8 @@ SaneBar is free, MIT-licensed, and community-maintained (sunset June 2026).
 - Updates are EdDSA-signed; the public key ships in Info.plist
   (`7Pl/8cwfb2vm4Dm65AByslkMCScLJ9tbGlwGGx81qYU=`). The private key stays with
   the original maintainer, so forks need their own keys and feed URL.
-- The Mac App Store lane never shipped; the Setapp lane is retired (see
-  [Setapp/README.md](Setapp/README.md)). The `SaneBarSetapp` scheme still
-  builds for legacy reasons.
+- The Mac App Store and Setapp lanes are gone; their configs and code were
+  removed in 2.1.91.
 
 ### Licensing (historical)
 
@@ -281,13 +280,13 @@ The recovery contract is:
 - rebuild SaneBar-owned anchors or open the Health fallback when live proof cannot be established
 - never use cached geometry alone to silently restore a hidden state after startup, reboot, wake, display changes, or poisoned defaults
 
-The full root-cause history behind this contract lives in
-[docs/GEOMETRY_TRUST_REVIEW_2026-06-10.md](docs/GEOMETRY_TRUST_REVIEW_2026-06-10.md) —
-read it before changing any recovery code.
+The full root-cause history behind this contract is in git history
+(`docs/GEOMETRY_TRUST_REVIEW_2026-06-10.md`, removed in 2.1.91).
 
 ## Testing Strategy
 
-- Unit tests live under `Tests/`.
+- `Tests/` holds one Swift Testing file for the macOS 27 notice.
+- On macOS 27, `main.swift` runs `UI/GoldenGateNotice.swift` instead of the app.
 - Primary entry point for verification: `./Scripts/SaneMaster.rb verify`.
 - Search/trigger flows are largely integration-tested via MenuBarManager + services.
 
@@ -362,7 +361,6 @@ third-party item drags.
 | `Core/MenuBarManager.swift` | `lastKnownSeparatorX` cache, `isMoveInProgress` flag |
 | `UI/SearchWindow/MenuBarSearchView.swift` | Zone-aware context menus, `appZone()` classifier |
 | `UI/SearchWindow/SearchWindowController.swift` | `isMoveInProgress` guards on window close |
-| `Tests/IconMovingTests.swift` | 56 regression tests |
 
 ### Known Fragilities
 

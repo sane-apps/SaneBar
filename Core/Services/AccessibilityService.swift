@@ -4,95 +4,60 @@ import os.log
 
 private let logger = Logger(subsystem: "com.sanebar.app", category: "AccessibilityService")
 
-// MARK: - Safe CF Type Casting
 
-/// Safely cast a CFTypeRef to AXUIElement after verifying the type ID.
-/// Returns nil if the type doesn't match, avoiding force cast crashes.
 @inline(__always)
 func safeAXUIElement(_ ref: CFTypeRef) -> AXUIElement? {
     guard CFGetTypeID(ref) == AXUIElementGetTypeID() else { return nil }
-    // Safe: type verified above. Using unsafeDowncast for CF bridging.
     return unsafeDowncast(ref as AnyObject, to: AXUIElement.self)
 }
 
-/// Safely cast a CFTypeRef to AXValue after verifying the type ID.
-/// Returns nil if the type doesn't match, avoiding force cast crashes.
 @inline(__always)
 func safeAXValue(_ ref: CFTypeRef) -> AXValue? {
     guard CFGetTypeID(ref) == AXValueGetTypeID() else { return nil }
-    // Safe: type verified above. Using unsafeDowncast for CF bridging.
     return unsafeDowncast(ref as AnyObject, to: AXValue.self)
 }
 
-// MARK: - Permission Change Notification
 
 private extension Notification.Name {
-    /// System notification sent when ANY app's accessibility permission changes
-    /// Not publicly documented, but reliable. From HIServices.framework
     static let AXPermissionsChanged = Notification.Name(rawValue: "com.apple.accessibility.api")
 }
 
-// MARK: - Public Notifications
 
 extension Notification.Name {
-    /// Posted when menu bar icons have been moved/reorganized
     static let menuBarIconsDidChange = Notification.Name("com.sanebar.menuBarIconsDidChange")
 }
 
-// MARK: - AccessibilityService
 
-/// Service for interacting with other apps' menu bar items via Accessibility API.
-///
-/// **Apple Best Practice**:
-/// - Uses standard `AXUIElement` API.
-/// - Does NOT use `CGEvent` cursor hijacking (mouse simulation).
-/// - Does NOT use private APIs.
-/// - Handles `AXPress` actions to simulate clicks natively.
-///
-/// **Permission Monitoring**:
-/// - Listens for system-wide permission change notifications
-/// - Streams permission status changes via AsyncStream
-/// - UI can react immediately when user grants permission in System Settings
 @MainActor
 final class AccessibilityService: ObservableObject {
-    // MARK: - Singleton
 
     static let shared = AccessibilityService()
     nonisolated static let accessibilitySettingsURLString = "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
 
-    /// Consent gate for automatic (non-user-initiated) synthetic drags.
-    /// Armed by MenuBarManager only when live geometry is confirmed (#151/#154).
     nonisolated let automaticMoveGate = MenuBarAutomaticMoveGate()
 
-    // MARK: - Published State
 
-    /// Current permission status - updates reactively when permission changes
     @Published private(set) var isGranted: Bool
 
-    // MARK: - Permission Monitoring
 
     private var permissionMonitorTask: Task<Void, Never>?
     private var permissionPollingTask: Task<Void, Never>?
     private var streamContinuations: [UUID: AsyncStream<Bool>.Continuation] = [:]
 
-    // MARK: - Menu Bar Item Cache
 
-    /// Public struct to avoid "Large Tuple" lint errors
     struct MenuBarItemPosition: Equatable, Sendable {
         let app: RunningApp
         let x: CGFloat
         let width: CGFloat
     }
 
-    /// Cache for menu bar item positions to avoid expensive rescans
     var menuBarItemCache: [MenuBarItemPosition] = []
     var menuBarItemCacheTime: Date = .distantPast
-    let menuBarItemCacheValiditySeconds: TimeInterval = 5.0 // Refresh every 5 seconds for accurate positions
+    let menuBarItemCacheValiditySeconds: TimeInterval = 5.0
 
-    /// Cache for menu bar item owners (apps only, no positions) - used by Find Icon
     var menuBarOwnersCache: [RunningApp] = []
     var menuBarOwnersCacheTime: Date = .distantPast
-    let menuBarOwnersCacheValiditySeconds: TimeInterval = 10.0 // Refresh every 10 seconds for responsive UI
+    let menuBarOwnersCacheValiditySeconds: TimeInterval = 10.0
 
     var menuBarOwnersRefreshTask: Task<[RunningApp], Never>?
     var menuBarItemsRefreshTask: Task<[MenuBarItemPosition], Never>?
@@ -148,7 +113,6 @@ final class AccessibilityService: ObservableObject {
         knownOwnerRefreshDiagnostics
     }
 
-    // MARK: - Initialization
 
     private init() {
         isGranted = AXIsProcessTrusted()
@@ -164,11 +128,7 @@ final class AccessibilityService: ObservableObject {
         }
     }
 
-    // MARK: - Permission Streaming
 
-    /// Stream permission status changes. Use this for reactive UI updates.
-    /// - Parameter includeInitial: Whether to emit the current status immediately
-    /// - Returns: AsyncStream that yields `true` when granted, `false` when revoked
     func permissionStream(includeInitial: Bool = true) -> AsyncStream<Bool> {
         AsyncStream<Bool> { continuation in
             let id = UUID()
@@ -192,7 +152,6 @@ final class AccessibilityService: ObservableObject {
                 .notifications(named: .AXPermissionsChanged)
 
             for await _ in notifications {
-                // Small delay - notification fires before status update sometimes
                 try? await Task.sleep(for: .milliseconds(250))
 
                 await MainActor.run {
@@ -202,11 +161,8 @@ final class AccessibilityService: ObservableObject {
         }
     }
 
-    /// Polling fallback: DistributedNotificationCenter is unreliable for TCC changes.
-    /// Poll AXIsProcessTrusted() at startup until granted, then stop.
-    /// Fast at first (0.5s), slows down after 10s (2s intervals), stops once granted.
     private func startPermissionPolling() {
-        guard !isGranted else { return } // Already granted, no need to poll
+        guard !isGranted else { return }
 
         permissionPollingTask = Task { [weak self] in
             var elapsed: TimeInterval = 0
@@ -226,13 +182,11 @@ final class AccessibilityService: ObservableObject {
                     }
                 }
 
-                // Once granted, stop polling — revocation is rare and the notification handles it
                 if newStatus {
                     logger.debug("Accessibility granted — stopping permission poll")
                     break
                 }
 
-                // Give up after 5 minutes — if not granted by then, user isn't actively granting
                 if elapsed > 300 {
                     logger.debug("Permission poll timed out after 5 minutes")
                     break
@@ -248,28 +202,20 @@ final class AccessibilityService: ObservableObject {
         isGranted = newStatus
         logger.info("Accessibility permission changed: \(newStatus ? "GRANTED" : "REVOKED")")
 
-        // Notify all streams
         for continuation in streamContinuations.values {
             continuation.yield(newStatus)
         }
     }
 
-    // MARK: - API Verification
 
-    /// Checks if we have accessibility permissions (legacy - prefer `isGranted` property)
     nonisolated var isTrusted: Bool {
         AXIsProcessTrusted()
     }
 
-    /// Check accessibility permission state.
-    /// - Parameter promptUser: When true, asks macOS to present the Accessibility grant prompt if needed.
-    /// - Returns: true if trusted, false if user still needs to grant permission.
     @discardableResult
     func requestAccessibility(promptUser: Bool = false) -> Bool {
         let trusted: Bool
         if promptUser {
-            // Use the documented key string directly to avoid Swift 6
-            // concurrency diagnostics around the imported C global.
             let options = ["AXTrustedCheckOptionPrompt": true] as CFDictionary
             trusted = AXIsProcessTrustedWithOptions(options)
         } else {
@@ -278,7 +224,6 @@ final class AccessibilityService: ObservableObject {
         if !trusted {
             logger.info("Accessibility not trusted")
         } else {
-            // Update our cached state if already granted
             if !isGranted {
                 isGranted = true
                 for continuation in streamContinuations.values {
@@ -289,14 +234,12 @@ final class AccessibilityService: ObservableObject {
         return trusted
     }
 
-    /// Open the Accessibility pane in System Settings.
     @discardableResult
     func openAccessibilitySettings() -> Bool {
         guard let url = URL(string: Self.accessibilitySettingsURLString) else { return false }
         return NSWorkspace.shared.open(url)
     }
 
-    // MARK: - AXExtrasMenuBar Capability Cache
 
     func markExtrasMenuBarUnavailable(bundleID: String) {
         bundlesWithoutExtrasMenuBar.insert(bundleID)

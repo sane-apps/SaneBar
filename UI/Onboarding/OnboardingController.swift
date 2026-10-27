@@ -2,7 +2,6 @@ import AppKit
 import SaneUI
 import SwiftUI
 
-/// Manages the onboarding window lifecycle
 @MainActor
 final class OnboardingController: NSObject, NSWindowDelegate {
     static let shared = OnboardingController()
@@ -15,8 +14,6 @@ final class OnboardingController: NSObject, NSWindowDelegate {
             return
         }
 
-        // DON'T force .regular here - windows work fine in .accessory mode
-        // The dock icon visibility should only be controlled by the user's showDockIcon setting
         NSApp.activate()
 
         let welcomeView = WelcomeView { [weak self] in
@@ -41,7 +38,6 @@ final class OnboardingController: NSObject, NSWindowDelegate {
         window.isReleasedWhenClosed = false
         window.delegate = self
 
-        // Standard window behaviors
         window.isMovable = true
 
         self.window = window
@@ -50,20 +46,16 @@ final class OnboardingController: NSObject, NSWindowDelegate {
 
     func dismiss() {
         window?.close()
-        // windowWillClose handles state cleanup
     }
 
-    // MARK: - NSWindowDelegate
 
     func windowWillClose(_: Notification) {
         guard window != nil else { return }
         window = nil
 
-        // Mark as complete regardless of how the window was closed (X button or Get Started)
         MenuBarManager.shared.settings.hasCompletedOnboarding = true
         MenuBarManager.shared.saveSettings()
 
-        // Restore accessory policy (hide Dock icon)
         SaneActivationPolicy.restorePolicy(showDockIcon: MenuBarManager.shared.settings.showDockIcon)
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {

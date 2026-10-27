@@ -1,10 +1,7 @@
 import AppKit
 
-// MARK: - AppCategory (Smart Groups)
 
-/// App categories matching Apple's Launchpad categories exactly
 enum AppCategory: String, CaseIterable, Sendable {
-    // Apple Launchpad categories (in their display order)
     case productivity = "Productivity"
     case social = "Social"
     case utilities = "Utilities"
@@ -17,16 +14,13 @@ enum AppCategory: String, CaseIterable, Sendable {
     case travel = "Travel"
     case games = "Games"
     case foodAndDrinks = "Food & Drinks"
-    // Additional categories for menu bar apps
     case developerTools = "Developer Tools"
     case system = "System"
     case other = "Other"
 
-    /// Map LSApplicationCategoryType to our smart category
     static func from(categoryType: String?) -> AppCategory {
         guard let type = categoryType?.lowercased() else { return .other }
 
-        // Map Apple's category identifiers to Launchpad groups
         if type.contains("productivity") || type.contains("business") { return .productivity }
         if type.contains("social") { return .social }
         if type.contains("utilities") { return .utilities }
@@ -46,7 +40,6 @@ enum AppCategory: String, CaseIterable, Sendable {
         return .other
     }
 
-    /// Icon for the category (SF Symbol)
     var iconName: String {
         switch self {
         case .productivity: "checkmark.circle"
@@ -68,10 +61,7 @@ enum AppCategory: String, CaseIterable, Sendable {
     }
 }
 
-// MARK: - RunningApp Model
 
-/// Represents a running app that might have a menu bar icon
-/// Note: @unchecked Sendable because NSImage is thread-safe but not marked Sendable
 struct RunningApp: Identifiable, Hashable, @unchecked Sendable {
     enum Policy: String, Codable, Sendable {
         case regular
@@ -102,8 +92,6 @@ struct RunningApp: Identifiable, Hashable, @unchecked Sendable {
             .key
     }
 
-    /// Owning app/process bundle identifier (e.g. com.apple.systemuiserver).
-    /// This is the identifier we should use for activation/move operations.
     let bundleId: String
     let name: String
     let icon: NSImage?
@@ -112,33 +100,20 @@ struct RunningApp: Identifiable, Hashable, @unchecked Sendable {
     let xPosition: CGFloat?
     let width: CGFloat?
 
-    /// Best-effort center hint used when AX identifiers drift after a move/reveal.
-    /// Falls back to the raw xPosition when width is unavailable.
     var preferredCenterX: CGFloat? {
         guard let xPosition else { return nil }
         guard let width, width > 0 else { return xPosition }
         return xPosition + (width / 2)
     }
 
-    /// For system-owned menu extras (Control Center/SystemUIServer): the specific menu extra identifier
-    /// e.g., "com.apple.menuextra.battery", "com.apple.menuextra.wifi"
-    ///
-    /// For some third-party status items, this may also contain a stable AX identifier if provided.
     let menuExtraIdentifier: String?
 
-    /// For non-system apps that expose multiple status items under the same bundle id,
-    /// this identifies which AX child we represent.
     let statusItemIndex: Int?
 
-    /// Zone-based surfaces (Hidden/Visible/Always Hidden, second menu bar, move flows)
-    /// need a precise identity. Bundle-only fallbacks are fine for broad discovery but
-    /// too coarse for reliable move/open behavior.
     var hasPreciseMenuBarIdentity: Bool {
         menuExtraIdentifier != nil || statusItemIndex != nil
     }
 
-    /// System items that cannot be moved or hidden (Clock, Control Center toggle).
-    /// These should be excluded from the Second Menu Bar panel and Icon Panel.
     private static let unmovableMenuExtraIds: Set<String> = [
         "com.apple.menuextra.clock",
         "com.apple.menuextra.controlcenter"
@@ -152,21 +127,17 @@ struct RunningApp: Identifiable, Hashable, @unchecked Sendable {
         if let id = menuExtraIdentifier, Self.unmovableMenuExtraIds.contains(id) {
             return true
         }
-        // Fallback: match by name for Control Center items where identifier may not propagate
         if bundleId == "com.apple.controlcenter", Self.unmovableNames.contains(name) {
             return true
         }
         return false
     }
 
-    /// Unique identifier for deduplication/UI identity - uses menuExtraIdentifier if present
     var uniqueId: String {
         if let menuExtraIdentifier {
-            // Preserve legacy identity for Apple menu extras so groups/tiles remain stable.
             if menuExtraIdentifier.hasPrefix("com.apple.menuextra.") {
                 return menuExtraIdentifier
             }
-            // Third-party AX identifiers are not guaranteed to be globally unique.
             return "\(bundleId)::axid:\(menuExtraIdentifier)"
         }
         if let statusItemIndex {
@@ -175,8 +146,6 @@ struct RunningApp: Identifiable, Hashable, @unchecked Sendable {
         return bundleId
     }
 
-    /// SwiftUI identity: must be unique per tile.
-    /// For menu extras this is the `uniqueId`; for normal apps it's the bundle id.
     var id: String { uniqueId }
 
     init(id: String, name: String, icon: NSImage?, policy: Policy = .regular, category: AppCategory = .other, menuExtraIdentifier: String? = nil, statusItemIndex: Int? = nil, xPosition: CGFloat? = nil, width: CGFloat? = nil) {
@@ -191,8 +160,6 @@ struct RunningApp: Identifiable, Hashable, @unchecked Sendable {
         self.width = width
     }
 
-    /// Create a system-owned menu extra item (e.g. Wi‑Fi, Battery) with an SF Symbol icon.
-    /// This is used to represent individual items owned by system processes like Control Center or SystemUIServer.
     static func menuExtraItem(ownerBundleId: String, name: String, identifier: String, xPosition: CGFloat? = nil, width: CGFloat? = nil) -> RunningApp {
         let resolvedName = displayNameForMenuExtra(identifier) ?? sanitizeMenuExtraLabel(name) ?? (identifier.components(separatedBy: ".").last ?? "Menu Extra")
         let symbolName = iconForMenuExtra(identifier)
@@ -244,16 +211,11 @@ struct RunningApp: Identifiable, Hashable, @unchecked Sendable {
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
 
-        // Remove control characters and SF Symbols private-use glyphs.
         func isControlScalar(_ value: UInt32) -> Bool {
             value < 0x20 || (value >= 0x7F && value <= 0x9F)
         }
 
         func isPrivateUseScalar(_ value: UInt32) -> Bool {
-            // Unicode Private Use Areas
-            // - BMP:          U+E000 ... U+F8FF
-            // - Plane 15:     U+F0000 ... U+FFFFD
-            // - Plane 16:     U+100000 ... U+10FFFD
             (value >= 0xE000 && value <= 0xF8FF) ||
                 (value >= 0xF0000 && value <= 0xFFFFD) ||
                 (value >= 0x100000 && value <= 0x10FFFD)
@@ -272,7 +234,6 @@ struct RunningApp: Identifiable, Hashable, @unchecked Sendable {
         return cleaned.isEmpty ? nil : cleaned
     }
 
-    /// Map menu extra identifiers to SF Symbols
     private static func iconForMenuExtra(_ identifier: String) -> String {
         switch identifier {
         case "com.apple.menuextra.battery": "battery.100"
@@ -311,10 +272,8 @@ struct RunningApp: Identifiable, Hashable, @unchecked Sendable {
             policy = .unknown
         }
 
-        // Detect category from app bundle
         category = metadata.category
 
-        // Regular apps may still provide a stable AX identifier per status item.
         self.menuExtraIdentifier = menuExtraIdentifier
         self.statusItemIndex = statusItemIndex
     }
@@ -343,57 +302,46 @@ struct RunningApp: Identifiable, Hashable, @unchecked Sendable {
         self.statusItemIndex = statusItemIndex
     }
 
-    /// Detect app category from bundle's Info.plist
     private static func detectCategory(
         bundleId: String,
         appName: String,
         bundleURL: URL?
     ) -> AppCategory {
 
-        // MARK: - Apple System Apps
 
         if bundleId.hasPrefix("com.apple.") {
-            // System utilities (Control Center, Finder, etc.)
             if bundleId.contains("controlcenter") || bundleId.contains("SystemPreferences") ||
                 bundleId.contains("Finder") || bundleId.contains("systempreferences") ||
                 bundleId.contains("Spotlight") || bundleId.contains("SystemUIServer") ||
                 bundleId.contains("dock") || bundleId.contains("loginwindow") {
                 return .system
             }
-            // Creativity (Music, Photos, GarageBand, etc.)
             if bundleId.contains("Music") || bundleId.contains("iTunes") ||
                 bundleId.contains("Photos") || bundleId.contains("GarageBand") ||
                 bundleId.contains("iMovie") || bundleId.contains("FinalCut") {
                 return .creativity
             }
-            // Productivity
             if bundleId.contains("Safari") || bundleId.contains("Mail") ||
                 bundleId.contains("Calendar") || bundleId.contains("Notes") ||
                 bundleId.contains("Reminders") || bundleId.contains("Pages") ||
                 bundleId.contains("Numbers") || bundleId.contains("Keynote") {
                 return .productivity
             }
-            // Social
             if bundleId.contains("Messages") || bundleId.contains("FaceTime") {
                 return .social
             }
-            // Information & Reading
             if bundleId.contains("News") || bundleId.contains("Weather") ||
                 bundleId.contains("Books") || bundleId.contains("Stocks") {
                 return .infoAndReading
             }
-            // Developer Tools
             if bundleId.contains("Xcode") || bundleId.contains("Terminal") ||
                 bundleId.contains("Instruments") || bundleId.contains("FileMerge") {
                 return .developerTools
             }
-            // Default Apple apps to System
             return .system
         }
 
-        // MARK: - Common Third-Party Menu Bar Apps
 
-        // Developer Tools
         if bundleId.contains("github") || bundleId.contains("gitlab") ||
             bundleId.contains("docker") || bundleId.contains("iterm") ||
             bundleId.contains("vscode") || bundleId.contains("jetbrains") ||
@@ -403,7 +351,6 @@ struct RunningApp: Identifiable, Hashable, @unchecked Sendable {
             return .developerTools
         }
 
-        // Utilities (launchers, clipboard managers, window managers, etc.)
         if bundleId.contains("1password") || bundleId.contains("bitwarden") ||
             bundleId.contains("lastpass") || bundleId.contains("dashlane") ||
             bundleId.contains("dropbox") || bundleId.contains("google.drive") ||
@@ -420,7 +367,6 @@ struct RunningApp: Identifiable, Hashable, @unchecked Sendable {
             return .utilities
         }
 
-        // Productivity (note-taking, task management, office apps)
         if bundleId.contains("notion") || bundleId.contains("obsidian") ||
             bundleId.contains("todoist") || bundleId.contains("things") ||
             bundleId.contains("omnifocus") || bundleId.contains("fantastical") ||
@@ -428,7 +374,6 @@ struct RunningApp: Identifiable, Hashable, @unchecked Sendable {
             return .productivity
         }
 
-        // Social / Communication
         if bundleId.contains("slack") || bundleId.contains("discord") ||
             bundleId.contains("zoom") || bundleId.contains("teams") ||
             bundleId.contains("skype") || bundleId.contains("telegram") ||
@@ -437,7 +382,6 @@ struct RunningApp: Identifiable, Hashable, @unchecked Sendable {
             return .social
         }
 
-        // Creativity (music, video, design)
         if bundleId.contains("spotify") || bundleId.contains("soundcloud") ||
             bundleId.contains("audiohijack") || bundleId.contains("airfoil") ||
             bundleId.contains("adobe") || bundleId.contains("sketch") ||
@@ -446,7 +390,6 @@ struct RunningApp: Identifiable, Hashable, @unchecked Sendable {
             return .creativity
         }
 
-        // Finance
         if bundleId.contains("coinbase") || bundleId.contains("exodus") ||
             bundleId.contains("ledger") || bundleId.contains("crypto") ||
             appName.contains("wallet") || appName.contains("bitcoin") ||
@@ -454,13 +397,11 @@ struct RunningApp: Identifiable, Hashable, @unchecked Sendable {
             return .finance
         }
 
-        // Health & Fitness
         if bundleId.contains("strava") || bundleId.contains("fitness") ||
             bundleId.contains("workout") || appName.contains("health") {
             return .healthAndFitness
         }
 
-        // Try to read LSApplicationCategoryType from bundle
         if let bundleURL,
            let bundle = Bundle(url: bundleURL),
            let categoryType = bundle.object(forInfoDictionaryKey: "LSApplicationCategoryType") as? String {

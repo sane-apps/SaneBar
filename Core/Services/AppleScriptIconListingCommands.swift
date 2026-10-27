@@ -54,7 +54,6 @@ private func scriptIconGeometryFields(for item: ScriptZonedIcon) -> ScriptIconGe
     )
 }
 
-// MARK: - List Icons Command
 
 @objc(ListIconsCommand)
 final class ListIconsCommand: SaneBarScriptCommand {
@@ -93,7 +92,6 @@ final class ListIconsCommand: SaneBarScriptCommand {
     }
 }
 
-// MARK: - List Icon Zones Command
 
 @objc(ListIconZonesCommand)
 final class ListIconZonesCommand: SaneBarScriptCommand {

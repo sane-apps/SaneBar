@@ -87,8 +87,6 @@ final class MenuBarStandardIconMoveWorkflow {
                     : false
 
                 if wasHidden, !shouldSkipHide {
-                    // Shield teardown, not a success claim — this runs whether or
-                    // not the move verified. Success is the workflow's return value.
                     logger.info("Restoring hidden state after move attempt (shield teardown)")
                     await manager.hidingService.hide()
                     return
@@ -175,21 +173,6 @@ final class MenuBarStandardIconMoveWorkflow {
             }
 
             if separatorX == nil {
-                // The separator's status-item window can sit parked off-screen
-                // (screen == nil) for a few hundred ms after showAll() shrinks its
-                // length, so currentLiveSeparatorFrame() returns nil and the move
-                // would abort + re-hide. The Always-Hidden workflow already recovers
-                // from this by recreating SaneBar's status items; give the standard
-                // (Hidden/Visible) path the same recovery instead of giving up.
-                //
-                // BUT per docs/GEOMETRY_TRUST_REVIEW: never recreate status items
-                // while macOS is flapping NSStatusItem visibility — recreating then
-                // destroys the saved position (Apple FB9052637) and feeds the
-                // #136/#152 drift. Only attempt the recreate when recovery is NOT
-                // dormant (the flap detector hasn't stood recovery down) and not
-                // already running; otherwise abort cleanly and let the dormancy +
-                // Health-repair hint path own it. Aborting a move is benign (it
-                // simply doesn't take); recreating during a flap is destructive.
                 let recoveryAllowed = await MainActor.run { () -> Bool in
                     let dormant = (manager.statusItemRecoveryWorkflow.recoveryDormantUntil ?? .distantPast) > Date()
                     return !dormant && !manager.isExecutingStatusItemRecovery

@@ -35,10 +35,6 @@ final class MenuBarObserverWorkflow {
     private var previousObservedSettings = SaneBarSettings()
     private var displayReconfigurationObserverInstalled = false
     private var displayResumePendingAfterDisable = false
-    /// Display arrangement fingerprint observed at the last screen-parameters
-    /// event. Used to distinguish a genuine display-topology change from the
-    /// spurious `didChangeScreenParametersNotification` macOS posts on a plain
-    /// sleep/wake — see `screenParametersValidationContext` (#136/#153).
     private var lastObservedDisplayFingerprint = ""
 
     init(manager: MenuBarManager) {
@@ -189,30 +185,12 @@ final class MenuBarObserverWorkflow {
         }
     }
 
-    /// Picks the position-validation context for a screen-parameters
-    /// notification. macOS posts `didChangeScreenParametersNotification` on a
-    /// plain sleep/wake even when the display arrangement is identical; treating
-    /// that as a topology change reanchors (and launders) the user's explicit
-    /// divider toward Control Center (#136/#153). When the display fingerprint is
-    /// unchanged, validate as a non-destructive `.wakeResume` instead — which the
-    /// recovery decision already treats as steady-state (no reanchor/reset),
-    /// while a genuine change keeps `.screenParametersChanged` (topology).
     nonisolated static func screenParametersValidationContext(
         displayActuallyChanged: Bool
     ) -> MenuBarOperationCoordinator.PositionValidationContext {
         displayActuallyChanged ? .screenParametersChanged : .wakeResume
     }
 
-    /// Pure decision for a screen-parameters event: given the current display
-    /// fingerprint and the last one observed, returns the validation context and
-    /// the fingerprint to store next.
-    ///
-    /// - A `no-screens` reading (clamshell / all displays asleep) is never a real
-    ///   arrangement change → non-destructive `.wakeResume`, and the stored
-    ///   fingerprint is NOT advanced (so when the same arrangement returns on wake
-    ///   it is still recognized as unchanged and the divider is not reanchored).
-    /// - Otherwise an unchanged fingerprint → `.wakeResume` (spurious wake); a real
-    ///   change → `.screenParametersChanged` (topology, reanchor authorized).
     nonisolated static func screenParametersValidationDecision(
         fingerprint: String,
         lastObservedFingerprint: String
@@ -225,8 +203,6 @@ final class MenuBarObserverWorkflow {
     }
 
     private func installScreenAndWakeObservers() {
-        // Seed the baseline so the first screen-parameters event is compared
-        // against the arrangement present when observers came online.
         lastObservedDisplayFingerprint = MenuBarDisplayConfiguration.currentFingerprint()
         NotificationCenter.default
             .publisher(for: NSApplication.didChangeScreenParametersNotification)
@@ -237,13 +213,6 @@ final class MenuBarObserverWorkflow {
                 manager.cancelVisibilityIntentReplayTask(reason: "screenParametersChanged")
                 logger.debug("Screen parameters changed - refreshed cached separator policy")
                 manager.enforceExternalMonitorVisibilityPolicy(reason: "screenParametersChanged")
-                // `didChangeScreenParametersNotification` also fires on a plain
-                // sleep/wake when the display arrangement is byte-for-byte identical.
-                // Treating that spurious event as a display-topology change authorizes
-                // a destructive reanchor that clamps the user's explicit divider toward
-                // Control Center (#136/#153 — "moves right then back after wake"). Route
-                // it through the pure fingerprint decision: unchanged (or no-screens) →
-                // non-destructive wake; a genuine change → topology validation.
                 let fingerprint = MenuBarDisplayConfiguration.currentFingerprint()
                 let decision = Self.screenParametersValidationDecision(
                     fingerprint: fingerprint,
@@ -254,7 +223,6 @@ final class MenuBarObserverWorkflow {
                 logger.debug(
                     "Screen parameters changed - fingerprint=\(fingerprint, privacy: .public) → validating as \(validationContext.rawValue, privacy: .public)"
                 )
-                // Replay pinned visibility intent only after validation reports healthy anchors.
                 manager.schedulePositionValidation(context: validationContext)
             }
             .store(in: &cancellables)
@@ -365,15 +333,6 @@ final class MenuBarObserverWorkflow {
 
         guard !flags.isDisjoint(with: displayTopologyChangedFlags) else { return }
 
-        // CoreGraphics also posts reconfiguration callbacks on a plain sleep/wake:
-        // the internal panel re-inits its mode/scale, carrying topology flags
-        // (displaySetModeFlag / displayDesktopShapeChangedFlag / displaySetMainFlag)
-        // WITHOUT displayEnabledFlag and without arming displayResumePendingAfterDisable.
-        // An unconditional `.screenParametersChanged` for that case would reanchor the
-        // user's explicit divider toward Control Center on a byte-for-byte UNCHANGED
-        // arrangement — the exact #136/#168 post-wake drift the notification-sink gate
-        // already closes. Classify the routing, then gate the topology-only case through
-        // the same pure fingerprint decision the notification sink uses.
         switch Self.displayReconfigurationWakeRouting(
             flags: flags,
             resumePendingAfterDisable: displayResumePendingAfterDisable
@@ -398,17 +357,8 @@ final class MenuBarObserverWorkflow {
         }
     }
 
-    /// How a CoreGraphics display-reconfiguration callback — past the begin/disable
-    /// early-outs and the topology-flag guard — should drive position validation.
-    /// Extracted so the #136/#168 routing is unit-testable: a topology-only wake (the
-    /// internal panel re-initializing its mode/scale on sleep/wake, carrying
-    /// displaySetModeFlag / displayDesktopShapeChangedFlag / displaySetMainFlag WITHOUT
-    /// displayEnabledFlag and with no pending resume) must reach the fingerprint gate
-    /// (`.fingerprintGated`), never an unconditional reanchor.
     enum DisplayReconfigurationWakeRouting: Equatable {
-        /// Explicit display-enable, or a resume after a prior display-disable.
         case wakeResume
-        /// Topology change with no enable → gate by display fingerprint.
         case fingerprintGated
     }
 
@@ -437,9 +387,6 @@ final class MenuBarObserverWorkflow {
         manager.clearCachedSeparatorGeometryForLifecycleTransition(reason: "wakeResume")
         logger.debug("\(notificationName, privacy: .public) - refreshed cached separator policy")
         manager.enforceExternalMonitorVisibilityPolicy(reason: "wakeResume")
-        // Wake can briefly report stale menu-bar coordinates. Arm the visible
-        // allow-list replay immediately, but let the guarded replay path wait
-        // for healthy anchors before any physical moves.
         manager.markWakeVisibleAllowListReplayPending(reason: "wakeResume")
         manager.schedulePositionValidation(context: .wakeResume)
         manager.schedulePostRecoveryAutoRehideIfNeeded(reason: "wakeResume")
@@ -449,8 +396,6 @@ final class MenuBarObserverWorkflow {
         manager.clearCachedSeparatorGeometryForLifecycleTransition(reason: "sessionDidBecomeActive")
         logger.debug("Session became active - refreshed cached separator policy")
         manager.enforceExternalMonitorVisibilityPolicy(reason: "sessionDidBecomeActive")
-        // Unlock/fast-user-switch can disturb status items, but it must not grant
-        // the cached hidden-snapshot exception reserved for real wake recovery.
         manager.schedulePositionValidation(context: .activeSpaceChanged)
         manager.schedulePostRecoveryAutoRehideIfNeeded(reason: "sessionDidBecomeActive")
     }
@@ -460,8 +405,6 @@ final class MenuBarObserverWorkflow {
         manager.cancelVisibilityIntentReplayTask(reason: "activeSpaceChanged")
         logger.debug("Active Space changed - refreshed cached separator policy")
         manager.enforceExternalMonitorVisibilityPolicy(reason: "activeSpaceChanged")
-        // Space switches can briefly report stale menu-bar coordinates on macOS 27;
-        // validation owns hidden-state replay once the active Space settles.
         manager.schedulePositionValidation(context: .activeSpaceChanged)
         manager.schedulePostRecoveryAutoRehideIfNeeded(reason: "activeSpaceChanged")
     }

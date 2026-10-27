@@ -8,7 +8,7 @@ enum AccessibilitySystemWideMenuBarScanner {
         candidateCount: Int,
         totalScreenWidth: CGFloat
     ) -> CGFloat {
-        _ = candidateCount // reserved for future fallback-owner-specific tuning
+        _ = candidateCount
         if totalScreenWidth >= 3200 {
             return 8
         }

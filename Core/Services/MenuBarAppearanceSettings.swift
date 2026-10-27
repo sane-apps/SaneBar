@@ -1,6 +1,5 @@
 import Foundation
 
-/// Settings for customizing the menu bar appearance.
 struct MenuBarAppearanceSettings: Codable, Sendable, Equatable {
     var isEnabled: Bool = false
     var useLiquidGlass: Bool = true

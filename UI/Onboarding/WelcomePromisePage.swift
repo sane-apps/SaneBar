@@ -2,7 +2,6 @@ import AppKit
 import SaneUI
 import SwiftUI
 
-// MARK: - Page 5: Sane Philosophy
 
 struct SanePromisePage: View {
     var body: some View {

@@ -3,7 +3,6 @@ import os.log
 
 private let logger = Logger(subsystem: "com.sanebar.app", category: "MenuBarSpacing")
 
-// MARK: - MenuBarSpacingError
 
 enum MenuBarSpacingError: Error, LocalizedError {
     case valueOutOfRange(Int)
@@ -19,28 +18,17 @@ enum MenuBarSpacingError: Error, LocalizedError {
     }
 }
 
-// MARK: - MenuBarSpacingService
 
-/// Service that manages system-wide menu bar icon spacing via macOS defaults.
-///
-/// Uses the private `NSStatusItemSpacing` and `NSStatusItemSelectionPadding` keys
-/// in the `-currentHost -globalDomain` defaults domain. These settings affect ALL
-/// menu bar icons system-wide, not just SaneBar.
-///
-/// **Important**: Changes typically require logout/login to take effect.
 @MainActor
 final class MenuBarSpacingService {
-    // MARK: - Constants
 
     private static let spacingKey = "NSStatusItemSpacing"
     private static let paddingKey = "NSStatusItemSelectionPadding"
     private static let validRange = 1 ... 10
 
-    // MARK: - Singleton
 
     static let shared = MenuBarSpacingService()
 
-    // MARK: - Reading Values
 
     func currentSpacing() -> Int? {
         readDefaultsInt(Self.spacingKey)
@@ -50,7 +38,6 @@ final class MenuBarSpacingService {
         readDefaultsInt(Self.paddingKey)
     }
 
-    // MARK: - Writing Values
 
     func setSpacing(_ value: Int?) throws {
         if let value {
@@ -84,13 +71,7 @@ final class MenuBarSpacingService {
         logger.info("Reset all menu bar spacing to system defaults")
     }
 
-    // MARK: - Graceful Refresh
 
-    /// Attempts to notify the system of spacing changes without requiring logout.
-    /// This uses DistributedNotificationCenter to post known notification names
-    /// that Control Center/SystemUIServer might listen to.
-    ///
-    /// **Note**: This rarely works - most users will need to logout/login.
     func attemptGracefulRefresh() {
         let notifications = [
             "com.apple.controlcenter.settingschanged",
@@ -112,10 +93,7 @@ final class MenuBarSpacingService {
         logger.debug("Posted graceful refresh notifications")
     }
 
-    // MARK: - Private Helpers (CFPreferences)
 
-    /// Reads an integer from the global domain for the current host.
-    /// Equivalent to: `defaults -currentHost read -g <key>`
     private func readDefaultsInt(_ key: String) -> Int? {
         let value = CFPreferencesCopyValue(
             key as CFString,
@@ -126,8 +104,6 @@ final class MenuBarSpacingService {
         return value as? Int
     }
 
-    /// Writes an integer to the global domain for the current host.
-    /// Equivalent to: `defaults -currentHost write -g <key> -int <value>`
     private func writeDefaultsInt(_ key: String, value: Int) throws {
         CFPreferencesSetValue(
             key as CFString,
@@ -136,9 +112,6 @@ final class MenuBarSpacingService {
             kCFPreferencesCurrentUser,
             kCFPreferencesCurrentHost
         )
-        // Best-effort sync to disk. The value is already in the in-memory
-        // preferences cache and readable via CFPreferencesCopyValue.
-        // Sync may fail in test environments without affecting functionality.
         CFPreferencesSynchronize(
             kCFPreferencesAnyApplication,
             kCFPreferencesCurrentUser,
@@ -146,8 +119,6 @@ final class MenuBarSpacingService {
         )
     }
 
-    /// Deletes a key from the global domain for the current host.
-    /// Equivalent to: `defaults -currentHost delete -g <key>`
     private func deleteDefaultsKey(_ key: String) throws {
         CFPreferencesSetValue(
             key as CFString,

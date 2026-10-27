@@ -2,7 +2,6 @@ import AppKit
 import SaneUI
 import SwiftUI
 
-// MARK: - Page 6: Permissions
 
 struct PermissionPage: View {
     @ObservedObject private var accessibilityService = AccessibilityService.shared

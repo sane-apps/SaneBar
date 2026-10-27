@@ -1,12 +1,7 @@
 import SaneUI
 import SwiftUI
 
-// MARK: - Second Menu Bar View
 
-/// Compact horizontal strip showing all menu bar icons organized by row.
-///
-/// Visible → Hidden → Always Hidden, separated by thin vertical dividers.
-/// Right-click any icon to move it between rows.
 struct SecondMenuBarView: View {
     let visibleApps: [RunningApp]
     let apps: [RunningApp]
@@ -27,14 +22,12 @@ struct SecondMenuBarView: View {
     @State private var showingUsageHelp = false
     @State private var targetedEmptyZone: IconZone?
 
-    // Second-menu-bar readability: force high-contrast white text on glass background.
     private let textPrimary = Color.white
     private let textSecondary = Color.white.opacity(0.92)
     private let textMuted = Color.white.opacity(0.82)
     private let accentStart = SaneBarChrome.accentStart
     private let accentHighlight = SaneBarChrome.accentHighlight
 
-    // Filter out system items that can't be moved (Clock, Control Center)
     private var allMovableVisible: [RunningApp] { visibleApps.filter { !$0.isUnmovableSystemItem } }
     private var movableVisible: [RunningApp] {
         guard menuBarManager.settings.secondMenuBarShowVisible else { return [] }
@@ -101,17 +94,14 @@ struct SecondMenuBarView: View {
         }
     }
 
-    // MARK: - Background
 
     private var panelBackground: some View {
         SaneGradientBackground(style: .panel)
     }
 
-    // MARK: - Compact Toolbar
 
     private var toolbarRow: some View {
         HStack(spacing: 6) {
-            // Inline search field
             HStack(spacing: 4) {
                 Image(systemName: "magnifyingglass")
                     .font(.system(size: 10))
@@ -187,7 +177,6 @@ struct SecondMenuBarView: View {
         .padding(.vertical, 5)
     }
 
-    // MARK: - Horizontal Icon Strip
 
     private var iconStrip: some View {
         let showVisibleZone = shouldShowVisibleDropZone
@@ -237,7 +226,6 @@ struct SecondMenuBarView: View {
         .padding(.vertical, 4)
     }
 
-    // MARK: - Row State Controls
 
     private var rowStateControls: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -432,7 +420,6 @@ struct SecondMenuBarView: View {
             .padding(.vertical, 2)
     }
 
-    // MARK: - Tile Factory
 
     private func makeTile(for app: RunningApp, zone: IconZone) -> some View {
         PanelIconTile(
@@ -478,7 +465,6 @@ struct SecondMenuBarView: View {
         }
     }
 
-    // MARK: - Icon Movement
 
     private func moveIcon(_ app: RunningApp, from source: IconZone, to target: IconZone) -> Bool {
         notePanelInteraction()
@@ -618,7 +604,6 @@ struct SecondMenuBarView: View {
         return true
     }
 
-    // MARK: - Empty State
 
     private var emptyState: some View {
         VStack(spacing: 6) {
@@ -642,7 +627,6 @@ struct SecondMenuBarView: View {
         .padding(.horizontal, 10)
     }
 
-    // MARK: - Accessibility Prompt
 
     private var accessibilityPrompt: some View {
         HStack(spacing: 8) {

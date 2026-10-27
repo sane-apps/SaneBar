@@ -1,11 +1,8 @@
 import SwiftUI
 import SaneUI
 
-/// Sheet shown when a free user tries a Pro action. Contextual to the feature they tapped.
 struct ProUpsellView: View {
     let feature: ProFeature
-    /// Optional explicit close action (used when presented in a standalone window).
-    /// When nil, falls back to SwiftUI's `dismiss` environment action (sheets).
     var onClose: (() -> Void)?
     @Environment(\.dismiss) private var dismiss
     @ObservedObject private var licenseService = LicenseService.shared
@@ -17,7 +14,6 @@ struct ProUpsellView: View {
 
     var body: some View {
         VStack(spacing: 16) {
-            // Close button
             HStack {
                 Spacer()
                 Button { closeView() } label: {
@@ -29,7 +25,6 @@ struct ProUpsellView: View {
                 .help("Close")
             }
 
-            // Feature they tried
             VStack(spacing: 8) {
                 Image(systemName: feature.icon)
                     .font(.system(size: 36))
@@ -51,7 +46,6 @@ struct ProUpsellView: View {
             Divider()
                 .padding(.horizontal, 20)
 
-            // Value props
             VStack(alignment: .leading, spacing: 6) {
                 proPoint(icon: "star.fill", text: "All Pro features unlocked")
                 proPoint(icon: "infinity", text: "Lifetime updates — no subscription")
@@ -60,7 +54,6 @@ struct ProUpsellView: View {
             }
             .padding(.horizontal, 10)
 
-            // Price + CTA
             VStack(spacing: 8) {
                 if licenseService.usesSetappDistribution {
                     Text("Setapp")
@@ -168,17 +161,12 @@ struct ProUpsellView: View {
     }
 }
 
-// MARK: - Standalone Window Presenter
 
-/// Presents ProUpsellView in its own titled window.
-/// Used when the trigger comes from a borderless panel (Second Menu Bar)
-/// where `.sheet()` can't render properly.
 @MainActor
 enum ProUpsellWindow {
     private static var window: NSWindow?
 
     static func show(feature: ProFeature) {
-        // Close existing if visible
         if let window, window.isVisible {
             window.close()
         }
@@ -203,15 +191,12 @@ enum ProUpsellWindow {
         panel.backgroundColor = .windowBackgroundColor
         panel.level = .floating
         panel.isReleasedWhenClosed = false
-        // Esc closes the panel (NSPanel standard behavior with .cancelAction)
         panel.becomesKeyOnlyIfNeeded = false
 
-        // Hide traffic light buttons — the SwiftUI X (top-right) is the close mechanism
         panel.standardWindowButton(.closeButton)?.isHidden = true
         panel.standardWindowButton(.miniaturizeButton)?.isHidden = true
         panel.standardWindowButton(.zoomButton)?.isHidden = true
 
-        // Size to fit SwiftUI content
         let fittingSize = hostingView.fittingSize
         panel.setContentSize(fittingSize)
         panel.center()

@@ -4,7 +4,6 @@ import os.log
 
 private let logger = Logger(subsystem: "com.sanebar.app", category: "AppleScriptCommands")
 
-// MARK: - Hide Icon Command
 
 @objc(HideIconCommand)
 final class HideIconCommand: SaneBarScriptCommand {
@@ -103,7 +102,6 @@ final class HideIconCommand: SaneBarScriptCommand {
     }
 }
 
-// MARK: - Show Icon Command
 
 @objc(ShowIconCommand)
 final class ShowIconCommand: SaneBarScriptCommand {
@@ -200,9 +198,7 @@ final class ShowIconCommand: SaneBarScriptCommand {
     }
 }
 
-// MARK: - Move Icon Commands
 
-/// Shared move-icon implementation for AppleScript commands.
 class MoveIconScriptCommand: SaneBarScriptCommand {
     private enum MoveFailure {
         case notFound
@@ -424,9 +420,7 @@ final class MoveIconToAlwaysHiddenCommand: MoveIconScriptCommand {
     override var targetZone: ScriptIconZone { .alwaysHidden }
 }
 
-// MARK: - Reorder Icon Commands
 
-/// Shared target-relative reorder implementation for AppleScript commands.
 class ReorderIconScriptCommand: SaneBarScriptCommand {
     private enum ReorderFailure {
         case sourceNotFound

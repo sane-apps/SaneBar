@@ -352,23 +352,6 @@ enum MenuBarOperationCoordinator {
                 return .captureCurrentDisplayBackup
             }
 
-            // #160: a genuinely live + seated MAIN item on a STEADY-STATE validation
-            // (Space switch / app activation) proves the menu-bar items are NOT actually
-            // gone or macOS-suppressed. A not-live SEPARATOR — legitimately parked
-            // off-screen in the hidden state (length 10000), which ALSO trips the
-            // suppression heuristic (likelySystemSuppressedStatusItems) and flaps
-            // startupItemsValid false → .unattachedWindows — must not trigger a layout
-            // recreate. That recreate is the visible flash users hit every few minutes,
-            // on single notched displays AND multi-monitor setups. Stand down BEFORE the
-            // suppressed-items branch and the generic recreate. Genuinely gone/suppressed
-            // items have a NON-live main and still fall through to repair (#152/#157).
-            //
-            // .wakeResume is intentionally EXCLUDED here: a display sleep/wake genuinely
-            // needs the separator re-seated (the #136 path). Standing down on wake left a
-            // visible icon drifted into the hidden zone after wake and never recovered —
-            // caught by the wake layout probe (2026-06-29). Wake therefore falls through
-            // to the bounded recovery branches below (one repair, then settle) instead of
-            // being suppressed.
             if recoveryReason == .invalidStatusItems,
                validationContext == .screenParametersChanged ||
                validationContext == .activeSpaceChanged,
@@ -380,9 +363,6 @@ enum MenuBarOperationCoordinator {
 
             if recoveryReason == .invalidStatusItems,
                snapshot.likelySystemSuppressedStatusItems {
-                // One repair attempt is allowed so affected users are not left
-                // without any in-app recovery path (#152); further attempts stop
-                // to avoid autosave churn while macOS suppresses the items.
                 if recoveryCount == 0 {
                     return .repairPersistedLayoutAndRecreate(recoveryReason)
                 }
@@ -393,9 +373,6 @@ enum MenuBarOperationCoordinator {
                validationContext == .screenParametersChanged ||
                validationContext == .activeSpaceChanged ||
                validationContext == .wakeResume {
-                // The live-main stand-down hoisted above already caught the legitimate
-                // hidden/parked-separator case; reaching here means the main is NOT
-                // genuinely live, so escalate recovery (bounded) as before.
                 if recoveryCount == 0 {
                     return .repairPersistedLayoutAndRecreate(recoveryReason)
                 }
@@ -486,9 +463,6 @@ enum MenuBarOperationCoordinator {
 
         case .manualLayoutRestoreRequest:
             if let recoveryReason = startupRecoveryReason(snapshot: snapshot) {
-                // An explicit user repair request always attempts the full
-                // repair, even when macOS suppression is suspected (#152) —
-                // a single user-initiated reset cannot churn autosave state.
                 return .repairPersistedLayoutAndRecreate(recoveryReason)
             }
             return .recreateFromPersistedLayout(nil)
@@ -550,9 +524,6 @@ enum MenuBarOperationCoordinator {
             return true
         }
 
-        // Hidden presentation can make the separator window look detached until
-        // the move workflow runs its showAll shield. Exact identity is required
-        // so this exception cannot mask broad/ambiguous recovery failures.
         return snapshot.visibilityPhase == .hidden &&
             snapshot.identityPrecision == .exact &&
             snapshot.structuralState == .unattachedWindows &&

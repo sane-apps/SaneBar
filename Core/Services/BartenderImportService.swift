@@ -5,11 +5,8 @@ import ServiceManagement
 
 private let logger = Logger(subsystem: "com.sanebar.app", category: "BartenderImport")
 
-// MARK: - BartenderImportService
 
-/// Handles importing Bartender plist configurations into SaneBar's zone layout.
 enum BartenderImportService {
-    // MARK: - Types
 
     struct ParsedItem: Hashable {
         let raw: String
@@ -94,7 +91,6 @@ enum BartenderImportService {
         }
     }
 
-    /// Prevent development/test builds from mutating persistent login-item state.
     private static func canMutateLaunchAtLogin() -> Bool {
         let bundlePath = Bundle.main.bundleURL.path
         let bundleID = Bundle.main.bundleIdentifier ?? ""
@@ -104,7 +100,6 @@ enum BartenderImportService {
         return bundlePath.hasPrefix("/Applications/")
     }
 
-    // MARK: - Import
 
     @MainActor
     static func importSettings(from url: URL, menuBarManager: MenuBarManager) async throws -> ImportSummary {
@@ -117,7 +112,6 @@ enum BartenderImportService {
         let data = try Data(contentsOf: url)
         let (profile, root) = try parseProfile(from: data)
 
-        // Import behavioral settings before icon layout
         var summary = ImportSummary()
         importBehavioralSettings(from: root, to: menuBarManager, summary: &summary)
 
@@ -210,8 +204,6 @@ enum BartenderImportService {
                     summary.failedMoves += 1
                 }
             } else if let bundleID = fallbackBundleIDForWindowMove(item, context: context, runningBundleIDs: runningBundleIDs) {
-                // resolveItem counted this as "not running" because AX couldn't see it.
-                // If WindowServer fallback applies, undo that count.
                 if summary.skippedNotRunning > 0 {
                     summary.skippedNotRunning -= 1
                 }
@@ -307,7 +299,6 @@ enum BartenderImportService {
     ) async -> Bool {
         guard AccessibilityService.shared.isTrusted else { return false }
 
-        // Match the coordinate conversion used by icon-moving paths.
         let originalLocation = NSEvent.mouseLocation
         let screenHeight = NSScreen.main?.frame.height ?? NSScreen.screens.first?.frame.height ?? 1080
         let originalCGPoint = CGPoint(x: originalLocation.x, y: screenHeight - originalLocation.y)
@@ -363,7 +354,6 @@ enum BartenderImportService {
         return success
     }
 
-    // MARK: - Parsing
 
     static func parseProfile(from data: Data) throws -> (Profile, [String: Any]) {
         var format = PropertyListSerialization.PropertyListFormat.xml
@@ -387,7 +377,6 @@ enum BartenderImportService {
         return (Profile(hide: hide, show: show, alwaysHide: alwaysHide), root)
     }
 
-    // MARK: - Behavioral Settings
 
     @MainActor
     private static func importBehavioralSettings(
@@ -397,25 +386,21 @@ enum BartenderImportService {
     ) {
         var settings = menuBarManager.settings
 
-        // MouseExitDelay → hoverDelay (clamp to SaneBar's supported range)
         if let delay = root["MouseExitDelay"] as? Double, delay >= 0.05, delay <= 1.0 {
             settings.hoverDelay = delay
             summary.behavioralSettings.append("Hover delay: \(String(format: "%.1f", delay))s")
         }
 
-        // ShowAllItemsWhenDragging → showOnUserDrag
         if let showOnDrag = root["ShowAllItemsWhenDragging"] as? Bool {
             settings.showOnUserDrag = showOnDrag
             summary.behavioralSettings.append("Show on drag: \(showOnDrag ? "on" : "off")")
         }
 
-        // HideItemsWhenShowingOthers → rehideOnAppChange
         if let hideWhenShowing = root["HideItemsWhenShowingOthers"] as? Bool {
             settings.rehideOnAppChange = hideWhenShowing
             summary.behavioralSettings.append("Rehide on app change: \(hideWhenShowing ? "on" : "off")")
         }
 
-        // launchAtLogin.isEnabled → SMAppService
         if let launchAtLogin = root["launchAtLogin.isEnabled"] as? Bool, launchAtLogin {
             if canMutateLaunchAtLogin() {
                 do {
@@ -440,7 +425,6 @@ enum BartenderImportService {
         return ParsedItem(raw: trimmed)
     }
 
-    // MARK: - Resolution
 
     static func buildResolutionContext() async -> ResolutionContext {
         let availableItems = await AccessibilityService.shared.listMenuBarItemsWithPositions()
@@ -679,7 +663,6 @@ enum BartenderImportService {
             return nil
         }
 
-        // Only fallback when AX cannot see any status items for this running app.
         if let items = context.availableByBundle[bundleMatch.bundleId], !items.isEmpty {
             return nil
         }
@@ -712,7 +695,6 @@ enum BartenderImportService {
             return CGRect(x: x, y: y, width: width, height: height)
         }
 
-        // Right-most window is most likely the active/visible extra in crowded menus.
         return candidates.max(by: { $0.midX < $1.midX })
     }
 }

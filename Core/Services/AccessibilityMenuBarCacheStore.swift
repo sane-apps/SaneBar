@@ -20,7 +20,6 @@ final class AccessibilityMenuBarCacheStore {
         case .launch:
             return 0
         case .reveal:
-            // Let WindowServer finish the reveal relayout before scanning.
             return 0.2
         case .conceal:
             return 0.1
@@ -98,7 +97,6 @@ final class AccessibilityMenuBarCacheStore {
         """
     }
 
-    // MARK: - Cached Results (Fast)
 
     func cachedMenuBarItemOwners() -> [RunningApp] {
         accessibilityService.menuBarOwnersCache
@@ -108,7 +106,6 @@ final class AccessibilityMenuBarCacheStore {
         accessibilityService.menuBarItemCache
     }
 
-    // MARK: - Async Refresh (Non-blocking)
 
     func refreshMenuBarItemOwners() async -> [RunningApp] {
         guard accessibilityService.isTrusted else { return [] }
@@ -145,7 +142,6 @@ final class AccessibilityMenuBarCacheStore {
         }
 
         let task = Task<[MenuBarItemPosition], Never> {
-            // Use the authoritative scanner (includes width) and benefits from its caching.
             await self.accessibilityService.listMenuBarItemsWithPositions()
         }
 
@@ -328,9 +324,6 @@ final class AccessibilityMenuBarCacheStore {
         scheduleMenuBarCacheWarmup(reason: deferredReason)
     }
 
-    /// Invalidates all menu bar caches, forcing a fresh scan on next call.
-    /// Optionally schedules a background warmup so the next UI/script interaction
-    /// does not pay the full cold-scan penalty.
     func invalidateMenuBarItemCache(scheduleWarmupAfter reason: CacheWarmupReason? = nil) {
         accessibilityService.menuBarItemCacheTime = .distantPast
         accessibilityService.menuBarOwnersCacheTime = .distantPast
@@ -358,8 +351,6 @@ final class AccessibilityMenuBarCacheStore {
         }
     }
 
-    /// Invalidates only positioned item state.
-    /// Use this when icon lanes moved but the owner set did not change.
     func invalidateMenuBarItemPositionsCache() {
         accessibilityService.menuBarItemCacheTime = .distantPast
         accessibilityService.menuBarItemsRefreshTask?.cancel()
@@ -371,10 +362,6 @@ final class AccessibilityMenuBarCacheStore {
         accessibilityCacheLogger.debug("Menu bar item position cache invalidated")
     }
 
-    /// Keep a deliberately refreshed pre-hide item-position snapshot alive after
-    /// a manual move restores the hidden state. Hidden-state AX geometry pushes
-    /// regular Hidden items far offscreen, which can otherwise look identical to
-    /// Always Hidden during the immediate post-move AppleScript verification.
     @MainActor
     func preserveFreshMenuBarItemPositionsAfterManualMove() {
         guard !accessibilityService.menuBarItemCache.isEmpty else { return }
@@ -402,8 +389,6 @@ final class AccessibilityMenuBarCacheStore {
         return deduped
     }
 
-    /// Pre-warms the menu bar caches in the background.
-    /// Call this on app launch so Find Icon opens instantly.
     func prewarmCache() {
         scheduleMenuBarCacheWarmup(reason: .launch)
     }}

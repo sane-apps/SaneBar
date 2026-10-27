@@ -2,11 +2,7 @@ import AppKit
 import Foundation
 import SaneUI
 
-// MARK: - SaneBar Diagnostics
 
-/// SaneBar's diagnostics service — delegates generic collection (logs, system info,
-/// markdown, sanitization) to SaneDiagnosticsService and provides SaneBar-specific
-/// settings and menu bar classification data via the settingsCollector closure.
 extension SaneDiagnosticsService {
     static let shared = SaneDiagnosticsService(
         appName: "SaneBar",
@@ -16,7 +12,6 @@ extension SaneDiagnosticsService {
     )
 }
 
-// MARK: - SaneBar-Specific Settings Collection
 
 @MainActor
 private func collectSaneBarSettings() -> String {

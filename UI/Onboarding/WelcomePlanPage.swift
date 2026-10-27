@@ -2,7 +2,6 @@ import AppKit
 import SaneUI
 import SwiftUI
 
-// MARK: - Page 7: Plan / Upgrade
 
 struct FreeVsProPage: View {
     @ObservedObject private var licenseService: LicenseService
@@ -20,7 +19,6 @@ struct FreeVsProPage: View {
         .padding(.vertical, 8)
     }
 
-    // MARK: - Open Source Support
 
     private func supportAppealView(title: String) -> some View {
         VStack(spacing: 12) {

@@ -60,12 +60,10 @@ final class AccessibilityMenuBarScanningService {
         guard let raw = axIdentifier?.trimmingCharacters(in: .whitespacesAndNewlines),
               !raw.isEmpty else { return nil }
 
-        // Apple menu-extra identifiers identify the menu extra, not the owning app process.
         if raw.hasPrefix("com.apple.menuextra.") {
             return nil
         }
 
-        // Common third-party shape: com.vendor.App-Item-0
         if let range = raw.range(of: "-Item-", options: .backwards) {
             let candidate = String(raw[..<range.lowerBound])
             if isLikelyBundleIdentifier(candidate) {
@@ -115,14 +113,11 @@ final class AccessibilityMenuBarScanningService {
         return itemIndex
     }
 
-    // MARK: - System Wide Search
 
-    /// Best-effort list of apps that currently own a menu bar status item.
     func listMenuBarItemOwners() async -> [RunningApp] {
         guard accessibilityService.isTrusted else { return [] }
         guard !Task.isCancelled else { return [] }
 
-        // Check cache validity - return cached results if still fresh
         let now = Date()
         if now.timeIntervalSince(accessibilityService.menuBarOwnersCacheTime) < accessibilityService.menuBarOwnersCacheValiditySeconds && !accessibilityService.menuBarOwnersCache.isEmpty {
             accessibilityScanningLogger.debug("Returning cached menu bar owners (\(self.accessibilityService.menuBarOwnersCache.count) apps)")
@@ -130,8 +125,6 @@ final class AccessibilityMenuBarScanningService {
         }
 
         let selfPID = ProcessInfo.processInfo.processIdentifier
-        // Pre-filter: scan everything except ourselves. Some menu extras run from
-        // helper processes where bundleIdentifier is temporarily nil.
         let candidateApps = NSWorkspace.shared.runningApplications.filter { app in
             guard app.processIdentifier != selfPID else { return false }
             if let bundleID = app.bundleIdentifier,
@@ -143,7 +136,6 @@ final class AccessibilityMenuBarScanningService {
 
         accessibilityScanningLogger.debug("Scanning \(candidateApps.count) apps for menu bar owners")
 
-        // Scan candidate apps for their menu bar extras in parallel
         let axDiscoveredPIDs = await withTaskGroup(of: pid_t?.self) { group in
             for runningApp in candidateApps {
                 group.addTask {
@@ -189,7 +181,6 @@ final class AccessibilityMenuBarScanningService {
             accessibilityScanningLogger.debug("WindowServer fallback found \(windowBackedPIDs.count) compact owner candidate(s), \(topBarHostPIDs.count) top-bar host candidate(s)")
         }
 
-        // Map to RunningApp (unique by bundle ID or menuExtraIdentifier)
         var seenIds = Set<String>()
         var apps: [RunningApp] = []
         var controlCenterPID: pid_t?
@@ -207,16 +198,14 @@ final class AccessibilityMenuBarScanningService {
 
             let fallbackFrame = windowFramesByPID[pid]
 
-            // Special case: Control Center - remember its PID for later expansion
             if bundleID == "com.apple.controlcenter" {
                 controlCenterPID = pid
-                continue  // Don't add the collapsed entry
+                continue
             }
 
-            // Special case: SystemUIServer - it often owns system menu extras like Wi‑Fi
             if bundleID == "com.apple.systemuiserver" {
                 systemUIServerPID = pid
-                continue  // Don't add the collapsed entry
+                continue
             }
 
             guard !seenIds.contains(bundleID) else { continue }
@@ -263,8 +252,6 @@ final class AccessibilityMenuBarScanningService {
             apps.append(RunningApp(app: app, resolvedBundleId: bundleID))
         }
 
-        // Some macOS builds expose system extras through AXMenuBar instead of AXExtrasMenuBar.
-        // Ensure we still attempt targeted expansion for these owners.
         if controlCenterPID == nil {
             controlCenterPID = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.controlcenter").first?.processIdentifier
         }
@@ -272,7 +259,6 @@ final class AccessibilityMenuBarScanningService {
             systemUIServerPID = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.systemuiserver").first?.processIdentifier
         }
 
-        // Expand Control Center into individual items (Battery, WiFi, Clock, etc.)
         if let ccPID = controlCenterPID {
             guard !Task.isCancelled else { return [] }
             let ccItems = AccessibilityMenuExtraService.enumerateControlCenterItems(pid: ccPID)
@@ -286,7 +272,6 @@ final class AccessibilityMenuBarScanningService {
             }
         }
 
-        // Expand SystemUIServer into individual items (Wi‑Fi, Bluetooth, etc.)
         if let suPID = systemUIServerPID {
             guard !Task.isCancelled else { return [] }
             let suItems = AccessibilityMenuExtraService.enumerateMenuExtraItems(pid: suPID, ownerBundleId: "com.apple.systemuiserver")
@@ -303,7 +288,6 @@ final class AccessibilityMenuBarScanningService {
         let sortedApps = apps.sorted { $0.name.localizedCompare($1.name) == .orderedAscending }
         guard !Task.isCancelled else { return [] }
 
-        // Update cache
         accessibilityService.menuBarOwnersCache = sortedApps
         accessibilityService.menuBarOwnersCacheTime = now
         accessibilityScanningLogger.debug("Cached \(sortedApps.count) menu bar owners")
@@ -311,7 +295,6 @@ final class AccessibilityMenuBarScanningService {
         return sortedApps
     }
 
-    /// Returns menu bar items, with position info.
     func listMenuBarItemsWithPositions() async -> [MenuBarItemPosition] {
         guard accessibilityService.isTrusted else {
             accessibilityScanningLogger.warning("listMenuBarItemsWithPositions: Not trusted for Accessibility")
@@ -319,7 +302,6 @@ final class AccessibilityMenuBarScanningService {
         }
         guard !Task.isCancelled else { return [] }
 
-        // Check cache validity - return cached results if still fresh
         let now = Date()
         if now.timeIntervalSince(accessibilityService.menuBarItemCacheTime) < accessibilityService.menuBarItemCacheValiditySeconds && !accessibilityService.menuBarItemCache.isEmpty {
             accessibilityScanningLogger.debug("Returning cached menu bar items (\(self.accessibilityService.menuBarItemCache.count) items)")
@@ -361,7 +343,6 @@ final class AccessibilityMenuBarScanningService {
         return await scanKnownMenuBarItemsWithPositions(owners: owners)
     }
 
-    // MARK: - Scanning Helpers
 
     private func filteredMenuBarCandidateApps() -> [NSRunningApplication] {
         let selfPID = ProcessInfo.processInfo.processIdentifier

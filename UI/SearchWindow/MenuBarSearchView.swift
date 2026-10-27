@@ -3,9 +3,7 @@ import KeyboardShortcuts
 import SaneUI
 import SwiftUI
 
-// MARK: - MenuBarSearchView
 
-/// SwiftUI view for finding (and clicking) menu bar icons.
 struct MenuBarSearchView: View {
     typealias Mode = BrowsePanelMode
     typealias AppZone = BrowseAppZone
@@ -39,14 +37,10 @@ struct MenuBarSearchView: View {
     @State private var activeModeStripSourceZone: AppZone?
     @State private var localModeStripDragEndMonitor: Any?
     @State private var globalModeStripDragEndMonitor: Any?
-    // Fix: Implicit Optional Initialization Violation
     @State private var selectedGroupId: UUID?
     @State private var selectedSmartCategory: AppCategory?
     @State var movingAppId: String?
-    /// Set when a move resolves to a non-silent, retryable failure so the row can
-    /// surface a "couldn't move — try again" affordance instead of going silent.
     @State var lastFailedMoveAppId: String?
-    /// Set after a move completes so the next tab switch does a fresh scan
     @State private var needsPostMoveRefresh = false
     @State private var showingCrowdedVisibleHint = false
     @ObservedObject var menuBarManager = MenuBarManager.shared
@@ -149,10 +143,8 @@ struct MenuBarSearchView: View {
         )
     }
 
-    /// Categories that have at least one app (for smart group tabs)
     private var availableCategories: [AppCategory] {
         let categories = Set(menuBarApps.map(\.category))
-        // Return in a sensible order, filtering to only those with apps
         return AppCategory.allCases.filter { categories.contains($0) }
     }
 
@@ -172,24 +164,19 @@ struct MenuBarSearchView: View {
         var apps = menuBarApps
             .filter { !$0.isUnmovableSystemItem }
 
-        // Filter by custom group (takes precedence)
         if let groupId = selectedGroupId,
            let group = menuBarManager.settings.iconGroups.first(where: { $0.id == groupId }) {
             let bundleIds = Set(group.appBundleIds)
             apps = apps.filter { bundleIds.contains($0.bundleId) }
         }
-        // Filter by smart category (when no custom group selected)
         else if let category = selectedSmartCategory {
             apps = apps.filter { $0.category == category }
         }
 
-        // Filter by search text
         if !searchTextDebounced.isEmpty {
             apps = apps.filter { $0.name.localizedCaseInsensitiveContains(searchTextDebounced) }
         }
 
-        // Sort by X position for ALL modes (Hidden, Visible, and All)
-        // This ensures the grid always matches the visual menu bar order (Left-to-Right)
         apps.sort { ($0.xPosition ?? 0) < ($1.xPosition ?? 0) }
 
         return apps
@@ -244,7 +231,6 @@ struct MenuBarSearchView: View {
         crowdedVisibleHintDismissTask?.cancel()
     }
 
-    // MARK: - Find Icon Body (original layout)
 
     private var findIconBody: some View {
         BrowseFindIconPanelView(
@@ -325,7 +311,6 @@ struct MenuBarSearchView: View {
         )
     }
 
-    // MARK: - Second Menu Bar Body
 
     private var secondMenuBarBody: some View {
         BrowseSecondMenuBarPanelView(
@@ -356,7 +341,6 @@ struct MenuBarSearchView: View {
         BrowseDuplicateMarker.markers(for: filteredApps)
     }
 
-    /// Monitor for permission changes - auto-reload when user grants permission
     @MainActor
     private func startPermissionMonitoring() {
         permissionMonitorTask = Task { @MainActor in
@@ -365,11 +349,9 @@ struct MenuBarSearchView: View {
 
                 hasAccessibility = granted
                 if granted {
-                    // Permission was granted - reload from cache then force refresh.
                     loadCachedApps()
                     refreshApps(force: true)
                 } else {
-                    // Permission was revoked - clear data and stop refresh work.
                     refreshTask?.cancel()
                     isRefreshing = false
                     menuBarApps = []
@@ -380,7 +362,6 @@ struct MenuBarSearchView: View {
         }
     }
 
-    /// The effective mode for data loading — panel mode always shows hidden icons
     private var effectiveMode: Mode {
         isSecondMenuBar ? .hidden : mode
     }
@@ -392,8 +373,6 @@ struct MenuBarSearchView: View {
 
     @MainActor
     private func syncAccessibilityState(forceProbe: Bool, promptUser: Bool = false) -> Bool {
-        // Passive paths should use cached published state to avoid repeated TCC hits.
-        // Only explicit retry actions should force a live check.
         let liveStatus = forceProbe ? AccessibilityService.shared.requestAccessibility(promptUser: promptUser) : AccessibilityService.shared.isGranted
         hasAccessibility = liveStatus
         return liveStatus
@@ -410,7 +389,6 @@ struct MenuBarSearchView: View {
             return
         }
 
-        // Single-pass classification for all modes — one backend, consistent results.
         let classified = service.cachedClassifiedApps()
 
         if isSecondMenuBar {
@@ -433,7 +411,6 @@ struct MenuBarSearchView: View {
 
     @MainActor
     private func schedulePostMoveFollowupRefresh() {
-        // A single delayed refresh smooths out WindowServer/AX settle races after drag moves.
         postMoveRefreshTask?.cancel()
         postMoveRefreshGeneration += 1
         let generation = postMoveRefreshGeneration
@@ -508,9 +485,6 @@ struct MenuBarSearchView: View {
 
             if force {
                 await MainActor.run {
-                    // Force-refresh browse surfaces for new geometry, but keep
-                    // the owner cache warm. Repeated panel opens usually do not
-                    // need to rediscover the entire owner set from scratch.
                     AccessibilityService.shared.invalidateMenuBarItemPositionsCache()
                 }
             }
@@ -518,10 +492,6 @@ struct MenuBarSearchView: View {
             let classified: SearchClassifiedApps?
             let allModeApps: [RunningApp]
             if isSecondMenuBar || effectiveMode != .all {
-                // Zone-only browse surfaces are typically reacting to relayouts
-                // or moves where the owner set is stable. Rebuild positions
-                // from the known owners first and keep All-mode discovery on
-                // its dedicated merged list path.
                 classified = await service.refreshKnownClassifiedApps()
                 allModeApps = []
             } else {

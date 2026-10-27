@@ -82,8 +82,6 @@ struct GeneralSettingsHidingSection: View {
             CompactDivider()
             CompactToggle(label: "Show when scrolling on menu bar", isOn: $menuBarManager.settings.showOnScroll)
             if menuBarManager.settings.showOnScroll {
-                // Shared reveal delay also governs scroll; show it here only when
-                // hover (which already shows it) is off, so it never appears twice.
                 if !menuBarManager.settings.showOnHover {
                     revealDelayRow
                 }
@@ -185,8 +183,6 @@ struct GeneralSettingsHidingSection: View {
         }
     }
 
-    /// One shared dwell for both hover and scroll reveal — keeps the UI uncluttered
-    /// while still letting users tune how long they must linger before icons reveal.
     @ViewBuilder
     private var revealDelayRow: some View {
         CompactDivider()

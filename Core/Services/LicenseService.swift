@@ -9,13 +9,6 @@ import SaneUI
 
 private let licenseLogger = Logger(subsystem: "com.sanebar.app", category: "License")
 
-/// Historical license machinery, retained for legacy paid installs and tests.
-///
-/// SaneBar is free + MIT as of June 2026: production builds pass
-/// `freeBuildUnlock: true`, which sets `isPro = true` before any
-/// keychain/network/trial path runs, so every downstream Pro gate is
-/// constant-true in shipped builds. The LemonSqueezy/StoreKit/trial paths
-/// below are reachable only from tests that pass `freeBuildUnlock: false`.
 @MainActor
 final class LicenseService: ObservableObject {
     static let shared = LicenseService()
@@ -58,7 +51,6 @@ final class LicenseService: ObservableObject {
         return url
     }
 
-    // MARK: - Published State
 
     @Published private(set) var isPro: Bool = false
     @Published private(set) var licenseEmail: String?
@@ -66,17 +58,12 @@ final class LicenseService: ObservableObject {
     @Published private(set) var isPurchasing: Bool = false
     @Published private(set) var appStoreDisplayPrice: String?
     @Published private(set) var proTrialStartedAt: Date?
-    /// True when a paid unlock (a real LemonSqueezy license key) is present. A paid
-    /// unlock supersedes the time-limited Pro trial: the badge reads "Pro" instead of
-    /// "Pro Trial", and an expired trial never demotes a paying customer to Basic.
     @Published private(set) var hasPaidUnlock: Bool = false
-    /// True only for an actual customer purchase, not the current MIT free unlock.
     @Published private(set) var hasLegacyPaidUnlock: Bool = false
     private var proTrialLastSeenAt: Date?
     @Published var validationError: String?
     @Published var purchaseError: String?
 
-    // MARK: - Keychain Keys
 
     private enum Keys {
         static let licenseKey = "pro_license_key"
@@ -86,14 +73,11 @@ final class LicenseService: ObservableObject {
         static let proTrialLastSeenAt = "sanebar.pro_trial.last_seen_at"
     }
 
-    /// Offline grace period — Pro stays active without revalidation for this long.
     private let offlineGraceDays: TimeInterval = 30
     private let proTrialDurationDays = 14
 
     private let keychain: KeychainServiceProtocol
     private let userDefaults: UserDefaults
-    /// SaneBar is free + MIT as of June 2026: the production build unlocks Pro for everyone.
-    /// Tests pass `false` to exercise the historical license/trial gating.
     private let freeBuildUnlock: Bool
     #if canImport(StoreKit)
         private var appStoreProduct: Product?
@@ -180,23 +164,12 @@ final class LicenseService: ObservableObject {
     var distributionChannel: SaneDistributionChannel {
         Self.resolvedDistributionChannel(
             appStoreProductIDPresent: Self.appStoreProductIDFromBundle() != nil,
-            setappBuild: {
-                #if SETAPP
-                    true
-                #else
-                    false
-                #endif
-            }()
+            setappBuild: false
         )
     }
 
-    // MARK: - Startup
 
-    /// Check cached license on launch. Call from `applicationDidFinishLaunching`.
     func checkCachedLicense() {
-        // SaneBar is free and open source as of June 2026 (MIT). The production build
-        // unlocks Pro for everyone. Tests construct the service with freeBuildUnlock=false
-        // to keep exercising the historical license/trial gating.
         if freeBuildUnlock {
             isPro = true
             hasPaidUnlock = true
@@ -225,9 +198,6 @@ final class LicenseService: ObservableObject {
         }
 
         #if DEBUG
-            // Debug builds: auto-grant Pro so developers can test all features
-            // without fighting keychain over SSH. Does NOT ship in release.
-            // Skip when running under test host to preserve test expectations.
             if NSClassFromString("XCTestCase") == nil,
                ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil {
                 isPro = true
@@ -266,11 +236,9 @@ final class LicenseService: ObservableObject {
         }
 
         licenseEmail = try? keychain.string(forKey: Keys.licenseEmail)
-        // A real stored license key is a paid unlock — it supersedes any trial.
         hasPaidUnlock = true
         hasLegacyPaidUnlock = true
 
-        // Check offline grace
         if let lastDateString = try? keychain.string(forKey: Keys.lastValidation),
            let lastDate = ISO8601DateFormatter().date(from: lastDateString) {
             let daysSince = Date().timeIntervalSince(lastDate) / 86400
@@ -281,16 +249,13 @@ final class LicenseService: ObservableObject {
             }
         }
 
-        // Grace expired or no date — attempt background revalidation
-        isPro = true // Optimistic while validating
+        isPro = true
         Task {
             await revalidate(key: storedKey)
         }
     }
 
-    // MARK: - Activation
 
-    /// Validate a license key with LemonSqueezy and activate Pro.
     func activate(key: String) async {
         if usesAppStorePurchase {
             validationError = "Use in-app purchase to unlock Pro in this App Store build."
@@ -344,7 +309,6 @@ final class LicenseService: ObservableObject {
         isValidating = false
     }
 
-    /// Remove stored license and revert to free mode.
     func deactivate() {
         if usesAppStorePurchase {
             purchaseError = "App Store purchases are managed by Apple. Use Restore Purchases if needed."
@@ -366,7 +330,6 @@ final class LicenseService: ObservableObject {
         licenseLogger.info("License deactivated")
     }
 
-    // MARK: - Private
 
     private static func appStoreProductIDFromBundle() -> String? {
         guard let raw = Bundle.main.object(forInfoDictionaryKey: appStoreProductIDInfoPlistKey) as? String else {
@@ -511,7 +474,6 @@ final class LicenseService: ObservableObject {
                 hasLegacyPaidUnlock = true
                 licenseLogger.info("Background revalidation succeeded")
             } else {
-                // Key was revoked — revert to free
                 hasPaidUnlock = false
                 hasLegacyPaidUnlock = false
                 updateTrialLastSeenAt()
@@ -519,12 +481,10 @@ final class LicenseService: ObservableObject {
                 licenseLogger.info("Background revalidation failed — reverting to free")
             }
         } catch {
-            // Network error during revalidation — keep Pro active (grace period)
             licenseLogger.info("Background revalidation network error — maintaining Pro")
         }
     }
 
-    // MARK: - LemonSqueezy API
 
     private struct ValidationResult {
         let valid: Bool
@@ -534,8 +494,6 @@ final class LicenseService: ObservableObject {
         let variantName: String?
     }
 
-    /// A paid unlock is a real stored LemonSqueezy key — not the retired
-    /// "early-adopter" marker and not an empty/absent value.
     private static func storedPaidLicensePresent(keychain: KeychainServiceProtocol) -> Bool {
         guard let key = try? keychain.string(forKey: Keys.licenseKey), !key.isEmpty else { return false }
         return key != "early-adopter"
@@ -642,7 +600,6 @@ final class LicenseService: ObservableObject {
             return ValidationResult(valid: false, email: nil, error: "Unexpected response", productName: nil, variantName: nil)
         }
 
-        // LemonSqueezy returns 200 for valid, 400/404 for invalid
         let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
 
         if http.statusCode == 200 {

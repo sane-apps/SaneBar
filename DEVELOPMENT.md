@@ -61,35 +61,25 @@ Real failures from this repo's history. Learn from them cheaply:
 | Skipped `xcodegen generate` after adding a file | 20 minutes of "file not found" — see the section above |
 | Classified Hidden icons as "offscreen" | Hidden vs. Visible is **separator-relative**: compare an icon's X to the separator item's window frame, not to screen bounds |
 | Deleted an "unused" file a tool flagged | It was load-bearing (`ServiceContainer`). Grep for the type name before deleting anything |
-| Trusted `codesign --verify --deep` | It does not inspect executables inside `.zip` resources; Apple's notarization does — see [docs/NOTARIZATION.md](docs/NOTARIZATION.md) |
-| Modified icon-moving logic casually | The CGEvent drag pipeline is battle-tested and fragile. **Do not touch it** without reading [docs/DEBUGGING_MENU_BAR_INTERACTIONS.md](docs/DEBUGGING_MENU_BAR_INTERACTIONS.md) |
+| Trusted `codesign --verify --deep` | It does not inspect executables inside `.zip` resources; Apple's notarization does |
+| Modified icon-moving logic casually | The CGEvent drag pipeline is battle-tested and fragile. **Do not touch it** without reading ARCHITECTURE.md § Known Fragilities |
 
 ## Fragile Zones
 
 The icon-moving, geometry, separator/zone, and recovery code paths look
 refactorable and are not. Before changing anything there, read:
 
-- [docs/DEBUGGING_MENU_BAR_INTERACTIONS.md](docs/DEBUGGING_MENU_BAR_INTERACTIONS.md) — how moves actually work, and the debugging playbook
-- [docs/GEOMETRY_TRUST_REVIEW_2026-06-10.md](docs/GEOMETRY_TRUST_REVIEW_2026-06-10.md) — root-cause record for the layout/recovery bug families
-- [docs/NOTCH_MOVE_LIMITATION.md](docs/NOTCH_MOVE_LIMITATION.md) — why notch-stuck icons cannot be moved on macOS 26 (a proven platform limit)
 - [ARCHITECTURE.md](ARCHITECTURE.md) § Known Fragilities
 
 ## Testing
 
-- Unit tests live in `Tests/` and use **Swift Testing** (`import Testing`,
-  `@Test`, `#expect`) — write new tests with it, not XCTest.
-- A test must be able to **fail for the real bug**. No tautologies, no
-  asserting that source code contains a string and calling it coverage.
-- About the `RuntimeGuard*XCTests` suites: despite the name they mostly
-  fingerprint *source code*, not runtime behavior — they are "don't delete the
-  fix" tripwires. If one fails after an intentional edit, update the
-  fingerprint to match your change; don't revert blindly. Several of them
-  `XCTSkip` without the maintainer's private checkout, so skips on a fresh
-  clone and in CI are expected.
-- Manual end-to-end pass: [docs/E2E_TESTING_CHECKLIST.md](docs/E2E_TESTING_CHECKLIST.md).
-- Map every UI control to its handler: `ruby Scripts/button_map.rb`.
-- Stream live app logs: `./Scripts/sanebar_logwatch.sh` (or `log stream
-  --predicate 'subsystem == "com.sanebar.app"' --level info`).
+- `Tests/GoldenGateNoticeTests.swift` (Swift Testing) covers the macOS 27 notice.
+  The older suite was removed in 2.1.91 to keep the sunset repo small; it is in
+  git history.
+- On macOS 27 the app shows only the notice in `UI/GoldenGateNotice.swift`. Set
+  `SANEBAR_SHOW_MACOS27_NOTICE=1` to see it on earlier macOS, and
+  `SANEBAR_SETTINGS_FALLBACK_TEST=app` or `=none` to try its fallbacks.
+- Stream live app logs: `log stream --predicate 'subsystem == "com.sanebar.app"' --level info`.
 
 ## Releases (maintainer history)
 

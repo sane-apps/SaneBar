@@ -45,10 +45,8 @@ struct RulesSettingsView: View {
 
     var body: some View {
         SaneSettingsPage {
-                // Triggers (Automation) — Pro
                 CompactSection("Automatic Triggers") {
                     if licenseService.isPro {
-                        // Battery
                         CompactToggle(label: "Show on Low Battery", isOn: $menuBarManager.settings.showOnLowBattery)
                             .help("Reveal battery and power icons when battery is low")
 
@@ -85,7 +83,6 @@ struct RulesSettingsView: View {
                     CompactDivider()
 
                     if licenseService.isPro {
-                        // App Launch
                         CompactToggle(label: "Show when specific apps open", isOn: $menuBarManager.settings.showOnAppLaunch)
                             .help("Reveal icons when certain apps are launched")
 
@@ -111,7 +108,6 @@ struct RulesSettingsView: View {
                     CompactDivider()
 
                     if licenseService.isPro {
-                        // Schedule
                         CompactToggle(label: "Show on Schedule", isOn: $menuBarManager.settings.showOnSchedule)
                             .help("Reveal icons when local time enters selected day/time window")
 
@@ -164,7 +160,6 @@ struct RulesSettingsView: View {
                     CompactDivider()
 
                     if licenseService.isPro {
-                        // Network
                         CompactToggle(label: "Show on Wi-Fi Change", isOn: $menuBarManager.settings.showOnNetworkChange)
                             .help("Reveal icons when connecting to specific Wi-Fi networks")
 
@@ -209,7 +204,6 @@ struct RulesSettingsView: View {
                     CompactDivider()
 
                     if licenseService.isPro {
-                        // Focus Mode
                         CompactToggle(label: "Show on Focus Mode Change", isOn: $menuBarManager.settings.showOnFocusModeChange)
                             .help("Reveal icons when entering or exiting specific Focus Modes")
 
@@ -267,7 +261,6 @@ struct RulesSettingsView: View {
                     CompactDivider()
 
                     if licenseService.isPro {
-                        // Script Trigger
                         CompactToggle(label: "Let a script control visibility", isOn: $menuBarManager.settings.scriptTriggerEnabled)
                             .help("Run a script every few seconds. Exit 0 shows icons; any other exit code hides them.")
 
@@ -290,7 +283,6 @@ struct RulesSettingsView: View {
         }
     }
 
-    // MARK: - Pro Gating Helper
 
     private func proGatedRow(feature: ProFeature, label: String) -> some View {
         CompactRow(label) {
@@ -366,7 +358,6 @@ struct RulesSettingsView: View {
     }
 }
 
-// MARK: - Script Trigger Settings
 
 private struct ScriptTriggerSettingsView: View {
     @ObservedObject private var menuBarManager = MenuBarManager.shared

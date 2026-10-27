@@ -26,7 +26,6 @@ enum MenuBarVisibilityPolicy {
             return false
         }
 
-        // The top strip alone is not enough to keep the bar open forever.
         return !HoverService.isPointInMenuBarStrip(
             point,
             screenFrames: screenFrames,
@@ -135,13 +134,6 @@ enum MenuBarVisibilityPolicy {
         snapshot: MenuBarRuntimeSnapshot,
         requiresLiveGeometryForVisibleAllowList: Bool = false
     ) -> Bool {
-        // Background validation (active-space-changed, wake, etc.) must never
-        // force the delimiter's length while a move is in flight: the move's own
-        // showAll()/drag/restoreFromShowAll() shield temporarily expands the
-        // delimiter to do the drag, and a concurrent reapply here races it,
-        // collapsing the separator mid-resolution. The caller already defers and
-        // retries on the next validation cycle, so this only delays the reapply
-        // until the move (typically <1s) finishes (#166).
         guard !snapshot.hasActiveMoveTask else { return false }
 
         guard shouldRestoreHiddenAfterStatusItemRecovery(
@@ -157,10 +149,6 @@ enum MenuBarVisibilityPolicy {
 
         guard !requiresLiveGeometryForVisibleAllowList else { return false }
 
-        // Hidden replay only reapplies SaneBar's collapsed delimiter length; it
-        // does not physically move third-party icons. While hidden, AppKit can
-        // shield the separator behind a cached anchor even though the main
-        // status item is attached and the collapsed presentation is valid.
         guard snapshot.visibilityPhase == .hidden,
               snapshot.mainAnchorSource == .live,
               snapshot.separatorAnchorSource == .cached
@@ -182,23 +170,13 @@ enum MenuBarVisibilityPolicy {
         validationContext: MenuBarOperationCoordinator.PositionValidationContext?,
         likelySystemSuppressed: Bool = true
     ) -> Bool {
-        // Only after recovery has genuinely exhausted its attempts (recoveryCount > 0)
-        // with a real failure reason.
         guard recoveryReason != nil, recoveryCount > 0 else { return false }
         switch validationContext {
         case .manualLayoutRestore:
-            // The user explicitly asked to restore layout and it failed → always show.
             return true
         case .startupFollowUp:
-            // The icon never came up at launch — e.g. macOS won't place the status
-            // item (#157). Surface Health (once per launch — startup recovery runs
-            // once) ONLY when the item is genuinely off-screen, so a merely-slow
-            // placement that recovered on its own never pops the window unprompted.
             return likelySystemSuppressed
         case .screenParametersChanged, .activeSpaceChanged, .wakeResume, .none:
-            // Steady-state validations fire repeatedly during normal use; surfacing
-            // Health here would pop the window unexpectedly. The reopen handler
-            // (applicationShouldHandleReopen) is the recovery path for those.
             return false
         }
     }
@@ -232,9 +210,6 @@ enum MenuBarVisibilityPolicy {
         return false
     }
 
-    /// How far the live main position may deviate from SaneBar's own persisted
-    /// preferred position (both measured as distance from the screen's right
-    /// edge) before soft drift is flagged.
     nonisolated static let minimumMainDriftFromPersistedIntentTolerance: CGFloat = 160
     nonisolated static let maximumMainDriftFromPersistedIntentTolerance: CGFloat = 320
     nonisolated static let customMainDriftFromPersistedIntentTolerance: CGFloat = 32
@@ -260,15 +235,9 @@ enum MenuBarVisibilityPolicy {
         guard let separatorX, let mainX else { return false }
         guard separatorX.isFinite, mainX.isFinite else { return false }
         if separatorX >= mainX {
-            // Hard invariant: the separator must sit left of the main toggle.
             return true
         }
 
-        // Soft drift: when SaneBar's own persisted intent is known, judge the
-        // live position against IT instead of an absolute zone. Users may
-        // legitimately keep the toggle far from Control Center (icons parked
-        // right of SaneBar); macOS rewrites the persisted preferred position
-        // whenever the user drags the toggle, so intent tracks the user.
         if let persistedMainDistanceFromRight,
            persistedMainDistanceFromRight.isFinite,
            persistedMainDistanceFromRight >= 0,
@@ -291,7 +260,6 @@ enum MenuBarVisibilityPolicy {
             return drift > tolerance
         }
 
-        // Fallback when persisted intent is unavailable: absolute zone checks.
         if let notchSafe = isMainInsideNotchSafeRightZone(
             mainX: mainX,
             notchRightSafeMinX: notchRightSafeMinX
@@ -363,16 +331,6 @@ enum MenuBarVisibilityPolicy {
 }
 
 extension MenuBarVisibilityPolicy {
-    /// Automatic replay may only use physical Cmd+drag moves when the runtime
-    /// snapshot reports live geometry. Replays on cached/estimated/stale
-    /// geometry moved items users never asked to move (#151, #154).
-    ///
-    /// Startup/relaunch reconciliation gets the same live-gated physical
-    /// capability: hide-all-other and pinned intent are standing user
-    /// instructions, and a relaunch can land the separator on the other side
-    /// of an allow-listed item without anything physically moving. Session,
-    /// Space, screen, and immediate wake validations stay passive unless the
-    /// explicit post-wake visible allow-list repair gate is armed.
     nonisolated static func visibilityIntentReplayMode(
         reason: String,
         geometryConfidence: MenuBarGeometryConfidence,
@@ -381,19 +339,6 @@ extension MenuBarVisibilityPolicy {
         hasPendingWakeVisibleAllowListReplay: Bool = false,
         canRepairHiddenWakeVisibleAllowList: Bool = false
     ) -> (mode: MenuBarVisibilityIntentMode, physicalMoveOrigin: MenuBarPhysicalMoveOrigin?) {
-        // Startup/relaunch reconciliation follows an explicit user context
-        // (the app was just launched) and may restore standing intent
-        // physically. Immediate wake stays passive because raw wake
-        // notifications arrive before geometry and dynamic helper items settle.
-        // Post-wake healthy validation may repair an explicit Hide All Other
-        // visible allow-list, because collapsing hidden state first would hide
-        // the item the user asked to keep visible.
-        //
-        // Physical replay normally runs only on a live snapshot. The sole
-        // non-live exception is a fresh wake recovery where Hidden state has a
-        // protected cached separator and a visible allow-list item needs to be
-        // moved back before the bar is collapsed again. Shielded geometry may
-        // preserve Hidden state, but is not safe enough for cursor moves.
         let isImmediateWakeReplay = reason.hasPrefix("wake-resume")
         let isPostWakeHealthyValidation = isPostWakeVisibleAllowListReplayReason(reason)
         let isStartupReconciliation = isStartupVisibilityIntentReplayReason(reason)

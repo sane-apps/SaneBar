@@ -1,10 +1,7 @@
 import KeyboardShortcuts
 import SwiftUI
 
-// MARK: - Hotkey Sheet
 
-/// Self-contained hotkey assignment sheet, extracted from MenuBarSearchView
-/// to keep the main file under the 1000-line lint limit.
 struct HotkeyAssignmentSheet: View {
     let app: RunningApp
     let onDone: () -> Void
@@ -70,9 +67,7 @@ struct HotkeyAssignmentSheet: View {
     }
 }
 
-// MARK: - Grid Sizing
 
-/// Pure computation for adaptive grid layout, extracted from MenuBarSearchView.
 struct SearchGridSizing {
     let columns: Int
     let tileSize: CGFloat
@@ -106,11 +101,8 @@ struct SearchGridSizing {
             let overflow = max(0, contentHeight - height)
 
             let score: CGFloat = if overflow <= 0 {
-                // Fits without scrolling: prefer a more horizontal grid (fewer rows)
-                // while still keeping tiles reasonably large.
                 10000 + tileSize - (CGFloat(rows) * 4) + (CGFloat(columns) * 0.5)
             } else {
-                // Prefer less scrolling for very large icon counts.
                 tileSize - ((overflow / height) * 24)
             }
 

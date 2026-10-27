@@ -1,6 +1,5 @@
 import SwiftUI
 
-// MARK: - Smart Group Tab (with icon)
 
 struct SmartGroupTab: View {
     let title: String
@@ -29,7 +28,6 @@ struct SmartGroupTab: View {
     }
 }
 
-// MARK: - Group Tab Button (custom groups)
 
 struct GroupTabButton: View {
     let title: String

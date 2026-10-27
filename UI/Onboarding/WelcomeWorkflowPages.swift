@@ -2,7 +2,6 @@ import AppKit
 import SaneUI
 import SwiftUI
 
-// MARK: - Page 2: Don't Skip
 
 struct DontSkipPage: View {
     var body: some View {
@@ -33,7 +32,6 @@ struct DontSkipPage: View {
     }
 }
 
-// MARK: - Page 3: Core Workflow
 
 struct BrowseIconsPage: View {
     var body: some View {
@@ -48,7 +46,6 @@ struct BrowseIconsPage: View {
                 .multilineTextAlignment(.center)
 
             HStack(alignment: .top, spacing: 18) {
-                // Icon Panel
                 VStack(spacing: 6) {
                     Text("Icon Panel")
                         .font(.system(size: 14, weight: .semibold))
@@ -65,7 +62,6 @@ struct BrowseIconsPage: View {
                 }
                 .frame(maxWidth: .infinity)
 
-                // Second Menu Bar
                 VStack(spacing: 6) {
                     Text("Second Menu Bar")
                         .font(.system(size: 14, weight: .semibold))
@@ -90,7 +86,6 @@ struct BrowseIconsPage: View {
     }
 }
 
-// MARK: - Page 4: Advanced Workflow
 
 struct ZoneGuidePage: View {
     private struct ZoneRow {

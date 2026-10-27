@@ -115,7 +115,6 @@ struct ShortcutsSettingsView: View {
                     }
                 }
 
-                // 2. Automation — Pro
                 CompactSection("Automation") {
                     ForEach(Array(automationCommands.enumerated()), id: \.element.id) { index, item in
                         if licenseService.isPro {
@@ -164,7 +163,6 @@ struct ShortcutsSettingsView: View {
         }
     }
 
-    // MARK: - Pro Gating Helper
 
     private func proGatedRow(feature: ProFeature, label: String) -> some View {
         CompactRow(label) {

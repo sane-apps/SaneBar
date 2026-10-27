@@ -6,92 +6,53 @@ import SwiftUI
 
 private let logger = Logger(subsystem: "com.sanebar.app", category: "MenuBarManager")
 
-// MARK: - MenuBarManager
 
-/// Central manager for menu bar hiding using the length toggle technique.
-///
-/// HOW IT WORKS (standard length-toggle technique):
-/// 1. User Cmd+drags menu bar icons to position them left or right of our delimiter
-/// 2. Icons to the RIGHT of delimiter = always visible
-/// 3. Icons to the LEFT of delimiter = can be hidden
-/// 4. To HIDE: Set delimiter's length to 10,000 → pushes everything to its left off screen (x < 0)
-/// 5. To SHOW: Set delimiter's length back to 20 → reveals the hidden icons
-///
-/// NO accessibility API needed. NO CGEvent simulation. Just simple NSStatusItem.length toggle.
 @MainActor
 final class MenuBarManager: NSObject, ObservableObject {
-    // MARK: - Singleton
 
     static let shared = MenuBarManager()
 
-    // MARK: - Published State
 
-    /// Starts expanded - we validate positions first, then hide if safe
     @Published private(set) var hidingState: HidingState = .expanded
     @Published var settings: SaneBarSettings = .init()
 
-    /// When true, the user explicitly chose to keep icons revealed ("Reveal All")
-    /// and we should not auto-hide until they explicitly hide again.
     @Published var isRevealPinned: Bool = false
 
-    /// Tracks whether the status menu is currently open
     @Published var isMenuOpen: Bool = false
 
     func setObservedHidingState(_ state: HidingState) {
         hidingState = state
     }
 
-    /// Guards against duplicate auth prompts
     var isAuthenticating: Bool = false
 
-    /// Delayed overlap check task for temporarily hiding app menus while expanded.
     var appMenuSuppressionTask: Task<Void, Never>?
-    /// Keeps reasserting accessory activation policy while app menus are temporarily suppressed.
     var appMenuDockPolicyTask: Task<Void, Never>?
-    /// Tracks whether SaneBar temporarily hid front app menus for overlap.
     var isAppMenuSuppressed = false
-    /// Front app to reactivate after temporary menu suppression.
     var appToReactivateAfterSuppression: NSRunningApplication?
-    /// Explicit right-click menu opens should not depend on NSApp.currentEvent
-    /// still looking like a right click by the time NSMenuDelegate fires.
     var pendingExplicitStatusMenuRightClick = false
-    /// Tracks the reveal source so passive hover reveals can avoid focus-stealing
-    /// inline app-menu suppression.
     var lastMenuBarRevealTrigger: MenuBarRevealTrigger = .automation
-    /// Monotonic token used to invalidate older position-validation passes when
-    /// screen/wake notifications or recovery flows schedule a newer pass.
     var positionValidationGeneration: Int = 0
-    /// Prevent overlapping structural recovery passes from tearing down and
-    /// rebuilding the status items multiple times inside one launch.
     var isExecutingStatusItemRecovery = false
-    /// Debounce unexpected status-item visibility recovery so one removal or
-    /// WindowServer blip cannot trigger multiple structural recreates in a row.
     var lastUnexpectedVisibilityRecoveryAt: Date?
 
-    /// Rate limiting for auth attempts (security hardening)
     var failedAuthAttempts: Int = 0
     var lastFailedAuthTime: Date?
     let maxFailedAttempts: Int = 5
-    let lockoutDuration: TimeInterval = 30 // seconds
+    let lockoutDuration: TimeInterval = 30
 
-    /// Reference to the currently active icon move task to ensure atomicity
     var activeMoveTask: Task<Bool, Never>?
     var lastManualZoneMoveSettledAt: Date?
 
-    /// Best-effort enforcement task for pinned always-hidden items (avoid overlapping runs)
     var alwaysHiddenPinEnforcementTask: Task<Void, Never>?
-    /// Best-effort enforcement task for hide-all-other profile rules.
     var hideAllOtherRuleEnforcementTask: Task<Void, Never>?
-    /// Retries persisted visibility intent replay after wake/recovery until anchors are healthy.
     var visibilityIntentReplayTask: Task<Void, Never>?
-    /// Tracks delayed AH separator repair verification so newer moves/recoveries can cancel stale follow-ups.
     var alwaysHiddenSeparatorRepairFollowUpTask: Task<Void, Never>?
     var alwaysHiddenSeparatorRepairGeneration: Int = 0
     var lastAlwaysHiddenRepairAt: Date?
     var isRepairingAlwaysHiddenSeparator = false
     var mainStatusItemHoverTrackingArea: NSTrackingArea?
 
-    // MARK: - Screen Detection
 
     private let statusItemScreenResolver = StatusItemScreenResolver()
 
@@ -107,14 +68,11 @@ final class MenuBarManager: NSObject, ObservableObject {
         statusItemScreen
     }
 
-    /// Returns true if the main screen has a notch (MacBook Pro 14/16 inch models)
     var hasNotch: Bool {
         guard let screen = statusItemScreen else { return false }
-        // auxiliaryTopLeftArea is non-nil on notched Macs (macOS 12+)
         return screen.auxiliaryTopLeftArea != nil
     }
 
-    /// Returns true if the mouse cursor is currently on an external (non-built-in) monitor
     var isOnExternalMonitor: Bool {
         guard let resolvedScreen = statusItemScreen else {
             return true
@@ -123,7 +81,6 @@ final class MenuBarManager: NSObject, ObservableObject {
         return statusItemScreenResolver.isExternalScreen(resolvedScreen)
     }
 
-    /// Check if hiding should be skipped due to external monitor setting
     var shouldSkipHideForExternalMonitor: Bool {
         MenuBarVisibilityPolicy.shouldSkipHide(
             disableOnExternalMonitor: settings.disableOnExternalMonitor,
@@ -131,7 +88,6 @@ final class MenuBarManager: NSObject, ObservableObject {
         )
     }
 
-    // MARK: - Services
 
     let hidingService: HidingService
     let persistenceService: PersistenceServiceProtocol
@@ -148,13 +104,9 @@ final class MenuBarManager: NSObject, ObservableObject {
     private let injectedStatusBarController: StatusBarController?
     var statusBarControllerStorage: StatusBarController?
 
-    // MARK: - Status Items
 
-    /// Main SaneBar icon you click (always visible)
     var mainStatusItem: NSStatusItem?
-    /// Separator that expands to hide items (the actual delimiter)
     var separatorItem: NSStatusItem?
-    /// Optional separator for always-hidden zone (experimental)
     var alwaysHiddenSeparatorItem: NSStatusItem?
     let geometryCache = MenuBarGeometryCache()
     lazy var geometryResolver = MenuBarGeometryResolver(manager: self)
@@ -173,15 +125,10 @@ final class MenuBarManager: NSObject, ObservableObject {
     lazy var standardIconMoveWorkflow = MenuBarStandardIconMoveWorkflow(manager: self)
     lazy var alwaysHiddenIconMoveWorkflow = MenuBarAlwaysHiddenIconMoveWorkflow(manager: self)
     lazy var alwaysHiddenPinWorkflow = MenuBarAlwaysHiddenPinWorkflow(manager: self)
-    /// Recovery rebuilds temporarily reconfigure the delimiter in expanded mode.
-    /// Preserve a prior hidden state so wake/display recovery can restore it.
     var pendingRecoveryHideRestore = false
-    /// Explicitly tracks the post-create/recreate bootstrap window where status
-    /// items exist but live geometry is still settling.
     var statusItemBootstrapPhase: MenuBarBootstrapPhase = .steady
     var statusMenu: NSMenu?
 
-    // MARK: - Initialization
 
     var statusBarController: StatusBarController {
         guard let controller = statusBarControllerStorage else {
@@ -310,45 +257,32 @@ final class MenuBarManager: NSObject, ObservableObject {
 
         logger.info("MenuBarManager init starting...")
 
-        // Skip UI initialization in headless/test environments
-        // CI environments don't have a window server, so NSStatusItem creation will crash
         guard !isRunningInHeadlessEnvironment() else {
             logger.info("Headless environment detected - skipping UI initialization")
             return
         }
 
-        // Load settings first - this doesn't depend on status items
         lifecycleWorkflow.loadSettings()
 
-        // Defer ALL status-bar-dependent initialization to ensure WindowServer is ready
-        // This fixes crashes on Mac Mini M4 and other systems where GUI isn't
-        // immediately available at app launch (e.g., Login Items, fast boot)
         lifecycleWorkflow.deferredUISetup()
     }
 
-    /// Detects if running in a headless environment (CI, tests without window server)
     private func isRunningInHeadlessEnvironment() -> Bool {
-        // Allow UI tests to force UI loading via environment variable
         if ProcessInfo.processInfo.environment["SANEBAR_UI_TESTING"] != nil {
             return false
         }
 
-        // Check for common CI environment variables
         let env = ProcessInfo.processInfo.environment
         if env["CI"] != nil || env["GITHUB_ACTIONS"] != nil {
             return true
         }
 
-        // Check if running in test bundle by examining bundle identifier
-        // Test bundles typically have "Tests" suffix or "xctest" in their identifier
         if let bundleID = Bundle.main.bundleIdentifier {
             if bundleID.hasSuffix("Tests") || bundleID.contains("xctest") {
                 return true
             }
         }
 
-        // Fallback: Check for XCTest framework presence
-        // This catches edge cases where bundle ID doesn't follow conventions
         if NSClassFromString("XCTestCase") != nil {
             return true
         }
@@ -365,8 +299,6 @@ final class MenuBarManager: NSObject, ObservableObject {
 
     @MainActor
     func scheduleInitialPositionValidationAfterStartup() {
-        // Avoid racing the first geometry check against the startup
-        // hide/recovery path. Validate only after launch settles.
         schedulePositionValidation(context: .startupFollowUp)
     }
 
@@ -467,8 +399,6 @@ final class MenuBarManager: NSObject, ObservableObject {
         )
     }
 
-    /// Validate status-item position after layout settles. If WindowServer has a
-    /// corrupted position cache, recover by bumping autosave namespace and recreating.
     func schedulePositionValidation(
         context: MenuBarOperationCoordinator.PositionValidationContext = .startupFollowUp,
         recoveryCount: Int = 0
@@ -541,10 +471,7 @@ final class MenuBarManager: NSObject, ObservableObject {
         }
     }
 
-    // MARK: - Main Icon Visibility
 
-    /// Show or hide the main SaneBar icon based on settings
-    /// When main icon is hidden, separator becomes the primary click target for toggle
     func updateMainIconVisibility() {
         statusItemSetupWorkflow.updateMainIconVisibility()
     }
@@ -556,8 +483,6 @@ final class MenuBarManager: NSObject, ObservableObject {
     @objc(mouseEntered:) func mouseEntered(_ event: NSEvent) {
         guard (event.trackingArea?.userInfo?["role"] as? String) == "mainStatusItem" else { return }
         guard settings.showOnHover else { return }
-        // Dwell, don't reveal instantly: a brush past our own icon must not pop the
-        // menu (#160/#161). Rationale in HoverService.beginMainStatusItemHoverDwell.
         hoverService.beginMainStatusItemHoverDwell()
     }
 
@@ -607,7 +532,6 @@ final class MenuBarManager: NSObject, ObservableObject {
         lifecycleWorkflow.updateScriptTrigger(settings: settings)
     }
 
-    // MARK: - Settings
 
     func saveSettings() {
         settingsController.settings = settings
@@ -784,7 +708,6 @@ final class MenuBarManager: NSObject, ObservableObject {
         hidingService.scheduleRehide(after: newSettings.rehideDelay)
     }
 
-    /// Reset all settings to defaults
     func resetToDefaults() {
         settingsController.resetToDefaults()
         settings = settingsController.settings
@@ -809,15 +732,12 @@ final class MenuBarManager: NSObject, ObservableObject {
         logger.info("All settings reset to defaults")
     }
 
-    // MARK: - Appearance
 
     func updateStatusItemAppearance() {
         statusBarController.updateAppearance(for: hidingState)
     }
 
-    // MARK: - Spacers
 
-    /// Update spacer items based on settings
     func updateSpacers() {
         statusBarController.updateSpacers(
             count: settings.spacerCount,

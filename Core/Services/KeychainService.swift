@@ -24,13 +24,9 @@ final class KeychainService: KeychainServiceProtocol, @unchecked Sendable {
 
     private let service: String
 
-    /// True when running as a test host — skip real Keychain calls to avoid password prompts.
     private let isTestEnvironment: Bool
-    /// True when running automation with explicit keychain bypass.
     private let isKeychainBypassed: Bool
-    /// True when reads/writes should use defaults instead of touching the real Keychain.
     private let usesFallbackStorage: Bool
-    /// Fallback storage for no-keychain automation mode.
     private let fallbackDefaults: UserDefaults
     private let legacyFallbackDefaults: UserDefaults?
 

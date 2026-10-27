@@ -1,14 +1,9 @@
 import AppKit
 import SwiftUI
 
-// MARK: - Zone Classification, Action Factories & Keyboard Navigation
 
 extension MenuBarSearchView {
-    // MARK: - Zone Classification (for All tab context menus)
 
-    /// Classify an app's current zone for the All tab. Delegates to
-    /// `BrowsePanelZoneClassifier.zoneForAllTab`, which prefers the authoritative
-    /// cached classification over (off-screen-fragile) separator geometry.
     func appZone(for app: RunningApp) -> AppZone {
         BrowsePanelZoneClassifier.zoneForAllTab(
             app: app,
@@ -24,10 +19,8 @@ extension MenuBarSearchView {
         )
     }
 
-    // MARK: - Action Factories
 
     func makeToggleHiddenAction(for app: RunningApp) -> (() -> Void)? {
-        // Determine direction based on tab (or actual zone for All tab)
         let sourceZone: AppZone
         let targetZone: AppZone
         switch mode {
@@ -56,17 +49,11 @@ extension MenuBarSearchView {
         }
 
         return {
-            // Use the async (AfterDrop) path so the move never runs the
-            // synchronous prepare (nested RunLoop.current.run) on the main
-            // thread. Context-menu/keyboard moves used to beachball for
-            // seconds during Always-Hidden separator prep; drag-drop already
-            // routed here. (Bug A: menu-bar move beachball.)
             _ = self.queueMoveAfterDrop(app, from: sourceZone, to: targetZone)
         }
     }
 
     func makeMoveToHiddenAction(for app: RunningApp) -> (() -> Void)? {
-        // Show "Move to Hidden" for AH tab, or for AH apps in All tab
         let isAH = mode == .alwaysHidden || (mode == .all && appZone(for: app) == .alwaysHidden)
         guard isAH else { return nil }
         return {
@@ -76,7 +63,6 @@ extension MenuBarSearchView {
 
     func makeMoveToAlwaysHiddenAction(for app: RunningApp) -> (() -> Void)? {
         guard isAlwaysHiddenEnabled else { return nil }
-        // Don't show for AH tab, or for AH apps in All tab
         let isAH = mode == .alwaysHidden || (mode == .all && appZone(for: app) == .alwaysHidden)
         guard !isAH else { return nil }
         return {
@@ -107,8 +93,6 @@ extension MenuBarSearchView {
             manager: menuBarManager,
             setMovingAppID: {
                 movingAppId = $0
-                // A fresh in-flight move clears any stale failure marker so a
-                // retry doesn't keep showing the previous failure affordance.
                 if $0 != nil { lastFailedMoveAppId = nil }
             },
             recordFailedMove: { lastFailedMoveAppId = $0 }
@@ -143,7 +127,6 @@ extension MenuBarSearchView {
 
         guard let sourceID = payloads.first else { return false }
 
-        // Pull from the shared cache so zone drops work regardless of current tab.
         let classified = service.cachedClassifiedApps()
         guard let source = BrowsePanelDropResolver.sourceForDropPayload(
             sourceID,
@@ -170,9 +153,7 @@ extension MenuBarSearchView {
         }
     }
 
-    // MARK: - Keyboard Navigation
 
-    /// Whether keyboard navigation should be active (not when modals are open)
     var isKeyboardNavigationActive: Bool {
         hotkeyApp == nil && proUpsellFeature == nil
     }
@@ -200,7 +181,6 @@ extension MenuBarSearchView {
         withAnimation(.easeInOut(duration: 0.12)) {
             isSearchVisible = true
         }
-        // Delay focus slightly to ensure field is visible
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
             self.isSearchFieldFocused = true
         }

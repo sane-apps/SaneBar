@@ -2,7 +2,6 @@ import AppKit
 import SaneUI
 import SwiftUI
 
-// MARK: - Page 1: Welcome + Import Detection
 
 struct WelcomeActionPage: View {
     @State private var isHidden = false
@@ -27,10 +26,8 @@ struct WelcomeActionPage: View {
                 .font(.system(size: 17))
                 .foregroundStyle(.white.opacity(0.9))
 
-            // Menu bar simulation — bar stays same size, icons fade in/out
             VStack(spacing: 8) {
                 HStack(spacing: 10) {
-                    // Icons + divider — fade only, no size change
                     HStack(spacing: 8) {
                         Image(systemName: "key.fill")
                         Image(systemName: "bubble.left.fill")
@@ -46,7 +43,6 @@ struct WelcomeActionPage: View {
                         .foregroundStyle(.white.opacity(0.9))
                         .opacity(isHidden ? 0 : 1)
 
-                    // SaneBar button — always visible
                     Button {
                         withAnimation(.easeInOut(duration: 0.3)) { isHidden.toggle() }
                     } label: {
@@ -64,7 +60,6 @@ struct WelcomeActionPage: View {
                     }
                     .buttonStyle(.plain)
 
-                    // Control Center — always visible
                     Image(systemName: "switch.2")
                         .font(.system(size: 14))
                         .foregroundStyle(.white)
@@ -89,7 +84,6 @@ struct WelcomeActionPage: View {
                 .frame(height: 18)
             }
 
-            // Import detection banner
             if let competitor = detectedCompetitor {
                 importBanner(competitor)
             }

@@ -1,5 +1,5 @@
 {
-  "originHash" : "b3df9b8c88ae30cabd7f887a20ed40492b05865488b06c20f13a44d51b669f92",
+  "originHash" : "0a39ebfa2f4a97a45eacc44d36b5ca22d3c0c476ac1175b298cbc2a092fb698b",
   "pins" : [
     {
       "identity" : "keyboardshortcuts",
@@ -16,15 +16,6 @@
       "location" : "https://github.com/sane-apps/SaneUI.git",
       "state" : {
         "revision" : "3850741e78a539cc130697bae7ffa5ac9741508a"
-      }
-    },
-    {
-      "identity" : "setapp-framework",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/MacPaw/Setapp-framework.git",
-      "state" : {
-        "revision" : "b6946a01e7530d6f25e9e593de9d2216a3e3cf65",
-        "version" : "5.0.1"
       }
     },
     {

@@ -3,9 +3,7 @@ import Foundation
 import UserNotifications
 import os.log
 import SaneUI
-#if !SETAPP
-    @preconcurrency import Sparkle
-#endif
+@preconcurrency import Sparkle
 
 private let logger = Logger(subsystem: "com.sanebar.app", category: "UpdateService")
 
@@ -39,14 +37,10 @@ enum UpdateCheckFrequency: String, CaseIterable, Identifiable {
     }
 }
 
-#if !SETAPP
 
-    /// Wrapper around Sparkle's SPUStandardUpdaterController.
-    /// Handles app updates securely and privately.
     @MainActor
     class UpdateService: NSObject, ObservableObject {
 
-    // MARK: - Properties
 
     nonisolated static let releaseBundleIdentifier = "com.sanebar.app"
     nonisolated static let scheduledUpdateReminderNotificationID = "com.sanebar.app.sparkle.scheduled-update"
@@ -55,7 +49,6 @@ enum UpdateCheckFrequency: String, CaseIterable, Identifiable {
     private let updateChannelEnabled: Bool
     private var scheduledUpdateReminderActive = false
 
-    // MARK: - Initialization
 
     override init() {
         self.updateChannelEnabled = Self.supportsSparkleUpdates(bundleIdentifier: Bundle.main.bundleIdentifier)
@@ -67,23 +60,17 @@ enum UpdateCheckFrequency: String, CaseIterable, Identifiable {
             return
         }
 
-        // SPUStandardUpdaterController must be retained by the app.
-        // startingUpdater: true starts the scheduled checks logic immediately.
         self.updaterController = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: self, userDriverDelegate: self)
         normalizeUpdateCheckFrequency()
 
         logger.info("Sparkle updater initialized")
 
-        // Privacy check (Sanity check for developers)
         if let profiling = Bundle.main.object(forInfoDictionaryKey: "SUEnableSystemProfiling") as? Bool, profiling == true {
             logger.fault("CRITICAL: SUEnableSystemProfiling is ENABLED. This violates the privacy policy.")
         }
     }
 
-    // MARK: - Public API
 
-    /// Trigger a user-initiated update check.
-    /// This shows the Sparkle UI (Standard User Driver).
     func checkForUpdates() {
         guard updateChannelEnabled else {
             logger.info("Ignoring Check for Updates on non-release build")
@@ -99,7 +86,6 @@ enum UpdateCheckFrequency: String, CaseIterable, Identifiable {
         updaterController?.checkForUpdates(nil)
     }
 
-    /// Check if updates are handled automatically (just a pass-through property for UI if needed)
     var automaticallyChecksForUpdates: Bool {
         get { updateChannelEnabled && (updaterController?.updater.automaticallyChecksForUpdates ?? false) }
         set {
@@ -122,11 +108,7 @@ enum UpdateCheckFrequency: String, CaseIterable, Identifiable {
     var isUpdateChannelEnabled: Bool { updateChannelEnabled }
 
     nonisolated static func supportsSparkleUpdates(bundleIdentifier: String?) -> Bool {
-        #if APP_STORE
-            false
-        #else
-            bundleIdentifier == releaseBundleIdentifier
-        #endif
+        bundleIdentifier == releaseBundleIdentifier
     }
 
     nonisolated static func shouldShowScheduledUpdateDockBadge(showDockIcon: Bool) -> Bool {
@@ -237,42 +219,3 @@ extension UpdateService: SPUUpdaterDelegate {
         }
     }
 }
-
-#else
-
-    @MainActor
-    class UpdateService: NSObject, ObservableObject {
-        nonisolated static let releaseBundleIdentifier = "com.sanebar.app"
-        nonisolated static let scheduledUpdateReminderNotificationID = "com.sanebar.app.sparkle.scheduled-update"
-
-        override init() {
-            super.init()
-            logger.info("Sparkle updater disabled in Setapp build")
-        }
-
-        func checkForUpdates() {
-            NSSound.beep()
-        }
-
-        var automaticallyChecksForUpdates: Bool {
-            get { false }
-            set { _ = newValue }
-        }
-
-        var updateCheckFrequency: UpdateCheckFrequency {
-            get { .daily }
-            set { _ = newValue }
-        }
-
-        var isUpdateChannelEnabled: Bool { false }
-
-        nonisolated static func supportsSparkleUpdates(bundleIdentifier _: String?) -> Bool {
-            false
-        }
-
-        nonisolated static func shouldShowScheduledUpdateDockBadge(showDockIcon _: Bool) -> Bool {
-            false
-        }
-    }
-
-#endif

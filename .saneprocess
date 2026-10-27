@@ -33,15 +33,3 @@ docs:
 
 website: true
 website_domain: sanebar.com
-
-# Distribution lanes beyond direct download are retired (sunset, June 2026).
-setapp:
-  enabled: false
-  scheme: SaneBarSetapp
-  configuration: Release-Setapp
-  bundle_id: com.sanebar.app-setapp
-  public_key_path: Setapp/setappPublicKey.pem
-
-appstore:
-  enabled: false
-  # SaneBar never shipped through the Mac App Store; the lane is dormant.

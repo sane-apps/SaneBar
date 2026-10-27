@@ -5,7 +5,6 @@ import SaneUI
 
 private let logger = Logger(subsystem: "com.sanebar.app", category: "StatusBarController")
 
-// MARK: - Menu Configuration
 
 struct MenuConfiguration {
     let toggleAction: Selector
@@ -21,9 +20,7 @@ struct MenuConfiguration {
     let quitAction: Selector
 }
 
-// MARK: - StatusBarControllerProtocol
 
-/// @mockable
 @MainActor
 protocol StatusBarControllerProtocol {
     var mainItem: NSStatusItem { get }
@@ -34,24 +31,16 @@ protocol StatusBarControllerProtocol {
     func createMenu(configuration: MenuConfiguration) -> NSMenu
 }
 
-// MARK: - StatusBarController
 
-/// Controller responsible for status bar item configuration and appearance.
-/// Seeds ordinal positions in UserDefaults before creating items with autosaveNames.
 @MainActor
 final class StatusBarController: StatusBarControllerProtocol {
-    // MARK: - Status Items
 
     private(set) var mainItem: NSStatusItem
     private(set) var separatorItem: NSStatusItem
     private(set) var alwaysHiddenSeparatorItem: NSStatusItem?
     private var spacerItems: [NSStatusItem] = []
 
-    // MARK: - Autosave Names
 
-    // Autosave namespace is versioned so we can hard-reset from historically
-    // corrupted status item position keys without depending on manual cleanup.
-    // Keep base at v7 to avoid resetting healthy existing user layouts.
     private nonisolated static let autosaveVersionKey = "SaneBar_AutosaveVersion"
     private nonisolated static let baseAutosaveVersion = 7
     private nonisolated static let maxAutosaveVersion = 99
@@ -84,7 +73,6 @@ final class StatusBarController: StatusBarControllerProtocol {
         "SaneBar_spacer_\(index)"
     }
 
-    // MARK: - Icon Names
 
     nonisolated static let iconExpanded = "line.3.horizontal.decrease"
     nonisolated static let iconHidden = "line.3.horizontal.decrease"
@@ -94,18 +82,12 @@ final class StatusBarController: StatusBarControllerProtocol {
         .terminationOnRemoval,
     ]
 
-    // MARK: - Initialization
 
     init() {
-        // Cmd-drag can persist NSStatusItem visibility overrides. Clear them on
-        // every launch so a single drag-out cannot permanently hide SaneBar.
         StatusBarPositionStore.clearPersistedVisibilityOverrides()
 
-        // One-time migration for known corrupted position state.
-        // Healthy user layouts are preserved.
         StatusBarPositionStore.migrateCorruptedPositionsIfNeeded()
 
-        // Display-aware validation: reset pixel positions from a different screen
         if StatusBarPositionStore.positionsNeedDisplayReset() {
             if !StatusBarPositionStore.applyLaunchSafeRecoveryPositionsForCurrentDisplay() {
                 StatusBarPositionRecoveryStore.resetPositionsToOrdinals()
@@ -115,33 +97,22 @@ final class StatusBarController: StatusBarControllerProtocol {
             }
         }
 
-        // First-run onboarding reliability: hard-anchor main/separator near
-        // Control Center until onboarding is completed.
-        // This prevents stale machine-specific placement state from shoving the
-        // SaneBar icon to the far-left side on install/setup.
         if StatusBarPositionRecoveryStore.shouldForceAnchorNearControlCenterOnLaunch() {
             StatusBarPositionRecoveryStore.forceMainAndSeparatorAnchorSeed()
         } else {
-            // Seed positions BEFORE creating items (position pre-seeding)
-            // Position 0 = rightmost (main), Position 1 = second from right (separator)
             StatusBarPositionRecoveryStore.seedPositionsIfNeeded()
         }
 
-        // Create main item (rightmost, near Control Center)
         mainItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         Self.enforceNonRemovableBehavior(for: mainItem, role: "main")
         mainItem.autosaveName = Self.mainAutosaveName
-        // Cmd-drag removal can persist hidden state per autosaveName.
-        // Force visible on startup so users don't get "missing icon forever".
         mainItem.isVisible = true
 
-        // Create separator item (to the LEFT of main)
         separatorItem = NSStatusBar.system.statusItem(withLength: 20)
         Self.enforceNonRemovableBehavior(for: separatorItem, role: "separator")
         separatorItem.autosaveName = Self.separatorAutosaveName
         separatorItem.isVisible = true
 
-        // Configure buttons
         if let button = separatorItem.button {
             configureSeparatorButton(button)
         }
@@ -154,14 +125,9 @@ final class StatusBarController: StatusBarControllerProtocol {
         logger.info("StatusBarController initialized")
     }
 
-    // MARK: - Position Validation & Self-Healing
 
-    /// Callback invoked after status items are recreated due to corruption recovery.
     var onItemsRecreated: ((_ main: NSStatusItem, _ separator: NSStatusItem) -> Void)?
 
-    /// Checks whether a status item window appears in the menu bar area.
-    /// A missing window is treated as invalid so startup recovery can catch
-    /// disconnected status-bar scenes where the item never renders at all.
     nonisolated static func isStatusItemWindowFrameValid(windowFrame: CGRect?, screenFrame: CGRect?) -> Bool {
         guard let windowFrame else { return false }
         return MenuBarMoveGeometryPolicy.statusItemFrameLooksLive(
@@ -170,18 +136,6 @@ final class StatusBarController: StatusBarControllerProtocol {
         )
     }
 
-    /// Checks whether a status item window appears in the menu bar area.
-    ///
-    /// `NSWindow.screen` returns nil whenever the window's frame does not intersect
-    /// a screen rect — routine for a genuinely-hidden separator pushed off the left
-    /// edge and for items on an external display during topology churn. The old
-    /// single-screen fallback (`resolvedReferenceScreen`) could pick the WRONG
-    /// screen (e.g. built-in) so a window living live on the external display's
-    /// band failed validation, and recovery looped reporting
-    /// `separatorStatusItemWindowValid: false` without ever upgrading anchors to
-    /// live (#155/#157, worst on external monitors). Resolve against every screen's
-    /// band so a live frame is accepted regardless of which display owns it; an
-    /// off-screen frame still matches no band and stays invalid.
     static func validateItemPosition(_ item: NSStatusItem) -> Bool {
         guard let windowFrame = item.button?.window?.frame else { return false }
         let attachedScreenFrame = item.button?.window?.screen?.frame
@@ -193,16 +147,10 @@ final class StatusBarController: StatusBarControllerProtocol {
         return isStatusItemWindowFrameValid(windowFrame: windowFrame, screenFrame: resolvedScreenFrame)
     }
 
-    /// Startup is only healthy when both visible SaneBar status items are attached
-    /// to real menu bar windows.
     static func validateStartupItems(main: NSStatusItem, separator: NSStatusItem) -> Bool {
         validateItemPosition(main) && validateItemPosition(separator)
     }
 
-    /// Bumps autosave namespace and recreates status items to escape WindowServer
-    /// position cache corruption keyed by autosaveName.
-    /// When escalating after a failed recovery pass, callers can skip replaying the
-    /// current-width backup so the new namespace falls back to stricter safe anchors.
     func recreateItemsWithBumpedVersion(
         referenceScreen: NSScreen? = nil,
         allowCurrentDisplayBackup: Bool = true,
@@ -230,12 +178,6 @@ final class StatusBarController: StatusBarControllerProtocol {
         let currentWidth = resolvedReferenceScreen.map { Double($0.frame.width) }
         let currentScreenHasTopSafeAreaInset = StatusBarPositionStore.screenHasTopSafeAreaInset(resolvedReferenceScreen)
         let fm2BumpCalibratedWidth = UserDefaults.standard.double(forKey: StatusBarPositionStore.screenWidthKey)
-        // FM-2 (#136/#168): capture the persisted divider BEFORE the namespace bump
-        // removes the old keys, so a wake / Space-change validation can replay the
-        // user's EXPLICIT divider into the fresh namespace instead of reanchoring it
-        // toward Control Center (the 900 -> 144 laundering caught by the wake gate).
-        // When `reanchorUnsafePersistedPositions` is false the helper returns the
-        // explicit pair as-is; when true it reanchors an unsafe pair as before.
         let originalPersistedMain = StatusBarPositionDefaultsStore.resolvedPreferredPosition(forAutosaveName: Self.mainAutosaveName)
         let originalPersistedSeparator = StatusBarPositionDefaultsStore.resolvedPreferredPosition(forAutosaveName: Self.separatorAutosaveName)
         let bumpedNamespacePositions = StatusBarPositionRecoveryStore.bumpedNamespaceRecoveryPositions(
@@ -286,10 +228,6 @@ final class StatusBarController: StatusBarControllerProtocol {
                     shouldFlushCurrentDisplayBackupAfterRecreate = true
                     logger.info("Recreated status items with autosave version \(nextVersion) using reanchored persisted positions")
                 } else {
-                    // FM-2 (#136/#168): explicit-divider preserve path (wake / Space /
-                    // manual restore). Do NOT save a display backup or flush — the
-                    // explicit far divider is intentionally not launch-safe, and a
-                    // stale launch-safe backup flush would overwrite it after recreate.
                     logger.info("Recreated status items with autosave version \(nextVersion) preserving the explicit persisted divider (FM-2 wake/Space path)")
                 }
             } else if reanchorUnsafePersistedPositions {
@@ -300,9 +238,6 @@ final class StatusBarController: StatusBarControllerProtocol {
                     StatusBarPositionRecoveryStore.seedPositionsIfNeeded()
                 }
             } else {
-                // Preserve path with no valid explicit pair to replay (positions
-                // missing/corrupt): seed ordinals rather than reanchoring or applying
-                // launch-safe recovery, both of which would move the divider.
                 StatusBarPositionRecoveryStore.seedPositionsIfNeeded()
             }
         }
@@ -310,9 +245,6 @@ final class StatusBarController: StatusBarControllerProtocol {
             StatusBarPositionRecoveryStore.seedAlwaysHiddenSeparatorPositionIfNeeded(referenceScreen: resolvedReferenceScreen)
         }
 
-        // FM-2 (#136/#168) chokepoint: only the wake/Space preserve path may
-        // resurrect an explicit divider. Startup/reset recovery must keep the
-        // launch-safe positions it just wrote.
         if !reanchorUnsafePersistedPositions {
             StatusBarPositionRecoveryStore.restoreExplicitDividerIfLaunderedOnSameDisplay(
                 capturedMain: originalPersistedMain,
@@ -360,9 +292,6 @@ final class StatusBarController: StatusBarControllerProtocol {
         afterRemovingExistingItems: (() -> Void)? = nil,
         reanchorUnsafePersistedPositions: Bool = true
     ) -> (main: NSStatusItem, separator: NSStatusItem) {
-        // FM-2 (#136/#168) chokepoint capture: snapshot the explicit divider + the
-        // calibrated width BEFORE any recovery (the afterRemovingExistingItems closure
-        // may hard-reset and clear these), so a same-display launder can be undone below.
         let fm2CapturedMain = StatusBarPositionDefaultsStore.resolvedPreferredPosition(forAutosaveName: Self.mainAutosaveName)
         let fm2CapturedSeparator = StatusBarPositionDefaultsStore.resolvedPreferredPosition(forAutosaveName: Self.separatorAutosaveName)
         let fm2CalibratedWidth = UserDefaults.standard.double(forKey: StatusBarPositionStore.screenWidthKey)
@@ -375,16 +304,6 @@ final class StatusBarController: StatusBarControllerProtocol {
         removeSpacerItems()
         afterRemovingExistingItems?()
 
-        // Replaying stale persisted positions after wake/display changes can park
-        // the toggle and separator far from Control Center (#136). Clamp unsafe
-        // persisted positions toward the safe right zone before macOS replays them.
-        //
-        // FM-2 (#136/#168): on the steady-state wake / Space-change validation
-        // path this clamp would silently overwrite an EXPLICIT user divider toward
-        // Control Center (e.g. 900 -> 144). Callers on that path pass
-        // `reanchorUnsafePersistedPositions: false` so the persisted user layout is
-        // replayed as-is. The reanchor stays on genuine startup / display-topology
-        // recreate paths where positions from a different display are meaningless.
         let resolvedReferenceScreen = StatusBarPositionStore.resolvedReferenceScreen()
         if reanchorUnsafePersistedPositions,
            let screenWidth = resolvedReferenceScreen.map({ Double($0.frame.width) }),
@@ -402,9 +321,6 @@ final class StatusBarController: StatusBarControllerProtocol {
             )
         }
 
-        // FM-2 (#136/#168) chokepoint: only the wake/Space preserve path may
-        // resurrect an explicit divider. Reset/startup recovery must keep the
-        // launch-safe positions it just wrote.
         if !reanchorUnsafePersistedPositions {
             StatusBarPositionRecoveryStore.restoreExplicitDividerIfLaunderedOnSameDisplay(
                 capturedMain: fm2CapturedMain,
@@ -436,16 +352,12 @@ final class StatusBarController: StatusBarControllerProtocol {
         return (mainItem, separatorItem)
     }
 
-    // MARK: - Always-Hidden Separator (Experimental)
 
     func ensureAlwaysHiddenSeparator(enabled: Bool) {
         guard enabled else {
             if let item = alwaysHiddenSeparatorItem {
                 NSStatusBar.system.removeStatusItem(item)
                 alwaysHiddenSeparatorItem = nil
-                // Clear the stale pixel position so it reseeds cleanly on re-enable.
-                // macOS converts ordinals to pixels after creation — keeping the old
-                // pixel value would skip re-seeding and reuse a stale position.
                 let ahKey = "NSStatusItem Preferred Position \(Self.alwaysHiddenSeparatorAutosaveName)"
                 UserDefaults.standard.removeObject(forKey: ahKey)
                 logger.info("Always-hidden separator removed + position cleared")
@@ -475,9 +387,7 @@ final class StatusBarController: StatusBarControllerProtocol {
         }
     }
 
-    // MARK: - Configuration
 
-    /// Configure click actions for the main status item
     func configureStatusItems(clickAction: Selector, target: AnyObject) {
         if let button = mainItem.button {
             configureMainButton(button, action: clickAction, target: target)
@@ -506,12 +416,9 @@ final class StatusBarController: StatusBarControllerProtocol {
         button.alphaValue = 0.5
     }
 
-    // MARK: - Appearance
 
-    /// Current icon style (updated via updateIconStyle)
     private(set) var currentIconStyle: SaneBarSettings.MenuBarIconStyle = .filter
 
-    /// Cached custom icon image (loaded from disk)
     private var customIconImage: NSImage?
 
     func iconName(for _: HidingState) -> String {
@@ -524,7 +431,6 @@ final class StatusBarController: StatusBarControllerProtocol {
         button.image = resolveIcon(for: currentIconStyle)
     }
 
-    /// Update the menu bar icon to match the selected style
     func updateIconStyle(_ style: SaneBarSettings.MenuBarIconStyle, customIcon: NSImage? = nil) {
         currentIconStyle = style
         if let customIcon {
@@ -535,19 +441,16 @@ final class StatusBarController: StatusBarControllerProtocol {
         button.image = resolveIcon(for: style)
     }
 
-    /// Resolve the icon image for a given style
     private func resolveIcon(for style: SaneBarSettings.MenuBarIconStyle) -> NSImage? {
         if style == .custom, let custom = customIconImage {
             return custom
         }
         guard let symbolName = style.sfSymbolName else {
-            // Fallback to default if custom icon not loaded
             return Self.makeSymbolImage(name: "line.3.horizontal.decrease")
         }
         return Self.makeSymbolImage(name: symbolName)
     }
 
-    /// Create an SF Symbol image suitable for the menu bar
     static func makeSymbolImage(name: String) -> NSImage? {
         let config = NSImage.SymbolConfiguration(pointSize: 13, weight: .semibold)
         guard let image = NSImage(systemSymbolName: name, accessibilityDescription: "SaneBar")?.withSymbolConfiguration(config) else {
@@ -561,9 +464,7 @@ final class StatusBarController: StatusBarControllerProtocol {
         Self.makeSymbolImage(name: name)
     }
 
-    // MARK: - Separator Style (Settings Feature)
 
-    /// Update separator visual style. Only sets length if not hidden (to avoid overriding HidingService's collapsed length)
     func updateSeparatorStyle(_ style: SaneBarSettings.DividerStyle, isHidden: Bool = false) {
         guard let button = separatorItem.button else { return }
 
@@ -578,7 +479,6 @@ final class StatusBarController: StatusBarControllerProtocol {
             return
         }
 
-        // Determine the visual length for this style (only applies when expanded)
         let styleLength: CGFloat
         switch style {
         case .slash:
@@ -600,9 +500,6 @@ final class StatusBarController: StatusBarControllerProtocol {
             styleLength = 12
         }
 
-        // IMPORTANT: Only set length if NOT hidden!
-        // When hidden, HidingService sets length to 10000 to push items off screen.
-        // Setting length here would override that and cause state/visual mismatch.
         if !isHidden {
             separatorItem.length = styleLength
         }
@@ -610,7 +507,6 @@ final class StatusBarController: StatusBarControllerProtocol {
         button.alphaValue = 0.7
     }
 
-    // MARK: - Menu Creation
 
     func createMenu(configuration: MenuConfiguration) -> NSMenu {
         let menu = NSMenu()
@@ -652,7 +548,6 @@ final class StatusBarController: StatusBarControllerProtocol {
         return menu
     }
 
-    // MARK: - Spacer Management (Settings Feature)
 
     func updateSpacers(count: Int, style: SaneBarSettings.SpacerStyle, width: SaneBarSettings.SpacerWidth) {
         let desiredCount = min(max(count, 0), Self.maxSpacerCount)
@@ -663,14 +558,12 @@ final class StatusBarController: StatusBarControllerProtocol {
         case .wide: 20
         }
 
-        // Remove excess spacers
         while spacerItems.count > desiredCount {
             if let item = spacerItems.popLast() {
                 NSStatusBar.system.removeStatusItem(item)
             }
         }
 
-        // Add missing spacers
         while spacerItems.count < desiredCount {
             let spacer = NSStatusBar.system.statusItem(withLength: spacerLength)
             Self.enforceNonRemovableBehavior(for: spacer, role: "spacer")
@@ -679,7 +572,6 @@ final class StatusBarController: StatusBarControllerProtocol {
             spacerItems.append(spacer)
         }
 
-        // Update existing spacer length/style
         for spacer in spacerItems {
             spacer.length = spacerLength
             configureSpacer(spacer, style: style)
@@ -699,7 +591,6 @@ final class StatusBarController: StatusBarControllerProtocol {
         }
     }
 
-    // MARK: - Click Event Helpers
 
     static func clickType(from event: NSEvent) -> ClickType {
         if event.type == .rightMouseUp || event.type == .rightMouseDown || event.buttonNumber == 1 {

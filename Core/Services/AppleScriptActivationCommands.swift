@@ -43,7 +43,6 @@ private func runScriptActivation(
     return box.value
 }
 
-// MARK: - Activation Diagnostics Commands
 
 @objc(ActivationDiagnosticsCommand)
 final class ActivationDiagnosticsCommand: SaneBarScriptCommand {
@@ -79,7 +78,6 @@ final class BrowsePanelDiagnosticsCommand: SaneBarScriptCommand {
     }
 }
 
-// MARK: - Activate Icon Commands
 
 class ActivateIconScriptCommand: SaneBarScriptCommand {
     var isRightClick: Bool { false }

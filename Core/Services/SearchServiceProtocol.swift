@@ -4,7 +4,6 @@ struct SearchClassifiedApps {
     let alwaysHidden: [RunningApp]
 }
 
-/// @mockable
 protocol SearchServiceProtocol: Sendable {
     func getRunningApps() async -> [RunningApp]
     func getMenuBarApps() async -> [RunningApp]

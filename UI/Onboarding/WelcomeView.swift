@@ -2,9 +2,6 @@ import AppKit
 import SaneUI
 import SwiftUI
 
-/// Welcome onboarding view shown on first launch.
-/// Canonical structure: Welcome → Don't Skip → Core Workflow → Advanced Workflow →
-/// Sane Philosophy → Permissions → Plan / Upgrade
 public struct WelcomeView: View {
     @State private var currentPage = 0
     @State private var navigateForward = true
@@ -18,7 +15,6 @@ public struct WelcomeView: View {
 
     public var body: some View {
         VStack(spacing: 0) {
-            // Animated page content
             ZStack {
                 Group {
                     switch currentPage {
@@ -41,7 +37,6 @@ public struct WelcomeView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .clipped()
 
-            // Progress bar
             HStack(spacing: 4) {
                 ForEach(0 ..< totalPages, id: \.self) { index in
                     Capsule()
@@ -53,7 +48,6 @@ public struct WelcomeView: View {
             .padding(.horizontal, 60)
             .padding(.bottom, 16)
 
-            // Bottom Controls
             HStack {
                 if currentPage > 0 {
                     Button("Back") {

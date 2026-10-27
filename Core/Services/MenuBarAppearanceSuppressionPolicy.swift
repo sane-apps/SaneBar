@@ -102,7 +102,6 @@ enum MenuBarAppearanceSuppressionPolicy {
             let alpha = number(info[kCGWindowAlpha as String]) ?? 1
             let layer = number(info[kCGWindowLayer as String]) ?? 0
             guard isOnscreen, alpha > 0 else { return false }
-            // Normal desktop has a Dock-owned full-screen layer-20 window; Mission Control adds layer 18.
             guard dockIsFrontmost || layer < 20 else { return false }
             guard abs(rect.minX - targetFrame.minX) <= maximumHorizontalDrift else { return false }
             guard abs(rect.minY - targetFrame.minY) <= maximumTopDrift else { return false }

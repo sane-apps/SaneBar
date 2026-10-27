@@ -1,12 +1,12 @@
 # SaneBar
 
-> SaneBar is a menu bar manager for Mac. It hides menu bar icons you don't need right now and keeps them one click away in an Icon Panel or a Second Menu Bar, with Touch ID or password lock, smart triggers, per-icon hotkeys and import from Bartender or Ice. Free and fully open source (MIT), every feature unlocked, no trial, licence or subscription. macOS 14 Sonoma or later, Apple silicon. Made by SaneApps; now community-maintained.
+> SaneBar is a menu bar manager for Mac. It hides menu bar icons you don't need right now and keeps them one click away in an Icon Panel or a Second Menu Bar, with Touch ID or password lock, smart triggers, per-icon hotkeys and import from Bartender or Ice. Free and fully open source (MIT), every feature unlocked, no trial, licence or subscription. macOS 14 Sonoma through macOS 26, Apple silicon; on macOS 27 it can no longer hide icons (see https://sanebar.com/sanebar-on-macos-27.html). Made by SaneApps; now community-maintained.
 
 ## Facts
 - Current version: 2.1.90 (direct download)
 - Price: free. Every feature is unlocked for everyone. SaneBar went 100% free and open source in June 2026; former Pro features are included. Sponsoring the developer is optional.
 - Install: direct download from sanebar.com, or Homebrew `brew install --cask sane-apps/tap/sanebar`
-- Requirements: macOS 14.0 Sonoma or later, Apple silicon
+- Requirements: macOS 14.0 Sonoma through macOS 26, Apple silicon. macOS 27: https://sanebar.com/sanebar-on-macos-27.html
 - Privacy: on-device by default. It doesn't upload your files or your menu bar contents. Network use is limited to app updates and a few anonymous app-health counts.
 - Permissions: needs Accessibility access to hide, reveal, move and open menu bar items.
 - Source code: github.com/sane-apps/SaneBar (MIT). Community-maintained: https://github.com/sane-apps/SaneBar/releases/tag/sunset

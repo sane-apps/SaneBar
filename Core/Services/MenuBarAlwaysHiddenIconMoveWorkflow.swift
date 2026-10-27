@@ -111,11 +111,6 @@ final class MenuBarAlwaysHiddenIconMoveWorkflow {
             )
 
             if resolvedTargets.separatorX == nil {
-                // One bounded repair+retarget pass before aborting: a transient
-                // WindowServer staleness can leave the first resolve empty even
-                // though the AH separator window is live. Reuse the existing
-                // bounded repair primitive (no new recovery path) and re-resolve
-                // once before surfacing the failure (#155/#156/#166).
                 logger.warning("Initial always-hidden move target resolution was empty; running one bounded repair+retarget pass before aborting")
                 let repaired: Bool = if toAlwaysHidden {
                     await self.repairAlwaysHiddenSeparatorForInboundMoveIfNeeded(request)

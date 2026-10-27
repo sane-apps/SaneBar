@@ -32,15 +32,6 @@ final class MenuBarAlwaysHiddenPinWorkflow {
         )
     }
 
-    /// - Parameter preserveExplicitPersistedPositions: FM-2 (#136/#168). When the
-    ///   misordered-separator hard-recovery branch runs, it falls through to
-    ///   `recoverStartupPositions`. On genuine startup / display-topology recovery
-    ///   the persisted pixel positions are meaningless and reanchoring an unsafe
-    ///   explicit divider toward Control Center is correct (default `false`). On
-    ///   steady-state validation (wake, Space change, manual restore) the persisted
-    ///   value IS the user's explicit divider intent and must survive — callers on
-    ///   those paths pass `true`. The default preserves the prior reanchor behavior
-    ///   so any caller that does not opt in is unaffected.
     func repairSeparatorPositionIfNeeded(
         reason: String,
         preserveExplicitPersistedPositions: Bool = false
@@ -148,10 +139,6 @@ final class MenuBarAlwaysHiddenPinWorkflow {
             logger.error(
                 "Always-hidden separator still misordered after repair (ahRight=\(postAHRightX, privacy: .public), sep=\(postSepX, privacy: .public)) - applying hard position recovery"
             )
-            // This hard-recovery path forwards the caller's
-            // preserveExplicitPersistedPositions decision into recoverStartupPositions
-            // so the wake / Space / manual-restore paths no longer reanchor an
-            // explicit divider toward Control Center (the #136/#168 snap-back).
             StatusBarPositionRecoveryStore.recoverStartupPositions(
                 alwaysHiddenEnabled: true,
                 referenceScreen: manager.currentRecoveryReferenceScreen(),

@@ -3,9 +3,7 @@ import Darwin
 import KeyboardShortcuts
 import os.log
 import SaneUI
-#if !SETAPP
-    @preconcurrency import ScreenCaptureKit
-#endif
+@preconcurrency import ScreenCaptureKit
 import SwiftUI
 
 private let appLogger = Logger(subsystem: "com.sanebar.app", category: "App")
@@ -19,19 +17,13 @@ private enum SaneBarSettingsWindowMetrics {
     static let idealHeight: CGFloat = SaneSettingsWindowDefaults.idealHeight
 }
 
-// MARK: - AppDelegate
 
-// CLEAN: Single initialization path - only MenuBarManager creates status items
 
 class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
     enum DuplicateLaunchResolution: Equatable {
         case noConflict
         case waitForHandoff
         case terminateCurrent
-        /// The current launch is a strictly newer build than every surviving
-        /// instance, so the stale copies are terminated and the current one
-        /// stays. This is the update path: a Sparkle relaunch must win over a
-        /// slow-quitting or wedged older instance instead of being killed by it.
         case terminateOthers
     }
 
@@ -43,18 +35,6 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
     private var keepAliveActivity: NSObjectProtocol?
     private var explicitTerminationRequested = false
 
-    /// Decide what a freshly launched instance should do when other instances of
-    /// the same bundle are alive.
-    ///
-    /// `currentBuild` / `maxSurvivingBuild` are the `CFBundleVersion` integers of
-    /// this process and the newest surviving instance. When both are known and a
-    /// conflict remains after the grace window, the NEWEST build wins: if this
-    /// launch is strictly newer it terminates the stale survivors
-    /// (`.terminateOthers`); otherwise it yields (`.terminateCurrent`). This is
-    /// what makes a Sparkle update relaunch survive a slow-quitting or wedged old
-    /// instance instead of being killed by it — the bug where a customer stayed
-    /// stuck on the previous version and updates appeared to apply one at a time.
-    /// With no version info it preserves the original first-wins behavior.
     static func duplicateLaunchResolution(
         othersAtLaunch: Int,
         othersAfterGrace: Int?,
@@ -71,21 +51,11 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
         return .terminateCurrent
     }
 
-    /// Parse a bundle's `CFBundleVersion` into a comparable integer. SaneBar's
-    /// build numbers are monotonic integers (e.g. `2180`, `2181`), so a numeric
-    /// compare is the correct "which build is newer" test. Returns nil when the
-    /// value is missing or non-numeric, which makes the caller fall back to the
-    /// version-blind first-wins path rather than guessing.
     static func bundleBuildNumber(_ bundle: Bundle?) -> Int? {
         guard let raw = bundle?.infoDictionary?["CFBundleVersion"] as? String else { return nil }
         return Int(raw.trimmingCharacters(in: .whitespaces))
     }
 
-    /// Pure selection of which already-running instance to bring forward before the
-    /// just-launched duplicate exits. Picking the oldest survivor (lowest pid is a stable,
-    /// dependency-free proxy for "launched first") keeps the choice deterministic when more
-    /// than one prior instance is somehow alive, and excludes the current process so the
-    /// copy that is about to terminate never tries to activate itself.
     static func activationTargetPID(amongOtherPIDs otherPIDs: [pid_t], currentPID: pid_t) -> pid_t? {
         otherPIDs
             .filter { $0 != currentPID }
@@ -140,7 +110,6 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
         return contents?.trimmingCharacters(in: .whitespacesAndNewlines) == token
     }
 
-    // No @main - using main.swift instead
 
     nonisolated static func shouldUpdateAppShortcutParameters(
         environment: [String: String] = ProcessInfo.processInfo.environment,
@@ -155,7 +124,6 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
         appLogger.info("🏁 applicationDidFinishLaunching START")
         writeAutomationLifecycleBreadcrumb("applicationDidFinishLaunching start")
 
-        // Near-instant tooltips (default is ~1000ms)
         UserDefaults.standard.set(100, forKey: "NSInitialToolTipDelay")
         #if !DEBUG
             if Self.shouldUpdateAppShortcutParameters() {
@@ -163,7 +131,6 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
             }
         #endif
 
-        // Keep the menu bar process alive across idle periods.
         keepAliveActivity = ProcessInfo.processInfo.beginActivity(
             options: [.automaticTerminationDisabled, .suddenTerminationDisabled],
             reason: Self.automaticTerminationReason
@@ -171,8 +138,6 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
         ProcessInfo.processInfo.disableAutomaticTermination(Self.automaticTerminationReason)
         ProcessInfo.processInfo.disableSuddenTermination()
 
-        // Guard against accidental duplicate launches of the same bundle.
-        // Use a handoff grace window so update relaunches do not self-terminate.
         scheduleDuplicateInstanceTerminationCheckIfNeeded()
         NotificationCenter.default.addObserver(
             self,
@@ -181,8 +146,7 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
             object: nil
         )
 
-        // Move to /Applications if running from Downloads or other location (Release only)
-        #if !DEBUG && !APP_STORE && !SETAPP
+        #if !DEBUG
             if SaneApplicationMover.moveToApplicationsFolderIfNeeded(prompt: .init(
                 messageText: "Move to Applications?",
                 informativeText: "{appName} works best from your Applications folder. Move it there now? You may be asked for your password.",
@@ -191,28 +155,18 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
             )) { return }
         #endif
 
-        // CRITICAL: Set activation policy to accessory BEFORE creating status items!
-        // This ensures NSStatusItem windows are created at the correct window layer (25).
         NSApp.setActivationPolicy(.accessory)
 
-        // Load cached Pro state before the menu bar runtime creates any
-        // license-gated status items. Otherwise launch can briefly create and
-        // tear down the always-hidden separator while `isPro` catches up.
         LicenseService.shared.checkCachedLicense()
 
-        // Initialize MenuBarManager (creates status items) - MUST be after activation policy is set
         _ = MenuBarManager.shared
         MenuBarManager.shared.actionWorkflow.normalizeLicenseDependentDefaults()
 
-        // Configure keyboard shortcuts
         let shortcutsService = KeyboardShortcutsService.shared
         shortcutsService.configure(with: MenuBarManager.shared)
         shortcutsService.setDefaultsIfNeeded()
 
-        // Apply user's preferred policy (may override to .regular if dock icon enabled)
         SaneActivationPolicy.applyInitialPolicy(showDockIcon: MenuBarManager.shared.settings.showDockIcon)
-        SetappIntegration.logPurchaseType()
-        SetappIntegration.showReleaseNotesIfNeeded(delay: 1.5)
 
         let launchTier = LicenseService.shared.isPro ? "pro" : "free"
         Task.detached {
@@ -349,18 +303,11 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    /// Highest `CFBundleVersion` among a set of running instances, or nil when
-    /// none expose a numeric build (caller then falls back to first-wins).
     @MainActor
     private static func maxBuildNumber(among apps: [NSRunningApplication]) -> Int? {
         apps.compactMap { bundleBuildNumber(Bundle(url: $0.bundleURL ?? URL(fileURLWithPath: "/"))) }.max()
     }
 
-    /// Gracefully terminate stale older-build instances so the newer current
-    /// launch becomes the single live instance. `terminate()` posts a normal quit
-    /// (the stale instances are not the keep-alive survivor), leaving the update
-    /// running. Never called against the current process — `runningDuplicateInstances`
-    /// already excludes self.
     @MainActor
     private func terminateStaleInstances(_ apps: [NSRunningApplication]) {
         for app in apps {
@@ -368,10 +315,6 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    /// Bring the already-running SaneBar instance forward so a customer who double-launched
-    /// (login-item instance + a freshly downloaded copy) sees the app respond instead of the
-    /// new copy silently vanishing. Side-effect-free on the normal single-launch path: this
-    /// only runs inside the `.terminateCurrent` branch, which requires another live instance.
     @MainActor
     private func activateSurvivingInstance(among others: [NSRunningApplication], currentPID: pid_t) {
         let targetPID = Self.activationTargetPID(
@@ -415,9 +358,7 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
                 ? #selector(checkForUpdatesFromDock(_:))
                 : nil,
             aboutAndBugReportAction: #selector(openAboutFromDock(_:)),
-            whatsNewAction: LicenseService.shared.usesSetappDistribution
-                ? #selector(showReleaseNotesFromDock(_:))
-                : nil,
+            whatsNewAction: nil,
             quitTarget: self,
             quitAction: #selector(quitFromDock(_:)),
             settingsKeyEquivalent: ","
@@ -454,31 +395,13 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @MainActor
-    @objc private func showReleaseNotesFromDock(_: Any?) {
-        SetappIntegration.showReleaseNotes()
-    }
-
-    @MainActor
     @objc private func quitFromDock(_ sender: Any?) {
         requestExplicitTermination(reason: "dock-menu")
         NSApp.terminate(sender)
     }
 
-    /// SaneBar is a menu-bar (agent) app — the status item is the entry point, so
-    /// relaunching from Finder/Dock normally has nothing to open. But when the
-    /// status item is missing or stuck off-screen (the #157 failure where macOS
-    /// won't place it), doing nothing left the user with an invisible, unreachable
-    /// app: no icon, no window, no way to repair or even export a diagnostic. Always
-    /// give them a window — Health when the items aren't live (repair + report live
-    /// there), Settings otherwise — so the app is never a dead end.
     @MainActor
     func applicationShouldHandleReopen(_: NSApplication, hasVisibleWindows: Bool) -> Bool {
-        // Gate on the CONFIRMED-off-screen signal, NOT raw startupItemsValid: the latter
-        // is transiently false during ordinary startup/recovery and macOS NSStatusItem
-        // flaps, so gating on it would pop Health (and force a Dock icon via .regular)
-        // unprompted for a perfectly healthy user. likelySystemSuppressedStatusItems
-        // means the icon is genuinely missing — same signal the startup auto-surface gate
-        // uses (shouldSurfaceHealthAfterStatusItemRecoveryStop).
         if MenuBarManager.shared.currentRuntimeSnapshot().likelySystemSuppressedStatusItems {
             appLogger.error("Reopen while the status item looks system-suppressed — surfacing Health so the user can recover (#157)")
             NSApp.setActivationPolicy(.regular)
@@ -532,17 +455,12 @@ class SaneBarAppDelegate: NSObject, NSApplicationDelegate {
     }
 }
 
-// MARK: - Settings Opener
 
-/// Opens Settings window programmatically
 enum SettingsOpener {
     @MainActor private static var settingsWindow: NSWindow?
     @MainActor private static var windowDelegate: SettingsWindowDelegate?
 
     @MainActor static func open(tab: SettingsView.SettingsTab? = nil) {
-        // DON'T force .regular here - respect the user's showDockIcon setting
-        // An .accessory app CAN have visible windows (the dock icon just won't show)
-        // This fixes the bug where dock icon appears when Settings opens despite setting being OFF
         NSApp.activate()
 
         let window: NSWindow
@@ -659,40 +577,34 @@ enum SettingsOpener {
 
     @available(macOS 14.4, *)
     @MainActor private static func captureWindowImage(window: NSWindow) async -> CGImage? {
-        #if SETAPP
-            _ = window
-            return nil
-        #else
-            do {
-                let shareableContent = try await SCShareableContent.currentProcess
-                guard let shareableWindow = shareableContent.windows.first(where: { $0.windowID == CGWindowID(window.windowNumber) }) else {
-                    return nil
-                }
-
-                let filter = SCContentFilter(desktopIndependentWindow: shareableWindow)
-                let config = SCStreamConfiguration()
-                let scale = window.screen?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2
-                config.width = max(1, Int(window.frame.width * scale))
-                config.height = max(1, Int(window.frame.height * scale))
-
-                return try await withCheckedThrowingContinuation { continuation in
-                    SCScreenshotManager.captureImage(contentFilter: filter, configuration: config) { image, error in
-                        if let error {
-                            continuation.resume(throwing: error)
-                        } else {
-                            continuation.resume(returning: image)
-                        }
-                    }
-                }
-            } catch {
-                appLogger.error("Failed to capture settings window via ScreenCaptureKit: \(error.localizedDescription, privacy: .public)")
+        do {
+            let shareableContent = try await SCShareableContent.currentProcess
+            guard let shareableWindow = shareableContent.windows.first(where: { $0.windowID == CGWindowID(window.windowNumber) }) else {
                 return nil
             }
-        #endif
+
+            let filter = SCContentFilter(desktopIndependentWindow: shareableWindow)
+            let config = SCStreamConfiguration()
+            let scale = window.screen?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2
+            config.width = max(1, Int(window.frame.width * scale))
+            config.height = max(1, Int(window.frame.height * scale))
+
+            return try await withCheckedThrowingContinuation { continuation in
+                SCScreenshotManager.captureImage(contentFilter: filter, configuration: config) { image, error in
+                    if let error {
+                        continuation.resume(throwing: error)
+                    } else {
+                        continuation.resume(returning: image)
+                    }
+                }
+            }
+        } catch {
+            appLogger.error("Failed to capture settings window via ScreenCaptureKit: \(error.localizedDescription, privacy: .public)")
+            return nil
+        }
     }
 }
 
-/// Handles settings window lifecycle events
 private class SettingsWindowDelegate: NSObject, NSWindowDelegate {
     func windowWillClose(_: Notification) {
         SaneActivationPolicy.restorePolicy(showDockIcon: MenuBarManager.shared.settings.showDockIcon)

@@ -1,7 +1,6 @@
 import AppKit
 import SwiftUI
 
-// MARK: - Tile
 
 struct BrowseDuplicateMarker: Equatable {
     let ordinal: Int
@@ -77,39 +76,28 @@ struct MenuBarAppTile: View {
     let onSetHotkey: () -> Void
     var onRemoveFromGroup: (() -> Void)?
 
-    /// Whether this icon is currently in the hidden section
     var isHidden: Bool = false
-    /// Callback when user wants to toggle hidden status (shows instructions)
     var onToggleHidden: (() -> Void)?
 
-    /// Callback when user wants to move an icon into the always-hidden zone
     var onMoveToAlwaysHidden: (() -> Void)?
 
-    /// Callback when user wants to move an icon from always-hidden to the regular hidden zone
     var onMoveToHidden: (() -> Void)?
 
-    /// Whether to show app name below icon (for users with many apps)
     var showName: Bool = true
 
-    /// Whether a move operation is in progress for this tile
     var isMoving: Bool = false
 
-    /// Whether this tile is selected via keyboard navigation
     var isSelected: Bool = false
 
-    /// Whether the user has Pro license (affects action gating and badges)
     var isPro: Bool = true
 
-    /// Optional disambiguator for apps that expose multiple menu extras
     var duplicateMarker: BrowseDuplicateMarker?
 
-    /// Optional callback so parents can advertise valid drop targets while dragging.
     var onDragStart: (() -> Void)?
 
     var body: some View {
         Button(action: { onActivate(false) }, label: {
             VStack(spacing: 4) {
-                // Icon container
                 ZStack {
                     RoundedRectangle(cornerRadius: max(8, iconSize * 0.18))
                         .fill(Color(NSColor.controlBackgroundColor).opacity(0.6))
@@ -124,7 +112,6 @@ struct MenuBarAppTile: View {
                 }
                 .frame(width: iconSize, height: iconSize)
 
-                // App name below icon
                 if showName {
                     Text(app.name)
                         .font(.system(size: max(9, iconSize * 0.18)))

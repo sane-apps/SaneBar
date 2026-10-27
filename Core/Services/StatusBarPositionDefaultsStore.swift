@@ -21,15 +21,12 @@ enum StatusBarPositionDefaultsStore {
         return isTooSmallAlwaysHiddenPosition(values.appValue) || isTooSmallAlwaysHiddenPosition(values.byHostValue)
     }
 
-    // MARK: - Preferred Position Storage
 
     nonisolated static func preferredPositionKey(for autosaveName: String) -> String {
         "NSStatusItem Preferred Position \(autosaveName)"
     }
 
     nonisolated static func byHostAutosaveName(for autosaveName: String) -> String {
-        // macOS stores autosave keys in ByHost global prefs using a suffixed
-        // v6 token (e.g. SaneBar_Main -> SaneBar_main_v6).
         guard let underscore = autosaveName.firstIndex(of: "_") else {
             return "\(autosaveName)_v6"
         }
@@ -251,9 +248,6 @@ enum StatusBarPositionDefaultsStore {
         ])
     }
 
-    /// Enumerate ALL ByHost keys matching SaneBar visibility prefixes and remove them.
-    /// This catches every variant macOS may write — known casing, legacy lowercased,
-    /// future `_vN` suffixes, spacer items, and macOS 26's `VisibleCC` keys.
     nonisolated static func removeAllByHostVisibilityOverrides() -> Bool {
         removeAllByHostKeys(matchingPrefixes: [
             "NSStatusItem Visible SaneBar_",

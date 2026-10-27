@@ -4,7 +4,6 @@ import os.log
 
 private let logger = Logger(subsystem: "com.sanebar.app", category: "SearchService")
 
-// MARK: - SearchService
 
 final class SearchService: SearchServiceProtocol, @unchecked Sendable {
     static let shared = SearchService()
@@ -34,17 +33,12 @@ final class SearchService: SearchServiceProtocol, @unchecked Sendable {
 
     @MainActor
     private func separatorBoundaryXForClassification(allowEstimatedFallback: Bool = false) -> CGFloat? {
-        // Use the separator's right edge as the hidden/visible boundary.
-        // In collapsed mode, right-edge cache remains stable while live AX frames
-        // can lag, which avoids misclassifying hidden icons as visible.
         if let rightEdge = MenuBarManager.shared.geometryResolver.separatorRightEdgeX(allowEstimatedFallback: allowEstimatedFallback) {
             return rightEdge
         }
         return MenuBarManager.shared.geometryResolver.separatorOriginX(allowEstimatedFallback: allowEstimatedFallback)
     }
 
-    /// Normalize the always-hidden boundary against the main separator boundary.
-    /// Returns nil when the candidate is stale/inverted (on or to the right of main).
     nonisolated static func normalizedAlwaysHiddenBoundary(
         _ candidate: CGFloat?,
         separatorX: CGFloat,
@@ -68,10 +62,6 @@ final class SearchService: SearchServiceProtocol, @unchecked Sendable {
             return (separatorX, nil)
         }
 
-        // During collapsed hidden mode and active browse sessions, WindowServer
-        // geometry can temporarily place regular hidden items left of the AH
-        // separator. Use pinned IDs only when live AH geometry is unavailable
-        // or stale; otherwise browse panels should reflect the real separator.
         if SearchServiceSupport.shouldUsePinnedAlwaysHiddenFallback(
             hidingState: MenuBarManager.shared.hidingService.state,
             isBrowseSessionActive: SearchWindowController.shared.isBrowseSessionActive
@@ -116,10 +106,6 @@ final class SearchService: SearchServiceProtocol, @unchecked Sendable {
                 lastAlwaysHiddenOrderWarningAt = now
             }
 
-            // Steady-state classification repair (not startup / display-topology):
-            // only the AH-separator order is wrong, so preserve the user's explicit
-            // persisted main divider rather than reanchoring it toward Control
-            // Center. preserve = true (FM-2 #136/#168).
             MenuBarManager.shared.alwaysHiddenPinWorkflow.repairSeparatorPositionIfNeeded(
                 reason: "classification",
                 preserveExplicitPersistedPositions: true
@@ -149,13 +135,9 @@ final class SearchService: SearchServiceProtocol, @unchecked Sendable {
             return (repairedSeparatorX, nil)
         }
 
-        // If AH position is unavailable or stale/inverted, return nil for AH.
-        // classifyItems will use pinned IDs as a post-pass instead of trusting bad geometry.
         return (separatorX, alwaysHiddenBoundaryX)
     }
 
-    /// Match apps against persisted always-hidden pinned IDs.
-    /// Used as fallback when position-based classification is unavailable (items off-screen).
     @MainActor
     private func appsMatchingPinnedIds(from apps: [RunningApp]) -> [RunningApp] {
         let pinnedIds = Set(MenuBarManager.shared.settings.alwaysHiddenPinnedItemIds)
@@ -210,8 +192,6 @@ final class SearchService: SearchServiceProtocol, @unchecked Sendable {
         SearchMenuBarZoneClassifier.isOffscreen(x: x, in: screenFrame)
     }
 
-    /// Classify an item's zone based on its position relative to separators.
-    /// Internal for testability — the core zone classification logic.
     func classifyZone(
         itemX: CGFloat,
         itemWidth: CGFloat?,
@@ -260,7 +240,6 @@ final class SearchService: SearchServiceProtocol, @unchecked Sendable {
     func cachedHiddenMenuBarApps() -> [RunningApp] {
         let items = AccessibilityService.shared.cachedMenuBarItemsWithPositions()
 
-        // Classify by separator position (works even when temporarily expanded for moving)
         if let positions = separatorOriginsForClassification() {
             logger.debug("cachedHidden: using separatorX=\(positions.separatorX, privacy: .public) for classification")
             let apps = items
@@ -278,7 +257,6 @@ final class SearchService: SearchServiceProtocol, @unchecked Sendable {
             return apps
         }
 
-        // Fallback: if separator can't be located, approximate by offscreen or negative X.
         guard let frame = menuBarScreenFrame() else {
             return items.filter { $0.x < 0 }.map(\.app)
         }
@@ -310,8 +288,6 @@ final class SearchService: SearchServiceProtocol, @unchecked Sendable {
             return apps
         }
 
-        // Fallback: when positions are unavailable (items off-screen at startup),
-        // match against persisted pinned IDs to identify always-hidden apps.
         return appsMatchingPinnedIds(from: items.map(\.app))
     }
 
@@ -319,7 +295,6 @@ final class SearchService: SearchServiceProtocol, @unchecked Sendable {
     func cachedVisibleMenuBarApps() -> [RunningApp] {
         let items = AccessibilityService.shared.cachedMenuBarItemsWithPositions()
 
-        // Classify by separator position (works even when temporarily expanded for moving)
         if let positions = separatorOriginsForClassification() {
             logger.debug("cachedVisible: using separatorX=\(positions.separatorX, privacy: .public) for classification")
             let apps = items
@@ -337,8 +312,6 @@ final class SearchService: SearchServiceProtocol, @unchecked Sendable {
             return apps
         }
 
-        // Fallback: separator unavailable — use the same robust single-pass
-        // classifier used by refresh/cachedClassifiedApps.
         let classified = classifyItems(items)
         logger.debug("cachedVisible: no separator, fallback visible count \(classified.visible.count, privacy: .public)")
         logIdentityHealth(apps: classified.visible, context: "cachedVisibleFallback")
@@ -423,8 +396,6 @@ final class SearchService: SearchServiceProtocol, @unchecked Sendable {
             return apps
         }
 
-        // Fallback: when positions are unavailable (items off-screen at startup),
-        // match against persisted pinned IDs to identify always-hidden apps.
         let allApps = items.map(\.app)
         return await MainActor.run {
             self.appsMatchingPinnedIds(from: allApps)
@@ -437,7 +408,6 @@ final class SearchService: SearchServiceProtocol, @unchecked Sendable {
             (self.separatorOriginsForClassification(), self.menuBarScreenFrame())
         }
 
-        // Classify by separator position (works even when temporarily expanded)
         if let positions {
             let apps = items
                 .filter {
@@ -455,8 +425,7 @@ final class SearchService: SearchServiceProtocol, @unchecked Sendable {
             return apps
         }
 
-        // Not hiding: treat everything as visible.
-        _ = frame // keep for potential future debug; intentionally unused.
+        _ = frame
         let apps = items.map(\.app)
         await MainActor.run {
             self.logIdentityHealth(apps: apps, context: "refreshVisible")
@@ -469,7 +438,6 @@ final class SearchService: SearchServiceProtocol, @unchecked Sendable {
         SearchIdentityHealthLogger.log(apps: apps, context: context, logger: logger)
     }
 
-    // MARK: - Single-Pass Zone Classification
 
     @MainActor
     func cachedClassifiedApps() -> SearchClassifiedApps {
@@ -516,9 +484,6 @@ final class SearchService: SearchServiceProtocol, @unchecked Sendable {
     @MainActor
     private func classifyItems(
         _ items: [AccessibilityService.MenuBarItemPosition],
-        // Read-only classification may use estimates transiently: the cache is
-        // empty after a fresh launch (estimates are never cached). Verification
-        // callers pass false explicitly and stay strict.
         allowEstimatedFallback: Bool = true,
         promotePinnedAlwaysHidden: Bool = true
     ) -> SearchClassifiedApps {
@@ -574,8 +539,6 @@ final class SearchService: SearchServiceProtocol, @unchecked Sendable {
         }
         defer { activationGate.finish(for: app.uniqueId) }
 
-        // 1. Show hidden menu bar items first. Always Hidden icons need the
-        // stronger showAll path; regular reveal intentionally keeps them blocked.
         let shouldUseFullReveal = await MainActor.run {
             SearchServiceSupport.shouldUseFullRevealForActivation(
                 appUniqueId: app.uniqueId,
@@ -616,14 +579,8 @@ final class SearchService: SearchServiceProtocol, @unchecked Sendable {
         let forceFreshTargetResolution = activationPlan.forceFreshTargetResolution
         let allowImmediateFallbackCenter = activationPlan.allowImmediateFallbackCenter
         let requestedPreferHardwareFirst = activationPlan.preferHardwareFirst
-        // 2. Wait for menu bar re-layout after reveal.
-        // Previously used a fixed 500ms sleep which was insufficient on slower
-        // systems with many hidden icons (#69, #77, #102). Now polls until the
-        // target icon reaches a stable on-screen position (up to 2s).
         if didReveal {
-            try? await Task.sleep(nanoseconds: 80_000_000) // keep this short; polling handles settling
-            // Hardware-first visible items can skip the extra settle wait, but
-            // hidden/off-screen targets still need time to re-enter the bar.
+            try? await Task.sleep(nanoseconds: 80_000_000)
             if SearchServiceSupport.shouldWaitForRevealSettle(
                 preferHardwareFirst: requestedPreferHardwareFirst,
                 xPosition: shouldUseFullReveal ? nil : app.xPosition
@@ -636,10 +593,6 @@ final class SearchService: SearchServiceProtocol, @unchecked Sendable {
             diagnostics.waitOutcome = "skipped (didReveal=false)"
         }
 
-        // 3. Resolve latest target identity after reveal.
-        // AX child ordering changes when hidden icons become visible — stale
-        // cached data causes AXPress to target the wrong (off-screen) element,
-        // which returns .success without opening any menu (#69, #77, #102).
         let initialResolution = await SearchActivationTargetResolver.resolveLatestClickTarget(
             for: app,
             forceRefresh: forceFreshTargetResolution,
@@ -682,7 +635,6 @@ final class SearchService: SearchServiceProtocol, @unchecked Sendable {
             "Activation start requested=\(SearchServiceSupport.diagnosticsApp(app), privacy: .private) resolved=\(SearchServiceSupport.diagnosticsApp(initialTarget), privacy: .private) didReveal=\(didReveal, privacy: .public) preferHardwareFirst=\(preferHardwareFirst, privacy: .public)"
         )
 
-        // 4. Perform click off-main-thread to avoid UI stalls when AX APIs block.
         let firstAttemptStart = Date()
         let firstAttempt = await SearchClickAttemptService.perform(
             axService: axService,
@@ -715,8 +667,6 @@ final class SearchService: SearchServiceProtocol, @unchecked Sendable {
             logger.warning("Click attempt timed out after \(timeoutMs, privacy: .public)ms")
         }
 
-        // One retry with a forced refresh if first click failed.
-        // Skip retry when first attempt is already slow, to avoid compounding delay.
         if !clickSuccess {
             let likelyNoExtras = AccessibilityService.shared.likelyLacksExtrasMenuBar(bundleID: initialTarget.bundleId)
             if likelyNoExtras {
@@ -795,7 +745,6 @@ final class SearchService: SearchServiceProtocol, @unchecked Sendable {
 
         if !clickSuccess {
             if activationPlan.allowWorkspaceActivationFallback {
-                // Fallback: Just activate the app normally (user can then click the now-visible icon)
                 let workspace = NSWorkspace.shared
                 if let runningApp = workspace.runningApplications.first(where: { $0.bundleIdentifier == app.bundleId }) {
                     if NSApp.isActive {
@@ -812,10 +761,6 @@ final class SearchService: SearchServiceProtocol, @unchecked Sendable {
             diagnostics.finalOutcome = "click succeeded"
         }
 
-        // 4. ALWAYS auto-hide after Find Icon use (seamless experience)
-        // Give user time to interact with the opened menu before hiding.
-        // Configurable delay (default 15s) allows browsing through menus without feeling rushed.
-        // Note: When icons hide, any open menu from that icon closes (macOS behavior).
         if didReveal {
             let delay = MenuBarManager.shared.settings.findIconRehideDelay
             MenuBarManager.shared.visibilityWorkflow.scheduleRehideFromSearch(after: delay)

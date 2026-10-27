@@ -4,9 +4,7 @@ import SwiftUI
 
 private let logger = Logger(subsystem: "com.sanebar.app", category: "MenuBarAppearance")
 
-// MARK: - MenuBarAppearanceServiceProtocol
 
-/// @mockable
 @MainActor
 protocol MenuBarAppearanceServiceProtocol {
     func updateAppearance(_ settings: MenuBarAppearanceSettings)
@@ -14,16 +12,9 @@ protocol MenuBarAppearanceServiceProtocol {
     func hide()
 }
 
-// MARK: - MenuBarAppearanceService
 
-/// Service that applies visual styling to the menu bar using a transparent overlay window.
-///
-/// Creates a window positioned exactly over the menu bar region and applies tint,
-/// shadow, border, and rounded corner effects. The overlay is click-through so it
-/// doesn't interfere with normal menu bar interactions.
 @MainActor
 final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceServiceProtocol {
-    // MARK: - Properties
 
     private var overlayWindow: NSWindow?
     private var overlayViewModel: MenuBarOverlayViewModel?
@@ -40,13 +31,10 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
     private var lastOverlaySuppressionReason: OverlaySuppressionReason?
     private var visibilityReconciliationTimer: Timer?
 
-    // MARK: - Initialization
 
     init() {
-        // Screen observer is only set up when overlay is created
     }
 
-    /// Clean up resources - call before releasing service
     func teardown() {
         if let observer = screenObserver {
             NotificationCenter.default.removeObserver(observer)
@@ -88,12 +76,10 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
         overlayWindow = nil
     }
 
-    // MARK: - Screen Observer
 
     private func setupScreenObserver() {
         guard screenObserver == nil else { return }
 
-        // Re-position overlay when screens change
         screenObserver = NotificationCenter.default.addObserver(
             forName: NSApplication.didChangeScreenParametersNotification,
             object: nil,
@@ -105,7 +91,6 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
             }
         }
 
-        // Refresh overlay when system appearance changes (light ↔ dark)
         appearanceObserver = DistributedNotificationCenter.default().addObserver(
             forName: Notification.Name("AppleInterfaceThemeChangedNotification"),
             object: nil,
@@ -116,7 +101,6 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
             }
         }
 
-        // Refresh overlay when accessibility display settings change (Reduce Transparency toggle)
         accessibilityObserver = NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification,
             object: nil,
@@ -185,7 +169,6 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
         }
     }
 
-    // MARK: - Public API
 
     func updateAppearance(_ settings: MenuBarAppearanceSettings) {
         if settings.isEnabled {
@@ -523,17 +506,7 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
         return useGlass ? .statusBar - 1 : .statusBar
     }
 
-    // MARK: - Window Level
 
-    /// Adjust the overlay window level based on the active appearance mode.
-    ///
-    /// Liquid Glass composites naturally with layers underneath, so the overlay
-    /// sits *below* status items (`.statusBar - 1`) to avoid obscuring icons.
-    ///
-    /// A plain tint rectangle, on the other hand, is hidden behind the opaque
-    /// menu bar background at that level — only a 1px sliver shows at the bottom.
-    /// Raising the overlay to `.statusBar` puts the tint *above* the background
-    /// so icons show through the semi-transparent colour.
     private func updateWindowLevel() {
         guard let window = overlayWindow, let vm = overlayViewModel else { return }
 
@@ -547,22 +520,18 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
         }
     }
 
-    // MARK: - Overlay Management
 
     private func ensureOverlayExists() {
         guard overlayWindow == nil else { return }
 
-        // Set up screen observer now that we need the overlay
         setupScreenObserver()
 
         let menuBarFrame = calculateMenuBarFrame()
 
-        // Create observable viewModel and view
         let viewModel = MenuBarOverlayViewModel()
         overlayViewModel = viewModel
         let view = MenuBarOverlayView(viewModel: viewModel)
 
-        // Create window
         let window = NSPanel(
             contentRect: menuBarFrame,
             styleMask: [.borderless, .nonactivatingPanel, .fullSizeContentView],
@@ -570,17 +539,13 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
             defer: false
         )
 
-        // Configure window to be transparent and click-through
         window.isOpaque = false
         window.backgroundColor = .clear
         window.hasShadow = false
-        // Keep the overlay BELOW the actual menu bar content (status items), otherwise
-        // Liquid Glass can visually obscure icons.
         window.level = .statusBar - 1
-        window.ignoresMouseEvents = true // Click-through
+        window.ignoresMouseEvents = true
         window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
 
-        // Set SwiftUI view as content
         let hostingView = NSHostingView(rootView: view)
         hostingView.frame = NSRect(origin: .zero, size: menuBarFrame.size)
         hostingView.autoresizingMask = [.width, .height]
@@ -616,16 +581,11 @@ final class MenuBarAppearanceService: ObservableObject, MenuBarAppearanceService
             return NSRect(x: 0, y: 0, width: 1920, height: 24)
         }
 
-        // On notched Macs, visibleFrame.maxY is below the notch area
-        // We need to use frame.maxY to get the true top of screen
         let screenFrame = screen.frame
         let visibleFrame = screen.visibleFrame
 
-        // Menu bar height: difference between screen top and visible area top
-        // This accounts for both regular menu bars AND notched displays
         let menuBarHeight = screenFrame.maxY - visibleFrame.maxY
 
-        // Fallback to system thickness if calculation seems wrong
         let finalHeight = menuBarHeight > 0 ? menuBarHeight : NSStatusBar.system.thickness
 
         logger.debug("""

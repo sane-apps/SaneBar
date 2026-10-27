@@ -8,18 +8,12 @@ options:
 configs:
   Debug: debug
   ProdDebug: debug
-  ProdDebug-Setapp: debug
   Release: release
-  Release-AppStore: release
-  Release-Setapp: release
 
 packages:
   KeyboardShortcuts:
     url: https://github.com/sindresorhus/KeyboardShortcuts
     from: 2.4.0
-  Setapp:
-    url: https://github.com/MacPaw/Setapp-framework.git
-    from: 5.0.1
   Sparkle:
     url: https://github.com/sparkle-project/Sparkle
     from: 2.8.0
@@ -77,21 +71,6 @@ schemes:
     archive:
       config: Release
 
-  SaneBarSetapp:
-    build:
-      targets:
-        SaneBar: all
-        SaneBarTests: [test]
-    test:
-      targets:
-        - SaneBarTests
-    profile:
-      config: Release-Setapp
-    run:
-      config: ProdDebug-Setapp
-    archive:
-      config: Release-Setapp
-
 targets:
   SaneBar:
     type: application
@@ -112,7 +91,6 @@ targets:
       - SaneBar/PrivacyInfo.xcprivacy
     dependencies:
       - package: KeyboardShortcuts
-      - package: Setapp
       - package: Sparkle
       - package: SaneUI
     info:
@@ -164,38 +142,11 @@ targets:
           CODE_SIGN_IDENTITY: "Apple Development"
           CODE_SIGN_ENTITLEMENTS: SaneBar/SaneBar.entitlements
           SWIFT_ACTIVE_COMPILATION_CONDITIONS: "DEBUG PRODDEBUG"
-        ProdDebug-Setapp:
-          PRODUCT_BUNDLE_IDENTIFIER: com.sanebar.app-setapp
-          DEVELOPMENT_TEAM: M78L6FXD48
-          CODE_SIGN_IDENTITY: "Apple Development"
-          CODE_SIGN_ENTITLEMENTS: SaneBar/SaneBar.entitlements
-          SWIFT_ACTIVE_COMPILATION_CONDITIONS: "DEBUG PRODDEBUG SETAPP"
-          ARCHS: "$(ARCHS_STANDARD)"
-          VALID_ARCHS: "arm64 x86_64"
         Release:
           PRODUCT_BUNDLE_IDENTIFIER: com.sanebar.app
           DEVELOPMENT_TEAM: M78L6FXD48
           CODE_SIGN_IDENTITY: "Developer ID Application"
           CODE_SIGN_ENTITLEMENTS: SaneBar/SaneBar.entitlements
-        Release-AppStore:
-          PRODUCT_BUNDLE_IDENTIFIER: com.sanebar.app
-          DEVELOPMENT_TEAM: M78L6FXD48
-          CODE_SIGN_STYLE: Automatic
-          CODE_SIGN_IDENTITY: "Apple Development"
-          CODE_SIGN_INJECT_BASE_ENTITLEMENTS: NO
-          ENABLE_APP_SANDBOX: YES
-          OTHER_SWIFT_FLAGS: "$(inherited) -D APP_STORE"
-          APP_STORE_PRODUCT_ID: com.sanebar.app.pro.unlock
-          INFOPLIST_KEY_AppStoreProductID: com.sanebar.app.pro.unlock
-          CODE_SIGN_ENTITLEMENTS: SaneBar/SaneBar-AppStore.entitlements
-        Release-Setapp:
-          PRODUCT_BUNDLE_IDENTIFIER: com.sanebar.app-setapp
-          DEVELOPMENT_TEAM: M78L6FXD48
-          CODE_SIGN_IDENTITY: "Developer ID Application"
-          CODE_SIGN_ENTITLEMENTS: SaneBar/SaneBar.entitlements
-          OTHER_SWIFT_FLAGS: "$(inherited) -D SETAPP"
-          ARCHS: "$(ARCHS_STANDARD)"
-          VALID_ARCHS: "arm64 x86_64"
     postCompileScripts:
       - script: |
           export PATH="/opt/homebrew/bin:$PATH"
@@ -205,42 +156,6 @@ targets:
             echo "warning: SwiftLint not installed"
           fi
         name: Run SwiftLint
-        basedOnDependencyAnalysis: false
-    postBuildScripts:
-      - script: |
-          if [ "$CONFIGURATION" == "ProdDebug-Setapp" ] || [ "$CONFIGURATION" == "Release-Setapp" ]; then
-            echo "Setapp build: stripping Sparkle framework and direct-store keys..."
-            rm -rf "${BUILT_PRODUCTS_DIR}/${FRAMEWORKS_FOLDER_PATH}/Sparkle.framework"
-            /usr/libexec/PlistBuddy -c "Delete :SUFeedURL" "${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}" 2>/dev/null || true
-            /usr/libexec/PlistBuddy -c "Delete :SUPublicEDKey" "${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}" 2>/dev/null || true
-            /usr/libexec/PlistBuddy -c "Delete :SUEnableAutomaticChecks" "${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}" 2>/dev/null || true
-            /usr/libexec/PlistBuddy -c "Delete :SUEnableSystemProfiling" "${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}" 2>/dev/null || true
-            /usr/libexec/PlistBuddy -c "Delete :AppStoreProductID" "${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}" 2>/dev/null || true
-            /usr/libexec/PlistBuddy -c "Delete :NSScreenCaptureUsageDescription" "${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}" 2>/dev/null || true
-            /usr/libexec/PlistBuddy -c "Delete :MPSupportedArchitectures" "${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}" 2>/dev/null || true
-            /usr/libexec/PlistBuddy -c "Add :MPSupportedArchitectures array" "${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}"
-            /usr/libexec/PlistBuddy -c "Add :MPSupportedArchitectures:0 string arm64" "${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}"
-            /usr/libexec/PlistBuddy -c "Add :MPSupportedArchitectures:1 string x86_64" "${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}"
-            /usr/libexec/PlistBuddy -c "Delete :NSUpdateSecurityPolicy" "${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}" 2>/dev/null || true
-            /usr/libexec/PlistBuddy -c "Add :NSUpdateSecurityPolicy dict" "${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}"
-            /usr/libexec/PlistBuddy -c "Add :NSUpdateSecurityPolicy:AllowProcesses dict" "${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}"
-            /usr/libexec/PlistBuddy -c "Add :NSUpdateSecurityPolicy:AllowProcesses:MEHY5QF425 array" "${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}"
-            /usr/libexec/PlistBuddy -c "Add :NSUpdateSecurityPolicy:AllowProcesses:MEHY5QF425:0 string com.setapp.DesktopClient.SetappAgent" "${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}"
-            SETAPP_KEY_SOURCE="${SRCROOT}/Setapp/setappPublicKey.pem"
-            if [ -f "${SETAPP_KEY_SOURCE}" ]; then
-              cp "${SETAPP_KEY_SOURCE}" "${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/setappPublicKey.pem"
-              echo "Setapp build: bundled setappPublicKey.pem"
-            else
-              echo "warning: Setapp build missing ${SETAPP_KEY_SOURCE}"
-            fi
-            WEAKEN_SCRIPT="${SRCROOT}/../../infra/SaneProcess/scripts/weaken_sparkle.rb"
-            if [ -f "${WEAKEN_SCRIPT}" ]; then
-              find "${BUILT_PRODUCTS_DIR}/${WRAPPER_NAME}" -type f -path "*/Contents/MacOS/*" -print0 | \
-                xargs -0 -I{} ruby "${WEAKEN_SCRIPT}" "{}" || exit 1
-            fi
-            echo "Setapp build: Sparkle removed, Setapp policy applied"
-          fi
-        name: Strip Sparkle for Setapp
         basedOnDependencyAnalysis: false
 
   SaneBarTests:
@@ -263,12 +178,6 @@ targets:
         Debug:
           DEVELOPMENT_TEAM: ""
           CODE_SIGN_IDENTITY: "-"
-        ProdDebug-Setapp:
-          DEVELOPMENT_TEAM: M78L6FXD48
-          CODE_SIGN_IDENTITY: "Apple Development"
         Release:
-          DEVELOPMENT_TEAM: M78L6FXD48
-          CODE_SIGN_IDENTITY: "Apple Development"
-        Release-Setapp:
           DEVELOPMENT_TEAM: M78L6FXD48
           CODE_SIGN_IDENTITY: "Apple Development"

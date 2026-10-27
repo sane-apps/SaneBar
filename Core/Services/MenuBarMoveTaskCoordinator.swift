@@ -48,9 +48,6 @@ final class MenuBarMoveTaskCoordinator {
                 }
                 manager.lastManualZoneMoveSettledAt = Date()
                 manager.activeMoveTask = nil
-                // Move tasks already leave behind a fresh post-move cache.
-                // Replaying deferred reveal/conceal warmups here just adds a
-                // second AX refresh on top of the work we already finished.
                 AccessibilityService.shared.endMenuBarCacheWarmupSuppression(scheduleDeferredWarmup: false)
                 SearchWindowController.shared.setMoveInProgress(false)
             }

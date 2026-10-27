@@ -2,7 +2,6 @@ import AppKit
 import SaneUI
 import SwiftUI
 
-/// Compact icon tile: icon only, tooltip on hover, context menu for zone moves.
 struct PanelIconTile: View {
     let app: RunningApp
     let zone: IconZone
@@ -16,7 +15,6 @@ struct PanelIconTile: View {
     var onMoveToAlwaysHidden: (() -> Void)?
     @State private var isHovering = false
 
-    /// Icon frame is oversized to compensate for transparent padding baked into menu-bar NSImages.
     private let tileSize: CGFloat = 32
     private var iconSize: CGFloat {
         let icon = app.icon

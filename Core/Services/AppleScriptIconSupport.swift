@@ -208,16 +208,9 @@ func preferredScriptListingZones(
         cacheValiditySeconds: cacheValiditySeconds
     )
     guard shouldRefresh else {
-        // Fresh post-move snapshots are intentionally authoritative. Calling the
-        // refresher here mutates the AX position cache and can replace a valid
-        // shown-state regular Hidden snapshot with hidden-state offscreen geometry.
         return sortedScriptZones(cached)
     }
 
-    // Cold-start cache snapshots can flatten always-hidden lanes into generic
-    // hidden rows. Only pay for a refreshed read once the cache is empty or
-    // stale; otherwise trust the warmed snapshot and avoid re-scanning on
-    // every AppleScript listing call.
     let refreshedZones = refreshed()
     if shouldPreferRefreshedScriptListingZones(cached: cached, refreshed: refreshedZones) {
         return sortedScriptZones(refreshedZones)
@@ -327,9 +320,6 @@ private func refreshedIconZones(
         return cached
     }
 
-    // If the lighter known-owner refresh timed out, invalidate AX cache and try
-    // once more with the authoritative full inventory refresh before falling
-    // back to the cached classification snapshot.
     AccessibilityService.shared.invalidateMenuBarItemPositionsCache()
     let retryResult = ScriptResultBox<ScriptClassifiedApps?>(nil)
     Task { @MainActor in

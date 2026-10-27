@@ -1,9 +1,7 @@
 import AppKit
 import SwiftUI
 
-// MARK: - MenuBarOverlayViewModel
 
-/// Observable model to share settings between service and view
 @Observable
 @MainActor
 final class MenuBarOverlayViewModel {
@@ -12,13 +10,10 @@ final class MenuBarOverlayViewModel {
     var isDarkAppearance = MenuBarAppearanceService.isDarkAppearance(NSApp.effectiveAppearance)
 }
 
-// MARK: - MenuBarOverlayView
 
-/// SwiftUI view that renders the menu bar overlay with tint, shadow, border effects
 struct MenuBarOverlayView: View {
     var viewModel: MenuBarOverlayViewModel
 
-    /// Active tint color based on the overlay window appearance.
     private var activeTintColor: String {
         MenuBarAppearanceService.resolvedTintColorHex(
             settings: viewModel.settings,
@@ -26,10 +21,6 @@ struct MenuBarOverlayView: View {
         )
     }
 
-    /// Active tint opacity based on the overlay window appearance.
-    /// When Reduce Transparency is enabled, the menu bar background becomes a solid opaque fill
-    /// instead of blur — low-opacity tints are invisible on solid backgrounds. Use at least 50%
-    /// opacity to ensure the tint is perceptible while not completely obscuring icons.
     private var activeTintOpacity: Double {
         MenuBarAppearanceService.resolvedTintOpacity(
             settings: viewModel.settings,
@@ -41,10 +32,8 @@ struct MenuBarOverlayView: View {
     var body: some View {
         GeometryReader { _ in
             ZStack(alignment: .bottom) {
-                // Main appearance layer
                 mainAppearanceLayer
 
-                // Border layer
                 if viewModel.settings.hasBorder {
                     Rectangle()
                         .fill(Color(hex: viewModel.settings.borderColor))
@@ -59,13 +48,12 @@ struct MenuBarOverlayView: View {
                 y: viewModel.settings.hasShadow ? 2 : 0
             )
         }
-        .allowsHitTesting(false) // Ensure clicks pass through
+        .allowsHitTesting(false)
     }
 
     @ViewBuilder
     private var mainAppearanceLayer: some View {
         if viewModel.reduceTransparency {
-            // When Reduce Transparency is on, Glass effects are meaningless — use solid tint
             fallbackTintLayer
         } else if viewModel.settings.useLiquidGlass, MenuBarAppearanceSettings.supportsLiquidGlass {
             liquidGlassLayer
@@ -78,13 +66,9 @@ struct MenuBarOverlayView: View {
     private var liquidGlassLayer: some View {
         #if swift(>=6.2)
             if #available(macOS 26.0, *) {
-                // Pass the same shape as clipShape. Default glassEffect uses a Capsule,
-                // which rounded the bar even when Rounded Corners was off (#174).
                 Rectangle()
                     .fill(.clear)
                     .glassEffect(Glass.regular, in: overlayShape)
-                    // Ensure chosen tint color/strength is always applied.
-                    // (Glass.tint() doesn't reliably reflect custom colors in all cases.)
                     .overlay(
                         Color(hex: activeTintColor)
                             .opacity(activeTintOpacity)
@@ -93,7 +77,6 @@ struct MenuBarOverlayView: View {
                 fallbackTintLayer
             }
         #else
-            // Glass APIs require Swift 6.2+ SDK (Xcode 26+)
             fallbackTintLayer
         #endif
     }
@@ -117,14 +100,11 @@ struct MenuBarOverlayView: View {
     }
 }
 
-// MARK: - AnyShape
 
-/// Type-erased shape for conditional shape rendering
 struct AnyShape: Shape, @unchecked Sendable {
     private let pathBuilder: @Sendable (CGRect) -> Path
 
     init(_ shape: some Shape) {
-        // Capture shape value, not reference
         let shapeCopy = shape
         pathBuilder = { rect in
             shapeCopy.path(in: rect)
@@ -136,7 +116,6 @@ struct AnyShape: Shape, @unchecked Sendable {
     }
 }
 
-// MARK: - Color Extension
 
 extension Color {
     init(hex: String) {
@@ -145,11 +124,11 @@ extension Color {
         Scanner(string: hex).scanHexInt64(&int)
         let a, r, g, b: UInt64
         switch hex.count {
-        case 3: // RGB (12-bit)
+        case 3:
             (a, r, g, b) = (255, (int >> 8) * 17, (int >> 4 & 0xF) * 17, (int & 0xF) * 17)
-        case 6: // RGB (24-bit)
+        case 6:
             (a, r, g, b) = (255, int >> 16, int >> 8 & 0xFF, int & 0xFF)
-        case 8: // ARGB (32-bit)
+        case 8:
             (a, r, g, b) = (int >> 24, int >> 16 & 0xFF, int >> 8 & 0xFF, int & 0xFF)
         default:
             (a, r, g, b) = (255, 0, 0, 0)
@@ -164,7 +143,6 @@ extension Color {
         )
     }
 
-    /// Convert Color to hex string (e.g., "#FF5500")
     func toHex() -> String {
         guard let components = NSColor(self).usingColorSpace(.sRGB)?.cgColor.components else {
             return "#000000"

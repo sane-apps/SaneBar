@@ -7,15 +7,9 @@ private let logger = Logger(subsystem: "com.sanebar.app", category: "MenuBarStat
 final class MenuBarStatusItemRecoveryWorkflow {
     private unowned let manager: MenuBarManager
 
-    /// Detects macOS flapping our items healthy/unhealthy (Tahoe visibility
-    /// loop). While dormant, automatic validation stands down instead of
-    /// fighting the OS; manual repair bypasses and clears dormancy.
     private var visibilityFlapDetector = MenuBarVisibilityFlapDetector()
     private(set) var recoveryDormantUntil: Date?
 
-    /// Set when a wake-resume layout restore was downgraded to audit-only
-    /// because geometry was not live. Surfaced in Health so the user can
-    /// apply it explicitly via Repair; cleared when a physical replay runs.
     var pendingDeferredWakeRestoreReason: String?
     private var pendingWakeVisibleAllowListReplayUntil: Date?
     private static let pendingWakeVisibleAllowListReplayTTL: TimeInterval = 45
@@ -122,18 +116,8 @@ final class MenuBarStatusItemRecoveryWorkflow {
     ) -> Bool {
         switch reason {
         case .invalidStatusItems:
-            // Structurally invalid items (missing/duplicate windows) are never a
-            // legitimate user layout — always rebuild from a safe baseline (#147,
-            // #152 protections intact).
             true
         case .missingCoordinates, .invalidGeometry:
-            // Transient stale/missing live coordinates and soft geometry drift can
-            // fire during ordinary steady-state validation (Space change, wake, app
-            // activation) on macOS 26/27. Resetting + reanchoring there silently
-            // overwrites an EXPLICIT user divider toward Control Center (#136/#168),
-            // violating invariant #5. Only force a destructive reset for genuine
-            // startup / display-topology contexts; ordinary validation instead
-            // repairs from the persisted user layout (non-destructive).
             isStartupRecovery
                 || isStartupOrDisplayTopologyContext(validationContext)
         case nil:
@@ -152,16 +136,6 @@ final class MenuBarStatusItemRecoveryWorkflow {
         }
     }
 
-    /// FM-2 (#136/#168) provenance gate for the non-destructive recovery branch.
-    ///
-    /// Reanchoring persisted preferred positions toward Control Center clamps any
-    /// position past the launch-safe limit (e.g. an explicit 900 down to 144). That
-    /// is correct ONLY when the persisted pixel positions are meaningless — genuine
-    /// startup or a display-topology change. On ordinary steady-state validation
-    /// (wake, Space change, app activation, manual layout restore) the persisted
-    /// value IS the user's explicit divider intent and must be replayed as-is.
-    /// This mirrors `shouldResetPersistentStateForStatusItemRecovery`'s topology
-    /// gate so the reanchor and the reset share one provenance contract.
     nonisolated static func shouldReanchorPersistedPositionsForStatusItemRecovery(
         isStartupRecovery: Bool = false,
         validationContext: MenuBarOperationCoordinator.PositionValidationContext? = nil
@@ -189,8 +163,6 @@ final class MenuBarStatusItemRecoveryWorkflow {
             let runtimeScreen = mainWindow?.screen ?? manager.currentRecoveryReferenceScreen()
             let mainFrameIsLive: Bool = {
                 guard let mainWindow else { return false }
-                // Liveness is judged against the window's OWN screen; the
-                // recovery reference screen is only a fallback for gap math.
                 return MenuBarMoveGeometryPolicy.statusItemFrameLooksLive(
                     frame: mainWindow.frame,
                     screenFrame: mainWindow.screen?.frame
@@ -532,11 +504,6 @@ final class MenuBarStatusItemRecoveryWorkflow {
                 isStartupRecovery: trigger.hasPrefix("startup-"),
                 validationContext: validationContext
             )
-            // FM-2 (#136/#168): outside genuine startup / display-topology recovery
-            // the explicit persisted divider must survive. Preserve it on the
-            // steady-state wake / Space-change validation path so neither
-            // recoverStartupPositions nor the recreate-from-persisted reanchor
-            // launders an explicit position toward Control Center.
             let preserveExplicitPositions = !shouldResetPersistentState
                 && !MenuBarManager.shouldReanchorPersistedPositionsForStatusItemRecovery(
                     isStartupRecovery: trigger.hasPrefix("startup-"),
@@ -604,9 +571,6 @@ final class MenuBarStatusItemRecoveryWorkflow {
             manager.positionValidationGeneration += 1
             defer { manager.isExecutingStatusItemRecovery = false }
             manager.clearCachedSeparatorGeometry()
-            // FM-2 (#136/#168): reuse the shared provenance gate so the namespace
-            // bump preserves the explicit divider on wake/Space and only reanchors on
-            // genuine startup/display-topology recovery (don't fork the contract).
             let (newMain, newSep) = manager.statusBarController.recreateItemsWithBumpedVersion(referenceScreen: manager.currentRecoveryReferenceScreen(), allowCurrentDisplayBackup: false, reanchorUnsafePersistedPositions: MenuBarManager.shouldReanchorPersistedPositionsForStatusItemRecovery(isStartupRecovery: trigger.hasPrefix("startup-"), validationContext: validationContext))
             manager.statusBarController.onItemsRecreated?(newMain, newSep)
             if let validationContext {
@@ -734,12 +698,6 @@ final class MenuBarStatusItemRecoveryWorkflow {
                         snapshot: snapshot,
                         prefix: "Status item validation"
                     )
-                    // FM-2 (#136/#168): the AH-pin hard-recovery branch inside
-                    // repairSeparatorPositionIfNeeded falls through to
-                    // recoverStartupPositions. Reuse the first fix's provenance gate
-                    // so this path preserves the explicit persisted divider on
-                    // wake / Space / manual-restore and only reanchors on genuine
-                    // startup / display-topology. preserve = NOT shouldReanchor.
                     let preserveExplicitPositions = !MenuBarManager
                         .shouldReanchorPersistedPositionsForStatusItemRecovery(
                             validationContext: context

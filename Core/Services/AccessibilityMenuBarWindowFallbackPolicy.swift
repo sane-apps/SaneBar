@@ -1,6 +1,5 @@
 import AppKit
 
-// MARK: - WindowServer Menu Bar Fallbacks
 
 enum AccessibilityMenuBarWindowFallbackPolicy {
     typealias MenuBarItemPosition = AccessibilityService.MenuBarItemPosition
@@ -49,8 +48,6 @@ enum AccessibilityMenuBarWindowFallbackPolicy {
         }
 
         if item.app.menuExtraIdentifier == nil {
-            // Bundle-level fallback items are discovery-only. If the same bundle
-            // already has a more precise AX or WindowServer match, prefer that.
             if appPositions.values.contains(where: { $0.app.bundleId == item.app.bundleId }) {
                 return
             }
@@ -59,8 +56,6 @@ enum AccessibilityMenuBarWindowFallbackPolicy {
             return
         }
 
-        // Precise menu-extra identities should replace coarse owner-only fallbacks
-        // for the same bundle so we do not render duplicate entries.
         let coarseKeys = appPositions.compactMap { candidate -> String? in
             guard candidate.value.app.bundleId == item.app.bundleId,
                   candidate.value.app.menuExtraIdentifier == nil else {

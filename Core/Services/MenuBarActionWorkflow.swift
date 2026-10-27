@@ -194,11 +194,6 @@ final class MenuBarActionWorkflow: NSObject, NSMenuDelegate {
         SettingsOpener.open(tab: .health)
     }
 
-    @objc func showReleaseNotes(_: Any?) {
-        logger.info("Menu: Opening Setapp release notes")
-        SetappIntegration.showReleaseNotes()
-    }
-
     @objc func openFindIcon(_: Any?) {
         logger.info("Menu: Browse Icons")
         SearchWindowController.shared.toggle()
@@ -262,8 +257,6 @@ final class MenuBarActionWorkflow: NSObject, NSMenuDelegate {
             logger.info("Ignoring click while animating")
             return
         }
-
-        SetappIntegration.reportMenuBarInteraction()
 
         guard let event = NSApp.currentEvent else {
             logger.warning("statusItemClicked: No current event available; defaulting to left click")

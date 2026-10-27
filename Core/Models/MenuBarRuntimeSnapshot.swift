@@ -96,14 +96,11 @@ struct MenuBarRuntimeSnapshot {
     var alwaysHiddenSeparatorVisible: Bool?
     var likelySystemSuppressedStatusItems: Bool
     var separatorX: CGFloat?
-    /// Always Hidden separator boundary/right edge. This is not the origin.
     var alwaysHiddenSeparatorX: CGFloat?
     var mainX: CGFloat?
     var mainRightGap: CGFloat?
     var screenWidth: CGFloat?
     var notchRightSafeMinX: CGFloat?
-    /// SaneBar's own persisted preferred main position, as distance from the
-    /// screen's right edge. Used to judge soft drift against user intent.
     var persistedMainDistanceFromRight: CGFloat?
 
     init(

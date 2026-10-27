@@ -4,10 +4,6 @@ struct BrowsePanelMoveContext {
     let isAlwaysHiddenEnabled: Bool
     let manager: MenuBarManager
     let setMovingAppID: (String?) -> Void
-    /// Records the app whose move resolved to a retryable miss so
-    /// the Second Menu Bar can surface a "couldn't move — try again" affordance
-    /// instead of silently clearing the in-flight indicator. Informational only:
-    /// this never synthesizes input or mutates geometry.
     var recordFailedMove: (String?) -> Void = { _ in }
 }
 
@@ -46,8 +42,6 @@ enum BrowsePanelMoveQueue {
             let moved = await task.value
             if !moved {
                 setMovingAppID(nil)
-                // Retryable miss: surface the app so the
-                // UI can offer a retry. Informational only — no synthetic input.
                 recordFailedMove(appID)
             }
         }

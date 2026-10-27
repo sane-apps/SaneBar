@@ -36,6 +36,11 @@
     <priority>0.7</priority>
   </url>
   <url>
+    <loc>https://sanebar.com/sanebar-on-macos-27.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://sanebar.com/how-to-fix-menu-bar-icons-behind-notch-mac.html</loc>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>

@@ -2,29 +2,22 @@ import AppKit
 import Foundation
 import os.log
 
-// MARK: - AppleScript Commands
-/// Base class for SaneBar AppleScript commands
 class SaneBarScriptCommand: NSScriptCommand {
-    /// Set AppleScript error when auth blocks the command
     func setAuthBlockedError() {
         scriptErrorNumber = errOSAGeneralError
         scriptErrorString = "Touch ID protection is enabled. Use the SaneBar menu bar icon to authenticate first."
     }
-    /// Set AppleScript error when Accessibility permission is missing
     func setAccessibilityError() {
         scriptErrorNumber = errOSAGeneralError
         scriptErrorString = "Accessibility permission is required. Grant SaneBar access in System Settings > Privacy & Security > Accessibility."
     }
-    /// Set AppleScript error when a command requires Pro.
     func setProRequiredError() {
         scriptErrorNumber = errOSAGeneralError
         scriptErrorString = "Hide, show, and move icon commands require SaneBar Pro. Basic can browse, click, and list icons. Open SaneBar's License window to unlock these commands."
     }
-    /// Check if Accessibility permission is granted (safe to call from any thread)
     func checkAccessibilityTrusted() -> Bool {
         AXIsProcessTrusted()
     }
-    /// Check if auth is required (main-thread safe without capturing self)
     func checkAuthRequired() -> Bool {
         if Thread.isMainThread {
             MainActor.assumeIsolated {
@@ -36,7 +29,6 @@ class SaneBarScriptCommand: NSScriptCommand {
             }
         }
     }
-    /// Check whether Pro is unlocked (main-thread safe).
     func checkIsProUnlocked() -> Bool {
         if Thread.isMainThread {
             MainActor.assumeIsolated {
@@ -48,7 +40,6 @@ class SaneBarScriptCommand: NSScriptCommand {
             }
         }
     }
-    /// Check if hidden items are currently hidden (main-thread safe)
     func checkIsHidden() -> Bool {
         if Thread.isMainThread {
             MainActor.assumeIsolated {
@@ -165,12 +156,9 @@ func runScriptRead<T>(
     return box.value
 }
 
-// MARK: - Toggle Command
 @objc(ToggleCommand)
 final class ToggleCommand: SaneBarScriptCommand {
     override func performDefaultImplementation() -> Any? {
-        // Block if auth is required AND we'd be showing (expanding from hidden)
-        // AppleScript can't prompt Touch ID, so we must block entirely
         if checkAuthRequired(), checkIsHidden() {
             setAuthBlockedError()
             return nil
@@ -181,12 +169,9 @@ final class ToggleCommand: SaneBarScriptCommand {
         return nil
     }
 }
-// MARK: - Show Command
 @objc(ShowCommand)
 final class ShowCommand: SaneBarScriptCommand {
     override func performDefaultImplementation() -> Any? {
-        // Only block if auth is required AND icons are currently hidden
-        // (no need to block if they're already visible)
         if checkAuthRequired(), checkIsHidden() {
             setAuthBlockedError()
             return nil
@@ -197,7 +182,6 @@ final class ShowCommand: SaneBarScriptCommand {
         return nil
     }
 }
-// MARK: - Hide Command
 @objc(HideCommand)
 final class HideCommand: SaneBarScriptCommand {
     override func performDefaultImplementation() -> Any? {
@@ -207,7 +191,6 @@ final class HideCommand: SaneBarScriptCommand {
         return true
     }
 }
-// MARK: - Browse Panel Commands
 @objc(ShowIconPanelCommand)
 final class ShowIconPanelCommand: SaneBarScriptCommand {
     override func performDefaultImplementation() -> Any? {
@@ -420,9 +403,6 @@ final class QueueSettingsWindowSnapshotCommand: SaneBarScriptCommand {
         return true
     }
 }
-// MARK: - Thread-Safe Box
-/// Thread-safe box for passing values between Task closures and synchronous code.
-/// The semaphore provides the synchronization guarantee.
 final class ScriptResultBox<T>: @unchecked Sendable {
     var value: T
     init(_ initial: T) { value = initial }

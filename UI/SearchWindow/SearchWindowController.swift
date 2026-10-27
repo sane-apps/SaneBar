@@ -4,48 +4,31 @@ import SwiftUI
 
 private let logger = Logger(subsystem: "com.sanebar.app", category: "SearchWindowController")
 
-// MARK: - SearchWindowMode
 
 enum SearchWindowMode {
-    /// Standard Find Icon window (titled, closable, resizable, centered)
     case findIcon
-    /// Second menu bar panel showing hidden icons below the menu bar
     case secondMenuBar
 }
 
-// MARK: - KeyablePanel
 
-/// Panel subclass that accepts key status for borderless panels.
-/// Needed for keyboard focus + shortcuts on borderless second-menu-bar panel.
 private class KeyablePanel: NSPanel {
     override var canBecomeKey: Bool { true }
 }
 
-// MARK: - SearchWindowController
 
-/// Controller for the floating menu bar search window.
-///
-/// **Performance Optimization**: Reuses the window instance to prevent lag
-/// when opening. Re-creating NSWindow + NSHostingView is expensive.
 @MainActor
 final class SearchWindowController: NSObject, NSWindowDelegate {
-    // MARK: - Singleton
 
     static let shared = SearchWindowController()
 
-    /// Posted when the search window is shown (so the SwiftUI view can reload on re-show)
     static let windowDidShowNotification = Notification.Name("SearchWindowController.windowDidShow")
-    /// Posted when an icon-move pipeline completes (setMoveInProgress false).
     static let iconMoveDidFinishNotification = Notification.Name("SearchWindowController.iconMoveDidFinish")
 
-    // MARK: - Window
 
     private var window: NSWindow?
 
-    /// The mode this window was created for (nil if no window exists)
     private var currentMode: SearchWindowMode?
 
-    /// Idle-close timer for browse panels (keeps panel interaction intentional).
     private var panelIdleCloseTask: Task<Void, Never>?
     private var panelIdleCloseGeneration: Int = 0
     private var postDismissForceHideTask: Task<Void, Never>?
@@ -54,7 +37,6 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
     private var lastBrowseActivationFinishedAt: Date?
     private var lastSecondMenuBarDiagnostics = SecondMenuBarDiagnostics()
 
-    /// Prevents explicit closes during icon moves (CGEvent can flip key status)
     private(set) var isMoveInProgress = false
     private(set) var isBrowseSessionActive = false
 
@@ -163,7 +145,6 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         ]
     }
 
-    /// The active mode based on user settings
     var activeMode: SearchWindowMode {
         MenuBarManager.shared.settings.useSecondMenuBar ? .secondMenuBar : .findIcon
     }
@@ -172,28 +153,21 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         window?.isVisible == true
     }
 
-    // MARK: - Toggle
 
-    /// Toggle the search window visibility.
-    /// - Parameter mode: Force a specific mode (nil = use `activeMode` from settings).
     func toggle(mode: SearchWindowMode? = nil) {
         if let window, window.isVisible, currentMode == (mode ?? activeMode) {
             close(ignoringBrowseActivationGrace: true)
         } else if MenuBarManager.shared.settings.requireAuthToShowHiddenIcons {
-            // Auth required — must be async
             Task {
                 let authorized = await MenuBarManager.shared.visibilityWorkflow.authenticate(reason: "Unlock hidden icons")
                 guard authorized else { return }
                 show(mode: mode)
             }
         } else {
-            // No auth — show immediately (no async delay)
             show(mode: mode)
         }
     }
 
-    /// Show the search window.
-    /// - Parameter mode: Force a specific mode (nil = use `activeMode` from settings).
     func show(mode: SearchWindowMode? = nil, prefill searchText: String? = nil) {
         let desiredMode = mode ?? activeMode
         normalizeBrowseModeSettings(for: desiredMode)
@@ -205,14 +179,12 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         secondMenuBarRelayoutTask = nil
         isBrowseSessionActive = true
 
-        // If mode changed, recreate the window
         if currentMode != nil, currentMode != desiredMode {
             resetWindow()
         }
 
         let didCreateWindow = window == nil
 
-        // Create window lazily if needed
         if window == nil {
             createWindow(mode: desiredMode, prefill: searchText)
         }
@@ -228,12 +200,8 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
             }
         }
 
-        // Suspend hover/click triggers while search is open
         manager.hoverService.isSuspended = true
 
-        // Unified browse-panel policy:
-        // While either panel is visible, suspend rehide timers so icon moves/clicks
-        // are not racing with background hide transitions.
         manager.hidingService.cancelRehide()
         logger.info("browse panel show (\(String(describing: desiredMode), privacy: .public)) suspended rehide while panel is visible")
 
@@ -256,10 +224,8 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
             scheduleDeferredSecondMenuBarRelayoutIfNeeded()
         }
 
-        // Notify the SwiftUI view to reload (window is reused, onAppear won't fire again)
         NotificationCenter.default.post(name: Self.windowDidShowNotification, object: nil)
 
-        // Keep panel sessions intentional: auto-close + quick rehide after idle.
         schedulePanelIdleCloseIfNeeded(for: desiredMode)
     }
 
@@ -275,7 +241,6 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         }
     }
 
-    /// Set move-in-progress flag to prevent auto-close during CGEvent Cmd+drag
     func setMoveInProgress(_ inProgress: Bool) {
         let wasInProgress = isMoveInProgress
         isMoveInProgress = inProgress
@@ -284,10 +249,7 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         }
     }
 
-    /// Close the search window
     func close(ignoringBrowseActivationGrace: Bool = false) {
-        // Don't close while a move is in progress — CGEvent mouse
-        // simulation causes resignKey which would break the move.
         guard !isMoveInProgress else { return }
 
         guard ignoringBrowseActivationGrace || !shouldDeferCloseForBrowseActivation() else {
@@ -327,14 +289,9 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         lastSecondMenuBarDiagnostics.lastRelayoutAt = Self.diagnosticsTimestamp(Date())
         lastSecondMenuBarDiagnostics.lastRelayoutReason = reason
 
-        // Resume hover/click triggers and refresh pointer state before scheduling rehide.
-        // Use strict menu-strip bounds on panel dismiss so the nearby panel area
-        // doesn't keep rehide blocked as "menu interaction."
         manager.hoverService.isSuspended = false
         manager.hoverService.refreshMouseInMenuBarStateForBrowseDismissal()
         Task { @MainActor [weak self] in
-            // Window teardown and AppKit focus transitions can lag one runloop.
-            // Re-sample once shortly after dismissal to avoid stale hover-blocked rehide.
             try? await Task.sleep(for: .milliseconds(160))
             guard let self else { return }
             guard !self.isBrowseSessionActive else { return }
@@ -352,7 +309,6 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
             scheduleForceRehideAfterBrowseDismissal(mode: currentMode, baseDelay: dismissDelaySeconds, reason: reason)
         }
 
-        // Do NOT set window to nil, we reuse it for performance
         logger.info("\(reason, privacy: .public) completed (window hidden, cache retained)")
     }
 
@@ -389,7 +345,6 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         let normalizedBase = max(1, baseDelay)
         switch mode {
         case .secondMenuBar:
-            // Keep second menu bar more permissive while still bounded.
             return min(20, max(12, normalizedBase + 4))
         case .none, .findIcon:
             return min(12, max(8, normalizedBase + 2))
@@ -473,7 +428,6 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
                 logger.info("panel idle timeout fired (\(idleDelaySeconds, privacy: .public)s): closing panel")
                 self.close()
 
-                // Idle close should feel immediate; override close() delay with a short rehide.
                 if manager.hidingService.state == .expanded,
                    !manager.shouldSkipHideForExternalMonitor {
                     manager.hidingService.scheduleRehide(after: 0.2)
@@ -483,7 +437,6 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         }
     }
 
-    /// Destroy the cached window so it's recreated with the correct mode next time
     func resetWindow() {
         let wasVisible = window?.isVisible == true
         window?.orderOut(nil)
@@ -496,13 +449,9 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
             return
         }
 
-        // Match close() teardown semantics when a visible panel is force-reset
-        // (for example, switching browse mode in Settings).
         handleBrowseDismissal(reason: "resetWindow")
     }
 
-    /// Transition between browse panel modes while preserving "panel stays open" UX.
-    /// Used when settings switch between Second Menu Bar and Icon Panel mid-session.
     func transition(to mode: SearchWindowMode) {
         let wasVisible = window?.isVisible == true
         window?.orderOut(nil)
@@ -564,7 +513,6 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         )
     }
 
-    // MARK: - Window Positioning
 
     private func positionWindow(
         _ window: NSWindow,
@@ -582,7 +530,6 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
             window.setFrameOrigin(NSPoint(x: xPos, y: yPos))
 
         case .secondMenuBar:
-            // Position below menu bar, right-aligned to the SaneBar status item
             let screenFrame = screen.frame
             let visibleFrame = screen.visibleFrame
             let menuBarHeight = screenFrame.height - visibleFrame.height - visibleFrame.origin.y
@@ -597,7 +544,6 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
                 useContentFittingSize: useContentFittingSize
             )
 
-            // Right-align to SaneBar's main status item (or fall back to right edge)
             let rightEdge: CGFloat = if let button = MenuBarManager.shared.mainStatusItem?.button,
                                         let buttonWindow = button.window {
                 buttonWindow.frame.maxX
@@ -605,7 +551,7 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
                 visibleFrame.maxX - 10
             }
             let xPos = max(visibleFrame.origin.x + 10, rightEdge - panelSize.width)
-            let yPos = screenFrame.maxY - menuBarHeight - panelSize.height - 4 // 4pt gap below menu bar
+            let yPos = screenFrame.maxY - menuBarHeight - panelSize.height - 4
 
             window.setFrame(
                 NSRect(x: xPos, y: yPos, width: panelSize.width, height: panelSize.height),
@@ -614,7 +560,6 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         }
     }
 
-    // MARK: - Window Creation
 
     private func createWindow(mode: SearchWindowMode, prefill searchText: String? = nil) {
         currentMode = mode
@@ -669,7 +614,6 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         .preferredColorScheme(.dark)
 
         let hostingView = NSHostingView(rootView: contentView)
-        // Let SwiftUI drive the intrinsic size
         hostingView.setContentHuggingPriority(.defaultHigh, for: .horizontal)
         hostingView.setContentHuggingPriority(.defaultHigh, for: .vertical)
 
@@ -694,10 +638,8 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         panel.minSize = NSSize(width: 180, height: 80)
         panel.maxSize = NSSize(width: 800, height: 500)
 
-        // Enable mouse tracking so SwiftUI .help() tooltips work on borderless panel
         panel.acceptsMouseMovedEvents = true
 
-        // Shadow for depth
         if let contentView = panel.contentView {
             contentView.wantsLayer = true
             contentView.layer?.shadowColor = NSColor.black.withAlphaComponent(0.3).cgColor
@@ -716,11 +658,8 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         window.contentView?.appearance = dark
     }
 
-    // MARK: - NSWindowDelegate
 
     func windowDidResignKey(_: Notification) {
-        // Keep both panels open on focus loss. Auto-close on resign caused
-        // click-triggered dismissals while launching icons/popovers.
         guard !isMoveInProgress else { return }
     }
 
@@ -729,7 +668,6 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
     func windowWillClose(_: Notification) {
         guard !isMoveInProgress else { return }
 
-        // Ensure titlebar/command close paths apply the same teardown as close().
         handleBrowseDismissal(reason: "windowWillClose")
     }
 

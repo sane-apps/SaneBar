@@ -1,8 +1,6 @@
 import Foundation
 
 struct SaneBarCustomIconSnapshot: Codable, Equatable {
-    /// Raw PNG payload for the current custom icon asset.
-    /// `nil` means the snapshot was taken with no saved custom icon file.
     var pngData: Data?
 }
 
@@ -207,29 +205,20 @@ extension SaneBarSettingsImportPayload {
     }
 }
 
-// MARK: - SaneBarProfile
 
-/// A saved configuration profile
 struct SaneBarProfile: Codable, Identifiable {
-    /// Unique identifier
     let id: UUID
 
-    /// User-friendly name for the profile
     var name: String
 
-    /// The settings for this profile
     var settings: SaneBarSettings
 
-    /// Saved layout positions for menu bar items and spacers.
     var layoutSnapshot: SaneBarLayoutSnapshot?
 
-    /// Saved custom icon asset state for this profile.
     var customIconSnapshot: SaneBarCustomIconSnapshot?
 
-    /// When the profile was created
     let createdAt: Date
 
-    /// When the profile was last modified
     var modifiedAt: Date
 
     init(
@@ -249,10 +238,8 @@ struct SaneBarProfile: Codable, Identifiable {
     }
 }
 
-// MARK: - Profile Name
 
 extension SaneBarProfile {
-    /// Generate a unique profile name
     static func generateName(basedOn existing: [String]) -> String {
         let baseName = "Profile"
         var counter = 1

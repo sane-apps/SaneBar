@@ -1,18 +1,14 @@
 import AppKit
 import Foundation
 
-// MARK: - PersistenceServiceProtocol
 
-/// @mockable
 protocol PersistenceServiceProtocol: Sendable {
     func saveSettings(_ settings: SaneBarSettings) throws
     func loadSettings() throws -> SaneBarSettings
     func clearAll() throws
 }
 
-// MARK: - SaneBarSettings
 
-/// Global app settings
 struct SaneBarSettings: Codable, Equatable {
     enum SpacerStyle: String, Codable, CaseIterable {
         case line
@@ -26,21 +22,21 @@ struct SaneBarSettings: Codable, Equatable {
     }
 
     enum DividerStyle: String, Codable, CaseIterable {
-        case slash // / (Default)
-        case backslash // \
-        case pipe // |
-        case pipeThin // ❘
-        case dot // •
+        case slash
+        case backslash
+        case pipe
+        case pipeThin
+        case dot
     }
 
     enum MenuBarIconStyle: String, Codable, CaseIterable {
-        case filter // line.3.horizontal.decrease (Default)
-        case sliders // slider.horizontal.3
-        case dots // ellipsis
-        case lines // line.3.horizontal
-        case chevron // chevron.up.chevron.down
-        case coin // circle.circle
-        case custom // User-uploaded image
+        case filter
+        case sliders
+        case dots
+        case lines
+        case chevron
+        case coin
+        case custom
 
         var sfSymbolName: String? {
             switch self {
@@ -55,7 +51,6 @@ struct SaneBarSettings: Codable, Equatable {
         }
     }
 
-    /// Simplified gesture behavior mode (replaces gestureToggles + useDirectionalScroll)
     enum GestureMode: String, Codable, CaseIterable {
         case showOnly = "Show only"
         case showAndHide = "Show and hide"
@@ -71,7 +66,6 @@ struct SaneBarSettings: Codable, Equatable {
         case applyProfile = "Apply Profile"
     }
 
-    /// User-created icon group for organizing menu bar apps
     struct IconGroup: Codable, Equatable, Identifiable {
         var id: UUID = .init()
         var name: String
@@ -83,158 +77,96 @@ struct SaneBarSettings: Codable, Equatable {
         }
     }
 
-    /// Whether hidden items auto-hide after a delay
     var autoRehide: Bool = true
 
-    /// Delay before auto-rehiding in seconds
     var rehideDelay: TimeInterval = 5.0
 
-    /// Delay before rehiding after Find Icon search (seconds)
-    /// Longer than regular rehide to allow browsing opened menus
     var findIconRehideDelay: TimeInterval = 15.0
 
-    /// Number of spacers to show (0-12)
-    var spacerCount: Int = 0 // Clean by default — users add spacers if they want them
+    var spacerCount: Int = 0
 
-    /// Global visual style for spacers
     var spacerStyle: SpacerStyle = .line
 
-    /// Global width preset for spacers
     var spacerWidth: SpacerWidth = .normal
 
-    /// Show hidden items when specific apps launch
     var showOnAppLaunch: Bool = false
 
-    /// Bundle IDs of apps that trigger showing hidden items
     var triggerApps: [String] = []
 
-    /// Action to run when a configured app trigger fires.
     var appLaunchTriggerAction: TriggerAction = .showIcons
 
-    /// Profile to apply when `appLaunchTriggerAction` is `.applyProfile`.
     var appLaunchTriggerProfileId: UUID?
 
-    /// Per-icon hotkey configurations: bundleID -> shortcut key data
-    /// When triggered, shows hidden items and activates the app
     var iconHotkeys: [String: KeyboardShortcutData] = [:]
 
-    /// User-created icon groups for organizing menu bar apps in Find Icon
     var iconGroups: [IconGroup] = []
 
-    /// Show hidden items when battery drops to low level
     var showOnLowBattery: Bool = false
 
-    /// Battery percentage threshold for triggering (1-100)
     var batteryThreshold: Int = 20
 
-    /// Action to run when the battery trigger crosses its threshold.
     var batteryTriggerAction: TriggerAction = .showIcons
 
-    /// Profile to apply when `batteryTriggerAction` is `.applyProfile`.
     var batteryTriggerProfileId: UUID?
 
-    /// Whether the user has completed first-launch onboarding
     var hasCompletedOnboarding: Bool = false
 
-    /// Whether the user has seen the freemium intro (Pro vs Free page).
-    /// Existing users who upgrade (hasCompletedOnboarding=true, hasSeenFreemiumIntro=false)
-    /// are shown this intro once. Pro activation is explicit/manual only.
     var hasSeenFreemiumIntro: Bool = false
 
-    // MARK: - Privacy (Advanced)
 
-    /// If enabled, showing hidden icons requires Touch ID / password.
-    /// This is a UX safety feature (prevents casual snooping), not a perfect security boundary.
     var requireAuthToShowHiddenIcons: Bool = false
 
-    /// Menu bar appearance/tint settings
     var menuBarAppearance: MenuBarAppearanceSettings = .init()
 
-    /// Show hidden items when connecting to specific WiFi networks
     var showOnNetworkChange: Bool = false
 
-    /// WiFi network SSIDs that trigger showing hidden items
     var triggerNetworks: [String] = []
 
-    /// Action to run when a configured Wi-Fi trigger fires.
     var networkTriggerAction: TriggerAction = .showIcons
 
-    /// Profile to apply when `networkTriggerAction` is `.applyProfile`.
     var networkTriggerProfileId: UUID?
 
-    /// Show Dock icon (default: false for backward compatibility)
-    /// When false, app uses .accessory mode (no Dock icon)
-    /// When true, app uses .regular mode (Dock icon visible)
     var showDockIcon: Bool = false
 
-    // MARK: - Focus Mode Triggers
 
-    /// Show hidden items when Focus Mode changes to a trigger mode
     var showOnFocusModeChange: Bool = false
 
-    /// Focus Mode names that trigger showing hidden items (e.g., "Work", "Personal")
-    /// Also supports special value "(Focus Off)" to trigger when Focus turns off
     var triggerFocusModes: [String] = []
 
-    /// Action to run when a configured Focus trigger fires.
     var focusTriggerAction: TriggerAction = .showIcons
 
-    /// Profile to apply when `focusTriggerAction` is `.applyProfile`.
     var focusTriggerProfileId: UUID?
 
-    // MARK: - Schedule Trigger
 
-    /// Show hidden items when local time enters the configured schedule window.
     var showOnSchedule: Bool = false
 
-    /// Days of week that participate in schedule trigger (1=Sunday ... 7=Saturday).
-    var scheduleWeekdays: [Int] = [2, 3, 4, 5, 6] // Mon-Fri
+    var scheduleWeekdays: [Int] = [2, 3, 4, 5, 6]
 
-    /// Action to run when the schedule trigger enters its configured window.
     var scheduleTriggerAction: TriggerAction = .showIcons
 
-    /// Profile to apply when `scheduleTriggerAction` is `.applyProfile`.
     var scheduleTriggerProfileId: UUID?
 
-    /// Schedule start (24h clock).
     var scheduleStartHour: Int = 9
     var scheduleStartMinute: Int = 0
 
-    /// Schedule end (24h clock).
     var scheduleEndHour: Int = 17
     var scheduleEndMinute: Int = 0
 
-    // MARK: - Hover & Gesture Triggers
 
-    /// Show hidden icons when hovering near the menu bar
     var showOnHover: Bool = false
 
-    /// Shared dwell before a passive hover OR scroll reveal fires (seconds).
-    /// Defaults to a deliberate 2s so incidental hover/scroll doesn't pop hidden
-    /// icons open constantly; adjustable 0.05…2.0s in settings.
     var hoverDelay: TimeInterval = 2.0
 
-    /// Show hidden icons when scrolling up in the menu bar
     var showOnScroll: Bool = false
 
-    /// Show hidden icons when clicking in the menu bar
     var showOnClick: Bool = false
 
-    /// Temporarily hide the front app's menu items if needed to make room for inline reveal.
-    /// Applies only when hidden icons are shown directly in the menu bar.
     var hideApplicationMenusOnInlineReveal: Bool = true
 
-    /// When true, scroll/click gestures toggle visibility (hide if visible, show if hidden)
-    /// When false, gestures only reveal (default behavior)
     var gestureToggles: Bool = false
 
-    /// When true, scroll direction matters: up=show, down=hide (Ice-style)
-    /// Only applies when gestureToggles is false
     var useDirectionalScroll: Bool = false
 
-    /// Simplified gesture mode - maps to gestureToggles + useDirectionalScroll
-    /// "Show only": gestures only reveal icons
-    /// "Show and hide": click toggles, scroll is directional (Ice-style)
     var gestureMode: GestureMode {
         get {
             gestureToggles ? .showAndHide : .showOnly
@@ -251,100 +183,61 @@ struct SaneBarSettings: Codable, Equatable {
         }
     }
 
-    /// When true, reveal all icons while user is ⌘+dragging to rearrange (Ice-style)
     var showOnUserDrag: Bool = true
 
-    /// When true, auto-hide when the focused app changes (Ice-style "focusedApp" strategy)
     var rehideOnAppChange: Bool = false
 
-    /// When true, SaneBar won't hide icons when the mouse is on an external monitor
-    /// (External monitors have plenty of space, no need to hide)
     var disableOnExternalMonitor: Bool = false
 
-    // MARK: - System Icon Spacing
 
-    /// System-wide spacing between menu bar icons (1-10, nil = system default)
-    /// Uses macOS private API: NSStatusItemSpacing
     var menuBarSpacing: Int?
 
-    /// System-wide click-area padding for menu bar icons (1-10, nil = system default)
-    /// Uses macOS private API: NSStatusItemSelectionPadding
     var menuBarSelectionPadding: Int?
 
-    // MARK: - Update Checking
 
-    /// Automatically check for updates on launch
     var checkForUpdatesAutomatically: Bool = true
 
-    /// Last time we checked for updates (for rate limiting)
     var lastUpdateCheck: Date?
 
-    // MARK: - Icon Visibility
 
-    /// Hide the main SaneBar icon (show only divider)
     var hideMainIcon: Bool = false
 
-    /// Style of the main divider (/, \, |, etc.)
     var dividerStyle: DividerStyle = .slash
 
-    /// Style of the main SaneBar menu bar icon
     var menuBarIconStyle: MenuBarIconStyle = .filter
 
-    // MARK: - Hiding
 
-    /// Enable a second separator for an always-hidden zone.
     var alwaysHiddenSectionEnabled: Bool = false
 
-    /// Show hidden icons in a second menu bar below the main one instead of expanding the separator.
     var useSecondMenuBar: Bool = false
 
-    /// Include visible (non-hidden) icons in the Second Menu Bar panel.
-    /// On by default so the Visible destination is obvious the first time users browse icons.
     var secondMenuBarShowVisible: Bool = true
 
-    /// Include always-hidden icons in the Second Menu Bar panel.
-    /// Off by default to keep first-use Browse Icons simpler.
     var secondMenuBarShowAlwaysHidden: Bool = false
 
-    /// When true, left-clicking the SaneBar icon opens Browse Icons instead of expanding in the menu bar.
     var leftClickOpensBrowseIcons: Bool = false
 
-    /// Menu bar item IDs that should be kept in the always-hidden section across launches.
-    /// Stored as `RunningApp.uniqueId` values (best-effort).
     var alwaysHiddenPinnedItemIds: [String] = []
 
-    /// Hide every detected menu bar item except the explicitly allowed visible IDs.
-    /// Stored IDs use `RunningApp.uniqueId` where possible, with bundle ID fallback.
     var hideAllOtherMenuBarItems: Bool = false
 
-    /// Menu bar item IDs that should remain visible when `hideAllOtherMenuBarItems` is enabled.
     var hideAllOtherVisibleItemIds: [String] = []
 
-    /// Controls how aggressively SaneBar performs automatic layout validation/repair.
     var layoutMode: LayoutMode = .stability
 
-    /// Whether the first-run health wizard has already been dismissed.
     var hasCompletedHealthWizard: Bool = false
 
-    /// User-created known-good menu bar layout restore point.
     var layoutRescueRestorePoint: SaneBarLayoutSnapshot?
 
-    /// Creation date for the current layout rescue restore point.
     var layoutRescueRestorePointCreatedAt: Date?
 
-    // MARK: - Script Trigger
 
-    /// Run a user-defined shell script on a timer to control visibility.
-    /// Exit code 0 = show hidden items, non-zero = hide.
     var scriptTriggerEnabled: Bool = false
 
-    /// Path to the shell script to execute
     var scriptTriggerPath: String = ""
 
-    /// Interval in seconds between script executions (min: 1)
     var scriptTriggerInterval: TimeInterval = 10.0
 
-    // MARK: - Backwards-compatible decoding
 
     init() {}
 
@@ -393,8 +286,6 @@ struct SaneBarSettings: Codable, Equatable {
         showOnHover = try container.decodeIfPresent(Bool.self, forKey: .showOnHover) ?? false
         hoverDelay = try container.decodeIfPresent(TimeInterval.self, forKey: .hoverDelay) ?? 2.0
         showOnScroll = try container.decodeIfPresent(Bool.self, forKey: .showOnScroll) ?? false
-        // showOnClick removed in v1.0.17 — global click monitor interfered with visible items.
-        // Force to false for existing users; decode to discard old value silently.
         _ = try container.decodeIfPresent(Bool.self, forKey: .showOnClick)
         showOnClick = false
         hideApplicationMenusOnInlineReveal = try container.decodeIfPresent(Bool.self, forKey: .hideApplicationMenusOnInlineReveal) ?? true
@@ -452,29 +343,22 @@ struct SaneBarSettings: Codable, Equatable {
         case scriptTriggerEnabled, scriptTriggerPath, scriptTriggerInterval
     }
 
-    /// Legacy keys for backward-compatible decoding of renamed settings.
     private enum LegacyCodingKeys: String, CodingKey {
         case useDropdownPanel
     }
 }
 
-// MARK: - KeyboardShortcutData
 
-/// Serializable representation of a keyboard shortcut
 struct KeyboardShortcutData: Codable, Hashable {
     var keyCode: UInt16
     var modifiers: UInt
 }
 
-// MARK: - PersistenceService
 
-/// Service for persisting SaneBar configuration to disk
 final class PersistenceService: PersistenceServiceProtocol, @unchecked Sendable {
-    // MARK: - Singleton
 
     static let shared = PersistenceService()
 
-    // MARK: - File Paths
 
     private let fileManager: FileManager
     private let keychain: KeychainServiceProtocol
@@ -502,11 +386,9 @@ final class PersistenceService: PersistenceServiceProtocol, @unchecked Sendable 
         }
 
         let paths = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask)
-        // Be defensive: this should exist on macOS, but avoid crashing if it doesn't.
         let base = paths.first ?? URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
         let appSupport = base.appendingPathComponent("SaneBar", isDirectory: true)
 
-        // Create directory if needed
         if !fileManager.fileExists(atPath: appSupport.path) {
             try? fileManager.createDirectory(at: appSupport, withIntermediateDirectories: true)
         }
@@ -518,7 +400,6 @@ final class PersistenceService: PersistenceServiceProtocol, @unchecked Sendable 
         appSupportDirectory.appendingPathComponent("settings.json")
     }
 
-    // MARK: - JSON Encoder/Decoder
 
     private let encoder: JSONEncoder = {
         let encoder = JSONEncoder()
@@ -528,7 +409,6 @@ final class PersistenceService: PersistenceServiceProtocol, @unchecked Sendable 
 
     private let decoder = JSONDecoder()
 
-    // MARK: - Settings
 
     private enum LegacyKeychainKeys {
         static let requireAuthToShowHiddenIcons = "settings.requireAuthToShowHiddenIcons"
@@ -552,10 +432,6 @@ final class PersistenceService: PersistenceServiceProtocol, @unchecked Sendable 
         var settings = try decoder.decode(SaneBarSettings.self, from: data)
         var shouldRewriteJSON = false
 
-        // Legacy onboarding migration:
-        // Existing installs can predate this key. If the settings file already
-        // exists but lacks hasCompletedOnboarding, treat as completed so update
-        // launches don't apply first-run defaults or force anchor resets.
         let hasOnboardingKey = hasTopLevelKey("hasCompletedOnboarding", in: data)
         if !hasOnboardingKey {
             settings.hasCompletedOnboarding = true
@@ -576,12 +452,6 @@ final class PersistenceService: PersistenceServiceProtocol, @unchecked Sendable 
             try? keychain.delete(LegacyKeychainKeys.requireAuthToShowHiddenIcons)
         }
 
-        // Reveal-dwell migration (#160/#161/#165): the "menu bar pops open on its
-        // own / icons won't stay hidden" reports trace to the old 0.25s hover/scroll
-        // reveal delay firing on incidental cursor movement. The default is now 2.0s,
-        // but existing installs keep their persisted 0.25s, so the dwell fix never
-        // reached them. Bump the stale old default once; a user who later chooses a
-        // fast delay keeps it (one-time flag).
         let revealDwellMigrationKey = "SaneBar_didMigrateRevealDwell_v1"
         if !userDefaults.bool(forKey: revealDwellMigrationKey) {
             if settings.hoverDelay == 0.25 {
@@ -599,7 +469,6 @@ final class PersistenceService: PersistenceServiceProtocol, @unchecked Sendable 
         return settings
     }
 
-    // MARK: - Clear All
 
     func clearAll() throws {
         try? fileManager.removeItem(at: settingsFileURL)
@@ -615,13 +484,11 @@ final class PersistenceService: PersistenceServiceProtocol, @unchecked Sendable 
         return dict.keys.contains(key)
     }
 
-    // MARK: - Custom Icon
 
     private var customIconURL: URL {
         appSupportDirectory.appendingPathComponent("custom_icon.png")
     }
 
-    /// Save a user-provided image as the custom menu bar icon
     func saveCustomIcon(_ image: NSImage) throws {
         guard let tiffData = image.tiffRepresentation,
               let bitmap = NSBitmapImageRep(data: tiffData),
@@ -632,7 +499,6 @@ final class PersistenceService: PersistenceServiceProtocol, @unchecked Sendable 
         try pngData.write(to: customIconURL, options: .atomic)
     }
 
-    /// Load the custom menu bar icon, if one has been saved
     func loadCustomIcon() -> NSImage? {
         guard fileManager.fileExists(atPath: customIconURL.path),
               let image = NSImage(contentsOf: customIconURL)
@@ -644,7 +510,6 @@ final class PersistenceService: PersistenceServiceProtocol, @unchecked Sendable 
         return image
     }
 
-    /// Load the raw custom icon PNG data, if one has been saved.
     func loadCustomIconData() -> Data? {
         guard fileManager.fileExists(atPath: customIconURL.path) else {
             return nil
@@ -652,7 +517,6 @@ final class PersistenceService: PersistenceServiceProtocol, @unchecked Sendable 
         return try? Data(contentsOf: customIconURL)
     }
 
-    /// Save a raw PNG payload as the current custom icon asset.
     func saveCustomIconData(_ data: Data) throws {
         try data.write(to: customIconURL, options: .atomic)
     }
@@ -669,12 +533,10 @@ final class PersistenceService: PersistenceServiceProtocol, @unchecked Sendable 
         SaneBarCustomIconSnapshot(pngData: loadCustomIconData())
     }
 
-    /// Remove the custom icon file
     func removeCustomIcon() {
         try? fileManager.removeItem(at: customIconURL)
     }
 
-    // MARK: - Profiles
 
     private var profilesDirectory: URL {
         let profiles = appSupportDirectory.appendingPathComponent("profiles", isDirectory: true)
@@ -690,9 +552,7 @@ final class PersistenceService: PersistenceServiceProtocol, @unchecked Sendable 
         profilesDirectory.appendingPathComponent("\(id.uuidString).json")
     }
 
-    /// Save a profile to disk
     func saveProfile(_ profile: SaneBarProfile) throws {
-        // Check limit if creating a new profile (by checking if file exists)
         let url = profileFileURL(for: profile.id)
         if !fileManager.fileExists(atPath: url.path) {
             let existingProfiles = try listProfiles()
@@ -705,7 +565,6 @@ final class PersistenceService: PersistenceServiceProtocol, @unchecked Sendable 
         try data.write(to: url, options: .atomic)
     }
 
-    /// Load a specific profile
     func loadProfile(id: UUID) throws -> SaneBarProfile {
         let url = profileFileURL(for: id)
         guard fileManager.fileExists(atPath: url.path) else {
@@ -715,7 +574,6 @@ final class PersistenceService: PersistenceServiceProtocol, @unchecked Sendable 
         return try decoder.decode(SaneBarProfile.self, from: data)
     }
 
-    /// List all saved profiles
     func listProfiles() throws -> [SaneBarProfile] {
         let contents = try fileManager.contentsOfDirectory(
             at: profilesDirectory,
@@ -730,7 +588,6 @@ final class PersistenceService: PersistenceServiceProtocol, @unchecked Sendable 
         .sorted { $0.name.localizedCompare($1.name) == .orderedAscending }
     }
 
-    /// Merge imported profiles into the local profile store without deleting unrelated profiles.
     func upsertProfiles(_ profiles: [SaneBarProfile]) throws {
         guard !profiles.isEmpty else { return }
 
@@ -749,14 +606,12 @@ final class PersistenceService: PersistenceServiceProtocol, @unchecked Sendable 
         }
     }
 
-    /// Delete a profile
     func deleteProfile(id: UUID) throws {
         let url = profileFileURL(for: id)
         try fileManager.removeItem(at: url)
     }
 }
 
-// MARK: - PersistenceError
 
 enum PersistenceError: Error, LocalizedError {
     case profileNotFound

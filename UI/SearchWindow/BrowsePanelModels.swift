@@ -117,13 +117,6 @@ enum BrowsePanelZoneClassifier {
         )
     }
 
-    /// Classify an app's zone for the All tab. Prefers the authoritative cached
-    /// classification (the same source as the tab counts and `list icon zones`)
-    /// and only falls back to pin state + separator geometry when the app isn't
-    /// present there. Geometry alone is unreliable while the separator is parked
-    /// off-screen — its boundary degrades to a stale/estimated cache value, which
-    /// misclassifies Hidden items as Always Hidden and makes the right-click menu
-    /// offer impossible moves.
     static func zoneForAllTab(
         app: RunningApp,
         context: AllTabContext

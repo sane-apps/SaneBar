@@ -57,11 +57,7 @@ enum StatusBarPositionStore {
         return NSScreen.main ?? NSScreen.screens.first
     }
 
-    // MARK: - Display-Aware Position Validation
 
-    /// Returns true if a position value looks like a pixel offset rather than an ordinal seed.
-    /// Ordinals are small integers (0, 1, 2). The AH sentinel is 10000.
-    /// Pixel offsets from macOS fall in the range ~50–5000 for typical displays.
     nonisolated static func isPixelLikePosition(_ value: Double?) -> Bool {
         guard let v = value else { return false }
         return v > 10 && v < 9000
@@ -76,21 +72,12 @@ enum StatusBarPositionStore {
         isOrdinalSeedLikePosition(mainPosition) && isOrdinalSeedLikePosition(separatorPosition)
     }
 
-    /// Returns true if the stored and current screen widths differ by more than 10%.
     nonisolated static func isSignificantWidthChange(stored: Double, current: Double) -> Bool {
         guard stored > 0 else { return false }
         let ratio = abs(current - stored) / stored
         return ratio > 0.10
     }
 
-    /// Decide whether a display-change-based position reset is safe to apply.
-    /// We only auto-reset when all of the following are true:
-    /// - width change is significant
-    /// - stored values look pixel-based (not ordinal seeds)
-    /// - user is on a single-display setup
-    ///
-    /// Multi-display setups frequently report different "main" widths across restarts
-    /// even when layout is healthy. Resetting there causes avoidable layout regressions.
     nonisolated static func shouldResetForDisplayChange(
         storedWidth: Double,
         currentWidth: Double,
@@ -236,16 +223,9 @@ enum StatusBarPositionStore {
     ) -> Double {
         guard screenWidth > 0 else { return 0 }
         if !screenHasTopSafeAreaInset {
-            // Plain external displays need a much tighter recovery anchor than
-            // notched displays. On the mini's 1920-wide external panel, values
-            // around 140–144 stay pinned beside Control Center while 200 drifts
-            // left into the bad startup lane again.
             return min(160, max(60, screenWidth * 0.075))
         }
 
-        // On notched 14/16" MacBook displays, wider preferred-position values
-        // like 216 on a 1512-wide screen can still relaunch noticeably left of
-        // Control Center. Keep the startup recovery anchor tighter here.
         return 180
     }
 
@@ -315,11 +295,6 @@ enum StatusBarPositionStore {
 
     nonisolated static func launchSafePreferredSeparatorGap(for screenWidth: Double) -> Double {
         guard screenWidth > 0 else { return 120.0 }
-        // Recovery is allowed to move SaneBar back beside Control Center, but it
-        // must not collapse the user's visible lane so far that leftmost shown
-        // items wake up hidden. macOS can canonicalize preferred-position
-        // values after status item creation, so leave enough extra gap that the
-        // live lane remains usable after that rewrite.
         if screenWidth >= 1800 {
             return min(260.0, max(220.0, screenWidth * 0.10))
         }
@@ -606,10 +581,6 @@ enum StatusBarPositionStore {
         return true
     }
 
-    /// Check if positions need a display reset due to a screen width change.
-    /// - First launch after update (no stored width): stamps current width, returns false.
-    /// - Same screen (width matches within 10%): returns false.
-    /// - Different screen AND pixel-like positions: returns true (triggers reset).
     static func positionsNeedDisplayReset(referenceScreen: NSScreen? = nil) -> Bool {
         let defaults = UserDefaults.standard
         let storedWidth = defaults.double(forKey: screenWidthKey)
@@ -626,10 +597,6 @@ enum StatusBarPositionStore {
         let hasOrdinalSeedPositions = hasOrdinalSeedPair(mainPosition: mainPos, separatorPosition: sepPos)
 
         if storedWidth == 0 {
-            // First launch after update — stamp current width, accept positions as-is
-            // Do not eager-reanchor here: the persisted preferred-position values are
-            // not a trustworthy proxy for bad live launch geometry, and mutating them
-            // before status items exist can collapse the user's visible lane.
             defaults.set(currentWidth, forKey: screenWidthKey)
             saveDisplayPositionBackupIfNeeded(
                 for: currentWidth,
@@ -657,15 +624,12 @@ enum StatusBarPositionStore {
             return false
         }
 
-        // Preserve the last known-good layout for the previous display width
-        // before we evaluate whether the current width should reset.
         saveDisplayPositionBackupIfNeeded(
             for: storedWidth,
             mainPosition: StatusBarPositionDefaultsStore.resolvedPreferredPosition(forAutosaveName: mainAutosaveName),
             separatorPosition: StatusBarPositionDefaultsStore.resolvedPreferredPosition(forAutosaveName: separatorAutosaveName)
         )
 
-        // If we have a known-good layout for this display width, restore it and skip reset.
         if restoreDisplayPositionBackupIfAvailable(for: currentWidth, referenceScreen: resolvedReferenceScreen) {
             defaults.set(currentWidth, forKey: screenWidthKey)
             return false
@@ -685,9 +649,6 @@ enum StatusBarPositionStore {
             return true
         }
 
-        // Preserve healthy layouts on multi-display setups where "main" width
-        // can legitimately vary between launches. Re-stamp width to avoid
-        // repeatedly re-evaluating the same benign drift.
         if hasPixelPositions, screenCount > 1 {
             logger.info(
                 "Display validation: width changed (\(storedWidth) → \(currentWidth)) on multi-display setup (\(screenCount) screens) — preserving layout"
@@ -705,13 +666,9 @@ enum StatusBarPositionStore {
         return false
     }
 
-    /// Clears persisted visibility overrides written by macOS after cmd-dragging
-    /// a status item out of the menu bar.
     static func clearPersistedVisibilityOverrides() {
         var clearedAny = false
 
-        // App-domain cleanup: all known SaneBar item namespaces, historical
-        // versions, spacer items, and macOS 26 VisibleCC variants.
         if StatusBarPositionDefaultsStore.removeAllAppKeys(matchingPrefixes: [
             "NSStatusItem Visible SaneBar_",
             "NSStatusItem VisibleCC SaneBar_"
@@ -719,7 +676,6 @@ enum StatusBarPositionStore {
             clearedAny = true
         }
 
-        // ByHost cleanup: wildcard enumeration catches ALL variants
         if StatusBarPositionDefaultsStore.removeAllByHostVisibilityOverrides() {
             clearedAny = true
         }
@@ -729,9 +685,6 @@ enum StatusBarPositionStore {
         }
     }
 
-    /// One-time recovery migration.
-    /// Important: do not version-bump this key for routine patch releases.
-    /// Position resets must be gated on explicit corruption checks.
     static func migrateCorruptedPositionsIfNeeded() {
         let defaults = UserDefaults.standard
         guard !defaults.bool(forKey: stablePositionMigrationKey) else { return }
@@ -749,8 +702,6 @@ enum StatusBarPositionStore {
 
         defaults.set(true, forKey: stablePositionMigrationKey)
 
-        // Backfill legacy migration sentinels so downgrades/older builds don't
-        // re-run broad reset paths on healthy layouts.
         for key in legacyMigrationKeys {
             defaults.set(true, forKey: key)
         }

@@ -24,19 +24,11 @@ enum AccessibilityMenuExtraService {
         let truncated: Bool
     }
 
-    // MARK: - Control Center & Menu Extra Enumeration
 
-    /// Enumerates individual Control Center items (Battery, WiFi, Clock, etc.)
-    /// Returns virtual RunningApp instances for each item with positions.
-    ///
-    /// Control Center owns multiple independent menu bar icons under a single bundle ID.
-    /// This method extracts each as a separate entry using AXIdentifier and AXDescription.
     internal nonisolated static func enumerateControlCenterItems(pid: pid_t) -> [MenuBarItemPosition] {
         enumerateMenuExtraItems(pid: pid, ownerBundleId: "com.apple.controlcenter")
     }
 
-    /// Enumerates individual system menu extra items owned by a single process (e.g. Control Center, SystemUIServer).
-    /// Returns virtual RunningApp instances for each item with positions.
     internal nonisolated static func enumerateMenuExtraItems(
         pid: pid_t,
         ownerBundleId: String,
@@ -128,8 +120,6 @@ enum AccessibilityMenuExtraService {
         ) != nil
     }
 
-    /// Resolve candidate menu bar roots. Prefer AXExtrasMenuBar; allow AXMenuBar fallback
-    /// only for known Apple owners where AXExtrasMenuBar is missing on some OS builds.
     private nonisolated static func menuBarRoots(
         for appElement: AXUIElement,
         ownerBundleId: String,
@@ -158,7 +148,6 @@ enum AccessibilityMenuExtraService {
         return roots
     }
 
-    /// Collect AXMenuBarItem descendants from a root menu bar element.
     private nonisolated static func collectMenuBarItems(from root: AXUIElement) -> CollectedMenuBarItems {
         var collected: [AXUIElement] = []
         var visited = Set<CFHashCode>()
@@ -209,8 +198,6 @@ enum AccessibilityMenuExtraService {
         return CollectedMenuBarItems(items: collected, truncated: hitTraversalLimit)
     }
 
-    /// Resolve a stable menu-extra identifier for Apple-owned extras.
-    /// Falls back to label-based mapping for known items (e.g. Siri) when AXIdentifier is missing.
     internal nonisolated static func canonicalMenuExtraIdentifier(
         ownerBundleId: String,
         rawIdentifier: String?,
@@ -221,7 +208,6 @@ enum AccessibilityMenuExtraService {
         let normalizedIdentifier = rawIdentifier?.trimmingCharacters(in: .whitespacesAndNewlines)
         let normalizedLabel = rawLabel?.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        // Non-Apple owners: keep whatever AXIdentifier we have.
         if !ownerBundleId.hasPrefix("com.apple.") {
             if let normalizedIdentifier, !normalizedIdentifier.isEmpty {
                 return normalizedIdentifier
@@ -247,7 +233,6 @@ enum AccessibilityMenuExtraService {
             }
         }
 
-        // For Apple owners, only trust label fallback when the item is actually visible.
         guard width > 0 else { return nil }
         if let normalizedLabel, let mapped = mapKnownAppleMenuExtra(from: normalizedLabel) {
             return mapped
@@ -294,7 +279,6 @@ enum AccessibilityMenuExtraService {
         return nil
     }
 
-    // MARK: - Status Item Targeting & Verification Helpers
 
     nonisolated static func captureStatusItemReactionSnapshot(
         item: AXUIElement,
@@ -433,8 +417,6 @@ enum AccessibilityMenuExtraService {
         return nil
     }
 
-    /// Lightweight position query for polling loops (e.g. `waitForIconOnScreen`).
-    /// Returns the center point of the icon's AX frame, or nil if unavailable.
     nonisolated static func menuBarItemPosition(bundleID: String, menuExtraId: String? = nil, statusItemIndex: Int? = nil) -> CGPoint? {
         guard let frame = getMenuBarIconFrame(bundleID: bundleID, menuExtraId: menuExtraId, statusItemIndex: statusItemIndex) else {
             return nil
@@ -802,9 +784,6 @@ enum AccessibilityMenuExtraService {
         preferredCenterX: CGFloat?,
         screenFrames: [CGRect]? = nil
     ) -> Bool {
-        // Actionable flows should not keep resolving by stale ordinal alone after an
-        // explicit AX identifier miss. Require a live spatial hint so nearest-item
-        // fallback cannot silently jump to a sibling in a same-bundle host family.
         AccessibilityMenuExtraFrameResolver.screenValidPreferredCenterX(
             preferredCenterX,
             screenFrames: screenFrames

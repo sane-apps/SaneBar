@@ -12,10 +12,9 @@ struct GeneralSettingsView: View {
     @ObservedObject private var licenseService = LicenseService.shared
     @State private var updateCheckFrequency: UpdateCheckFrequency = .daily
     @State private var isCheckingForUpdates = false
-    @State private var isAuthenticating = false // Prevent duplicate auth prompts
+    @State private var isAuthenticating = false
     @State private var proUpsellFeature: ProFeature?
 
-    // Profiles Logic
     @State private var savedProfiles: [SaneBarProfile] = []
     @State private var showingSaveProfileAlert = false
     @State private var newProfileName = ""
@@ -100,21 +99,17 @@ struct GeneralSettingsView: View {
         }
     }
 
-    /// Custom binding that requires auth to disable the security setting.
     private var requireAuthBinding: Binding<Bool> {
         Binding(
             get: { menuBarManager.settings.requireAuthToShowHiddenIcons },
             set: { newValue in
                 let currentValue = menuBarManager.settings.requireAuthToShowHiddenIcons
 
-                // Enabling: allow immediately
                 if newValue == true, currentValue == false {
                     menuBarManager.settings.requireAuthToShowHiddenIcons = true
                     return
                 }
 
-                // Disabling: require auth first (if currently enabled)
-                // Guard against duplicate auth requests
                 if currentValue == true, newValue == false, !isAuthenticating {
                     isAuthenticating = true
                     Task {
@@ -149,7 +144,6 @@ struct GeneralSettingsView: View {
 
     var body: some View {
         SaneSettingsPage {
-                // 1. Browse Icons
                 GeneralSettingsBrowseSection(
                     menuBarManager: menuBarManager,
                     licenseService: licenseService,
@@ -160,14 +154,12 @@ struct GeneralSettingsView: View {
                     showProUpsell: { proUpsellFeature = $0 }
                 )
 
-                // 2. Everyday Hiding
                 GeneralSettingsHidingSection(
                     menuBarManager: menuBarManager,
                     licenseService: licenseService,
                     showProUpsell: { proUpsellFeature = $0 }
                 )
 
-                // 3. Profiles                // 3. Profiles — Pro
                 CompactSection("Saved Profiles") {
                     if licenseService.isPro {
                         if savedProfiles.isEmpty {
@@ -214,7 +206,6 @@ struct GeneralSettingsView: View {
                     }
                 }
 
-                // 4. Layout Repair
                 CompactSection("Layout Repair") {
                     CompactToggle(
                         label: "Repair after wake or display changes",
@@ -239,7 +230,6 @@ struct GeneralSettingsView: View {
                     }
                 }
 
-                // 5. Security — Pro
                 CompactSection("Security") {
                     if licenseService.isPro {
                         CompactToggle(label: "Touch ID to unlock hidden icons", isOn: requireAuthBinding)
@@ -249,19 +239,16 @@ struct GeneralSettingsView: View {
                     }
                 }
 
-                // 6. Startup Status
                 CompactSection("Startup") {
                     SaneLoginItemToggle()
                     CompactDivider()
                     SaneDockIconToggle(showDockIcon: showDockIconBinding)
                 }
 
-                // 7. Updates
                 if licenseService.distributionChannel.supportsInAppUpdates {
                     softwareUpdatesSection
                 }
 
-                // 8. Data — Pro
                 CompactSection("Data") {
                     if licenseService.isPro {
                         CompactRow("Settings") {
@@ -294,7 +281,6 @@ struct GeneralSettingsView: View {
                     }
                 }
 
-                // 9. Troubleshooting
                 CompactSection("Maintenance") {
                     CompactRow("Reset App") {
                         Button("Reset to Defaults…") {
@@ -340,7 +326,6 @@ struct GeneralSettingsView: View {
         }
     }
 
-    // MARK: - Pro Gating Helper
 
     private var softwareUpdatesSection: some View {
         CompactSection("Software Updates") {
@@ -385,7 +370,6 @@ struct GeneralSettingsView: View {
     private func applyBrowseIconsViewSelection(_ useSecondMenuBar: Bool) {
         let wasBrowseVisible = SearchWindowController.shared.isVisible
         menuBarManager.settings.useSecondMenuBar = useSecondMenuBar
-        // Icon Panel is the primary browse workflow. Keep always-hidden available there.
         if !useSecondMenuBar, licenseService.isPro, !menuBarManager.settings.alwaysHiddenSectionEnabled {
             menuBarManager.settings.alwaysHiddenSectionEnabled = true
         }
@@ -463,7 +447,6 @@ struct GeneralSettingsView: View {
         }
     }
 
-    // MARK: - Profile Helpers
 
     private func loadProfiles() {
         do {
@@ -509,7 +492,6 @@ struct GeneralSettingsView: View {
         }
     }
 
-    // MARK: - Export / Import
 
     private func exportSettings() {
         let panel = NSSavePanel()
@@ -683,7 +665,6 @@ struct GeneralSettingsView: View {
         }
     }
 
-    // MARK: - Bartender Import
 
     private func importBartenderSettings() {
         let panel = NSOpenPanel()
@@ -712,7 +693,6 @@ struct GeneralSettingsView: View {
         }
     }
 
-    // MARK: - Ice Import
 
     private func importIceSettings() {
         let defaultPath = FileManager.default.homeDirectoryForCurrentUser

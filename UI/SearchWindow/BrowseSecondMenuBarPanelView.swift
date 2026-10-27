@@ -22,8 +22,6 @@ struct BrowseSecondMenuBarPanelView: View {
             onDismiss: onDismiss,
             onActivate: onActivate,
             onRetry: onRetry,
-            // Moves already emit .menuBarIconsDidChange after cache invalidation.
-            // Avoid a second forced refresh path here to reduce scan latency/races.
             onIconMoved: nil,
             searchText: $searchTextBinding
         )

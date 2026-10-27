@@ -2,12 +2,9 @@ import AppKit
 import Foundation
 import ServiceManagement
 
-// Entry point for SaneBar
-// Using manual main.swift instead of @main to control initialization timing
 
 let app = NSApplication.shared
 
-// Handle command line arguments
 let args = CommandLine.arguments
 if args.contains("--unregister") {
     print("[SaneBar] Unregistering from background services...")
@@ -20,23 +17,11 @@ if args.contains("--unregister") {
     exit(0)
 }
 
-// CRITICAL: Set activation policy to .accessory BEFORE app.run()
-// This ensures NSStatusItem windows are created at window layer 25 (status bar layer)
-// instead of layer 0 (regular window layer). Setting this in applicationDidFinishLaunching
-// is TOO LATE - the window layer is determined when the run loop starts.
 app.setActivationPolicy(.accessory)
 app.appearance = NSAppearance(named: .darkAqua)
 
-// SAFETY: Enforce bundle ID separation between dev and release builds
-// ProdDebug config uses production bundle ID intentionally (for testing with real permissions)
 let bundleId = Bundle.main.bundleIdentifier ?? "(unknown)"
-#if SETAPP
-    let expectedBundleId = "com.sanebar.app-setapp"
-    if bundleId != expectedBundleId {
-        fatalError("Setapp build must use Setapp bundle ID (\(expectedBundleId)). Found: \(bundleId)")
-    }
-#elseif PRODDEBUG
-    // ProdDebug: production bundle ID is expected — no check needed
+#if PRODDEBUG
 #elseif DEBUG
     if bundleId == "com.sanebar.app" {
         let env = ProcessInfo.processInfo.environment
@@ -50,6 +35,13 @@ let bundleId = Bundle.main.bundleIdentifier ?? "(unknown)"
         fatalError("Release build must use production bundle ID (\(expectedBundleId)). Found: \(bundleId)")
     }
 #endif
+
+if GoldenGateNotice.applies {
+    let notice = GoldenGateNoticeDelegate()
+    app.delegate = notice
+    app.run()
+    exit(0)
+}
 
 SaneBarAppDelegate.installNoKeychainAutomationSignalGuardIfNeeded()
 

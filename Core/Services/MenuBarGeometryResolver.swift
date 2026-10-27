@@ -13,14 +13,6 @@ final class MenuBarGeometryResolver {
         cache = manager.geometryCache
     }
 
-    /// Screen-relative liveness for a status-item window's TRUE frame that
-    /// tolerates AppKit returning a nil `NSWindow.screen`. When `window.screen` is
-    /// populated we judge against it exactly as before; when it is nil (off-edge
-    /// hidden separator, external-display topology churn) we recover the
-    /// screen-relative judgement by testing the frame against the known candidate
-    /// screens. Off-screen frames match no band and stay rejected — this only
-    /// fixes the false-negative where a live frame lost its `.screen` attachment
-    /// and was wrongly demoted to `.stale`/`.missing`, stranding recovery.
     private func windowFrameIsLive(_ window: NSWindow) -> Bool {
         let resolvedScreenFrame = MenuBarMoveGeometryPolicy.resolvedScreenFrameForStatusItemWindow(
             windowFrame: window.frame,
@@ -33,10 +25,6 @@ final class MenuBarGeometryResolver {
         )
     }
 
-    /// Screens the status items could legitimately live on, most-likely first.
-    /// The recovery reference screen (the display that currently owns SaneBar's
-    /// items) leads so the common single/active-display case resolves immediately;
-    /// the remaining screens cover multi-display setups. No synthetic screens.
     private func candidateScreenFramesForLiveness() -> [CGRect] {
         var frames: [CGRect] = []
         if let referenceFrame = manager.currentRecoveryReferenceScreen()?.frame {
@@ -49,9 +37,6 @@ final class MenuBarGeometryResolver {
     }
 
     func resolvedSeparatorRightEdgeFromCaches(allowEstimatedFallback: Bool = true) -> CGFloat? {
-        // Never write the normalized result back to the cache: it can be
-        // estimate-derived, and laundering estimates into "cached" status is
-        // how stale geometry gained trust in the #136 drift family.
         MenuBarMoveGeometryPolicy.normalizedSeparatorRightEdge(
             cachedRightEdge: cache.lastKnownSeparatorRightEdgeX,
             cachedOrigin: cache.lastKnownSeparatorX,
@@ -83,7 +68,6 @@ final class MenuBarGeometryResolver {
             return rightEdge
         }
 
-        // Estimated values are returned to the caller but never cached.
         return MenuBarMoveGeometryPolicy.estimatedMainStatusItemLeftEdge(
             separatorIsPresentInVisualMode: true,
             separatorRightEdge: cache.lastKnownSeparatorRightEdgeX,
@@ -107,15 +91,6 @@ final class MenuBarGeometryResolver {
     }
 
     func currentLiveAlwaysHiddenSeparatorFrame() -> CGRect? {
-        // Liveness is judged SOLELY by the screen-relative window-frame check.
-        // The previous `length <= 1000` clause was redundant with (and weaker
-        // than) `statusItemWindowFrameIsReadableLive`: a hidden AH separator uses
-        // length 10000 to push items off-screen, but its own window may still sit
-        // live in the menu-bar band (and outbound moves contract it back to a
-        // small visual length first). The length cap therefore could never return
-        // live for a hidden separator and silently blocked outbound Always-Hidden
-        // moves (#155/#156/#166). Off-screen rejection is preserved by the
-        // window-frame band check, which is independent of `length`.
         guard let alwaysHiddenSeparatorItem = manager.alwaysHiddenSeparatorItem,
               let separatorButton = alwaysHiddenSeparatorItem.button,
               let separatorWindow = separatorButton.window
@@ -124,9 +99,6 @@ final class MenuBarGeometryResolver {
         }
 
         let frame = separatorWindow.frame
-        // `windowFrameIsLive` IS the screen-relative readable-live decision
-        // (statusItemWindowFrameIsReadableLive delegates to statusItemFrameLooksLive),
-        // now with the nil-`window.screen` recovery applied.
         guard windowFrameIsLive(separatorWindow) else {
             return nil
         }

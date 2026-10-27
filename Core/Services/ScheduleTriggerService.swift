@@ -3,14 +3,7 @@ import os.log
 
 private let logger = Logger(subsystem: "com.sanebar.app", category: "ScheduleTrigger")
 
-// MARK: - ScheduleTriggerService
 
-/// Service that reveals hidden icons when local time enters a configured schedule window.
-///
-/// Behavior:
-/// - Checks once per minute
-/// - Triggers only on transition "outside -> inside" to avoid repeated reveals
-/// - Supports overnight windows (e.g. 22:00 -> 06:00)
 @MainActor
 final class ScheduleTriggerService {
     private weak var menuBarManager: MenuBarManager?
@@ -106,7 +99,6 @@ final class ScheduleTriggerService {
         guard allowedDays.contains(weekday) else { return false }
 
         if startMinutes == endMinutes {
-            // Same start/end means full-day schedule for selected weekdays.
             return true
         }
 
@@ -114,7 +106,6 @@ final class ScheduleTriggerService {
             return nowMinutes >= startMinutes && nowMinutes < endMinutes
         }
 
-        // Overnight window (e.g. 22:00 -> 06:00)
         return nowMinutes >= startMinutes || nowMinutes < endMinutes
     }
 }

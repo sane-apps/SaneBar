@@ -3,8 +3,6 @@ import os.log
 
 private let eventLogger = Logger(subsystem: "com.sanebar.app", category: "EventTracker")
 
-/// Anonymous aggregate event tracking via sane-dist Worker.
-/// Fire-and-forget, silent failure — must never affect app behavior.
 enum EventTracker {
     private static let endpoint = "https://dist.saneapps.com/api/event"
 
@@ -90,13 +88,9 @@ enum EventTracker {
     }
 
     static func distributionChannel(bundle: Bundle) -> String {
-        #if SETAPP
-            "setapp"
-        #else
-            ((bundle.object(forInfoDictionaryKey: "AppStoreProductID") as? String)?
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-                .nonEmpty) != nil ? "app_store" : "direct"
-        #endif
+        ((bundle.object(forInfoDictionaryKey: "AppStoreProductID") as? String)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .nonEmpty) != nil ? "app_store" : "direct"
     }
 
     static func resolvedTier(explicitTier: String?, event: String) -> String? {

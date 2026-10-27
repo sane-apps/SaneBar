@@ -21,7 +21,6 @@ final class MenuBarLifecycleWorkflow {
         manager.settings = manager.settingsController.settings
         manager.observerWorkflow.setInitialSettings(manager.settings)
 
-        // Apply dock visibility immediately so the Dock icon does not flash on startup.
         SaneActivationPolicy.applyPolicy(showDockIcon: manager.settings.showDockIcon)
     }
 
@@ -39,7 +38,6 @@ final class MenuBarLifecycleWorkflow {
         defaults.set(true, forKey: Self.passiveRevealDefaultsMigrationKey)
     }
 
-    /// Deferred UI setup with initial delay to ensure WindowServer is ready.
     func deferredUISetup() {
         let initialDelay = MenuBarManager.statusItemCreationDelaySeconds(
             environmentOverrideMs: ProcessInfo.processInfo.environment["SANEBAR_STATUSITEM_DELAY_MS"],
@@ -242,7 +240,6 @@ final class MenuBarLifecycleWorkflow {
         }
     }
 
-    /// Prevent development/test builds from mutating persistent login-item state.
     private func canMutateLaunchAtLogin() -> Bool {
         let bundlePath = Bundle.main.bundleURL.path
         let bundleID = Bundle.main.bundleIdentifier ?? ""

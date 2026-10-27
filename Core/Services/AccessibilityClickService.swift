@@ -67,13 +67,11 @@ final class AccessibilityClickService {
         }
     }
 
-    // MARK: - Actions
 
     nonisolated func clickMenuBarItem(for bundleID: String) -> Bool {
         clickMenuBarItem(bundleID: bundleID, menuExtraId: nil, fallbackCenter: nil)
     }
 
-    /// Perform a "Virtual Click" on a specific menu bar item.
     nonisolated func clickMenuBarItem(bundleID: String, menuExtraId: String?, statusItemIndex: Int? = nil, fallbackCenter: CGPoint? = nil, isRightClick: Bool = false, preferHardwareFirst: Bool = false, allowImmediateFallbackCenter: Bool = true) -> Bool {
         clickMenuBarItemResult(
             bundleID: bundleID,
@@ -147,8 +145,6 @@ final class AccessibilityClickService {
             Task { @MainActor in
                 AccessibilityService.shared.markExtrasMenuBarUnavailable(bundleID: bundleID)
             }
-            // If AX bar is unavailable, frame-based fallback usually fails too.
-            // Use spatial fallback (from scanner coordinates) when available.
             if let fallbackCenter = validatedRawSpatialFallbackCenter(
                 bundleID: bundleID,
                 fallbackCenter: fallbackCenter,
@@ -269,12 +265,6 @@ final class AccessibilityClickService {
             accessibilityClickLogger.info("Hardware-first click did not resolve target; falling back to AX actions")
         }
 
-        // Verify item is on-screen before AXPress. After SaneBar reveals hidden
-        // items, macOS re-layouts asynchronously. AXPress returns .success on
-        // off-screen elements without opening any menu — this is why left-click
-        // (AXPress path) fails while right-click (hardware path) works (#102).
-        // Hardware click already has its own on-screen polling via
-        // AccessibilityMenuExtraFrameResolver.getMenuBarIconFrameOnScreen(); AXPress was missing this gate.
         if !itemOnScreen {
             accessibilityClickLogger.info("Target item off-screen; skipping AXPress, using hardware click")
             return verifiedClickResult(
@@ -292,7 +282,6 @@ final class AccessibilityClickService {
             )
         }
 
-        // Try AX first
         if performSmartPress(on: item, isRightClick: isRightClick) {
             return verifiedClickResult(
                 dispatched: true,
@@ -302,7 +291,6 @@ final class AccessibilityClickService {
             )
         }
 
-        // Fallback to hardware event
         return verifiedClickResult(
             dispatched: hardwareClickAsFallback(
                 bundleID: bundleID,
@@ -348,15 +336,12 @@ final class AccessibilityClickService {
     }
 
     private nonisolated func applyInteractionMessagingTimeout(to element: AXUIElement) {
-        // Keep browse activation responsive when a status item blocks AX reads after re-layout.
         AXUIElementSetMessagingTimeout(element, 0.18)
     }
 
     // swiftlint:disable:next function_parameter_count
     private nonisolated func hardwareClickAsFallback(bundleID: String, menuExtraId: String?, statusItemIndex: Int?, fallbackCenter: CGPoint?, isRightClick: Bool, allowImmediateFallbackCenter: Bool) -> Bool {
         accessibilityClickLogger.info("Performing hardware click fallback for \(bundleID)")
-        // Fast path: if caller already provided an on-screen target center,
-        // click there immediately instead of AX frame polling.
         if allowImmediateFallbackCenter,
            let fallbackCenter,
            AccessibilityInteractionPolicy.isAccessibilityPointOnAnyScreen(fallbackCenter) {
@@ -470,12 +455,7 @@ final class AccessibilityClickService {
         return .unavailable("no comparable AX reaction signals")
     }
 
-    // MARK: - On-Screen Verification
 
-    /// Check whether an AX element's position is on any connected screen.
-    /// Hidden icons are pushed far off-screen (x ≈ -3000+). AXPress returns
-    /// .success on these elements without opening any menu — this gate ensures
-    /// we only attempt AXPress on genuinely visible items.
     private nonisolated func isElementOnScreen(_ element: AXUIElement) -> Bool {
         var positionValue: CFTypeRef?
         guard AXUIElementCopyAttributeValue(element, kAXPositionAttribute as CFString, &positionValue) == .success,
@@ -506,7 +486,6 @@ final class AccessibilityClickService {
         )
     }
 
-    // MARK: - Interaction
 
     private nonisolated func performSmartPress(on element: AXUIElement, isRightClick: Bool) -> Bool {
         if isRightClick {
@@ -527,8 +506,6 @@ final class AccessibilityClickService {
             return false
         }
 
-        // Some apps (Antinote, BetterDisplay) have nested clickable elements.
-        // We look for any child that supports AXPress if the top-level doesn't.
         if performPress(on: element) { return true }
 
         let childItems = AccessibilityBoundedAXChildFetch.children(of: element, maxCount: 16).children
