@@ -35,7 +35,7 @@ are needed to build and test — the tracked Xcode project builds as-is.
 |---------|---------|
 | `./Scripts/SaneMaster.rb verify` | Build + run all tests |
 | `./Scripts/SaneMaster.rb test_mode` | Kill → Build → Launch → Stream logs |
-| `./Scripts/sanebar_logwatch.sh` | Stream live app logs |
+| `log stream --predicate 'subsystem == "com.sanebar.app"'` | Stream live app logs |
 
 `SaneMaster.rb` falls back to `Scripts/SaneMaster_standalone.rb` (plain
 `xcodebuild`) outside the original maintainer's machines — that fallback is

@@ -1,5 +1,5 @@
 # SaneProcess compliance manifest
-# Metadata read by Scripts/qa.rb and the (maintainer-only) SaneProcess tooling.
+# Metadata read by the (maintainer-only) SaneProcess tooling.
 name: SaneBar
 type: macos_app
 scheme: SaneBar
@@ -10,6 +10,12 @@ build:
   xcodegen: true
 
 release:
+  upgrade_path_test:
+    scheme: SaneBar
+    test_selector: SaneBarTests/UpgradePathTests/settingsFrom2190SurviveUpgrade()
+    from_version: "2.1.90"
+    timeout_seconds: 600
+    unsigned_tests: true
   team_id: M78L6FXD48
   signing_identity: "Developer ID Application"
   dist_host: dist.sanebar.com
