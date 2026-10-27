@@ -8,9 +8,9 @@ All notable changes to SaneBar are documented here.
 
 ---
 
-## [2.1.91] - 2026-09-09
+## [2.1.91] - 2026-10-27
 
-Liquid Glass menu-bar tint now follows the Rounded Corners setting. With corners off, the bar stays square instead of picking up the default capsule rounding.
+On macOS 27, SaneBar can no longer hide icons, so it now shows a short notice instead of starting. It lists the apps you kept hidden, opens Menu Bar settings in one click, and stops SaneBar opening at login. On macOS 26 and earlier, the Liquid Glass menu-bar tint now follows the Rounded Corners setting.
 
 ---
 
