@@ -285,7 +285,7 @@ The full root-cause history behind this contract is in git history
 
 ## Testing Strategy
 
-- `Tests/` holds one Swift Testing file for the macOS 27 notice.
+- `Tests/` holds two Swift Testing files: the macOS 27 notice and the upgrade path from 2.1.90.
 - On macOS 27, `main.swift` runs `UI/GoldenGateNotice.swift` instead of the app.
 - Primary entry point for verification: `./Scripts/SaneMaster.rb verify`.
 - Search/trigger flows are largely integration-tested via MenuBarManager + services.

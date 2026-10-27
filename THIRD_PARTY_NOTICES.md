@@ -3,9 +3,7 @@
 SaneBar is developed by SaneApps and licensed under the MIT License (see [LICENSE](LICENSE)).
 This file documents third-party software used by SaneBar and required attribution.
 
-Other package dependencies: [Setapp-framework](https://github.com/MacPaw/Setapp-framework)
-(used only by the historical `SaneBarSetapp` scheme; see its repository for license terms)
-and [SaneUI](https://github.com/sane-apps/SaneUI) (first-party SaneApps package, MIT).
+Other package dependencies: [SaneUI](https://github.com/sane-apps/SaneUI) (first-party SaneApps package, MIT).
 
 ## Direct dependencies
 

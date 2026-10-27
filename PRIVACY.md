@@ -139,7 +139,7 @@ These events may include:
 - event name
 - app version and build
 - macOS version
-- distribution channel (`direct`, `app_store`, or `setapp`)
+- distribution channel (`direct`)
 - license tier (a legacy field — every current build is fully unlocked, so this no longer distinguishes users)
 - update lifecycle events such as update available or update install started (legacy purchase events no longer occur now that SaneBar is free)
 - update target version/build when Sparkle offers or starts installing an update

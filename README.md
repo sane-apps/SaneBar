@@ -3,12 +3,14 @@
 [![GitHub stars](https://img.shields.io/github/stars/sane-apps/SaneBar?style=flat-square)](https://github.com/sane-apps/SaneBar/stargazers)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Release](https://img.shields.io/github/v/release/sane-apps/SaneBar)](https://github.com/sane-apps/SaneBar/releases)
-[![macOS 14.0+](https://img.shields.io/badge/macOS-14.0%2B-blue)](https://github.com/sane-apps/SaneBar/releases)
+[![macOS 14 to 26](https://img.shields.io/badge/macOS-14%20to%2026-blue)](https://github.com/sane-apps/SaneBar/releases)
 [![Privacy: On-Device by Default](https://img.shields.io/badge/Privacy-On--Device%20by%20Default-success)](PRIVACY.md)
 [![Listed on awesome-macos](https://img.shields.io/badge/Listed%20on-macOS--apps%20(40k%E2%98%85)-black)](https://github.com/serhii-londar/open-source-mac-os-apps)
 
 > ### 🎉 SaneBar is now 100% free and open source
 > Every Pro feature is unlocked for everyone — no license key, no trial, no strings. MIT licensed: use it, fork it, ship your own version. **[Read the full announcement](https://github.com/sane-apps/SaneBar/releases/tag/sunset)** for why (spoiler: macOS 27 breaks every menu bar manager) and what it means for you.
+>
+> **On macOS 27?** SaneBar can't hide icons there. Version 2.1.91 shows a short notice instead and points you to macOS's own Menu Bar settings. See **[how to hide menu bar icons on macOS 27](https://sanebar.com/how-to-hide-menu-bar-icons-on-macos-27)**.
 >
 > SaneBar is community-maintained now. Found a bug and fixed it? **Pull requests are reviewed and merged** — see [Become a Contributor](#become-a-contributor-even-if-you-dont-code) below, even if you don't code.
 >
@@ -59,7 +61,7 @@ brew install --cask --adopt sane-apps/tap/sanebar
 
 Or **[download directly](https://sanebar.com)** · or [build from source](#for-developers)
 
-**Requirements:** macOS 14.0+ (Sonoma or later), Apple Silicon (arm64) only
+**Requirements:** macOS 14.0 (Sonoma) through macOS 26, Apple Silicon (arm64) only. On macOS 27 it shows a notice instead of running.
 
 SaneBar updates itself automatically via Sparkle. `brew upgrade` works too if you prefer.
 

@@ -23,7 +23,7 @@ enum GoldenGateNotice {
         for raw in ids where !raw.hasPrefix("com.apple.menuextra.") {
             let bundleId = raw.components(separatedBy: "::").first ?? raw
             guard let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleId) else { continue }
-            let name = FileManager.default.displayName(atPath: appURL.path).replacingOccurrences(of: ".app", with: "")
+            let name = appURL.deletingPathExtension().lastPathComponent
             if !names.contains(name) {
                 names.append(name)
             }

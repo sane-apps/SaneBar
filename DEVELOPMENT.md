@@ -73,7 +73,8 @@ refactorable and are not. Before changing anything there, read:
 
 ## Testing
 
-- `Tests/GoldenGateNoticeTests.swift` (Swift Testing) covers the macOS 27 notice.
+- `Tests/` (Swift Testing) covers the macOS 27 notice and the upgrade path from 2.1.90
+  (`UpgradePathTests`, also the release upgrade proof).
   The older suite was removed in 2.1.91 to keep the sunset repo small; it is in
   git history.
 - On macOS 27 the app shows only the notice in `UI/GoldenGateNotice.swift`. Set
